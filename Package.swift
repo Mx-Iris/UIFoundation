@@ -18,7 +18,7 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(path: "/Volumes/Repositories/Private/Personal/Library/Multi/FrameworkToolbox")
+        .package(url: "https://github.com/Mx-Iris/FrameworkToolbox", branch: "main")
     ],
     targets: [
         .target(
