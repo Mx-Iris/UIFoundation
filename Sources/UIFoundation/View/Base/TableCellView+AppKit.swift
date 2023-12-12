@@ -53,6 +53,7 @@ open class ImageTextTableCellView: TableCellView {
         }
         
         _textField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        _textField.maximumNumberOfLines = 1
     }
 }
 
@@ -73,6 +74,7 @@ open class TextTableCellView: TableCellView {
         }
         
         _textField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        _textField.maximumNumberOfLines = 1
     }
 }
 
