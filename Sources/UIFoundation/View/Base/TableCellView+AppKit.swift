@@ -49,7 +49,10 @@ open class ImageTextTableCellView: TableCellView {
         _textField.makeConstraints { make in
             make.leftAnchor.constraint(equalTo: _imageView.rightAnchor, constant: 10)
             make.centerYAnchor.constraint(equalTo: centerYAnchor)
+            make.rightAnchor.constraint(lessThanOrEqualTo: rightAnchor)
         }
+        
+        _textField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     }
 }
 
@@ -66,7 +69,10 @@ open class TextTableCellView: TableCellView {
         _textField.makeConstraints { make in
             make.leftAnchor.constraint(equalTo: leftAnchor)
             make.centerYAnchor.constraint(equalTo: centerYAnchor)
+            make.rightAnchor.constraint(lessThanOrEqualTo: rightAnchor)
         }
+        
+        _textField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     }
 }
 
