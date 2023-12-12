@@ -6,8 +6,6 @@ import AppKit
 import UIKit
 #endif
 
-
-
 open class XiblessView: _NSUIView {
     public override init(frame frameRect: CGRect) {
         super.init(frame: frameRect)
