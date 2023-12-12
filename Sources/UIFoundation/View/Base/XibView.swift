@@ -2,11 +2,10 @@
 
 import AppKit
 
-open class XibView: View {
+open class XibView: _NSUIView {
     @IBOutlet open var contentView: NSView!
 
-    open override func commonInit() {
-        super.commonInit()
+    open func commonInit() {
 
         NSNib(nibClass: Self.self)?.instantiate(withOwner: self, topLevelObjects: nil)
 
