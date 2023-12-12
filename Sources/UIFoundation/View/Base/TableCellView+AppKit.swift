@@ -9,7 +9,6 @@ open class TableCellView: NSTableCellView {
         makeUI()
     }
 
-    @available(*, unavailable)
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
         makeUI()
@@ -26,6 +25,48 @@ open class TableCellView: NSTableCellView {
     open override func layout() {
         super.layout()
         _ = _firstLayout
+    }
+}
+
+open class ImageTextTableCellView: TableCellView {
+    public let _imageView = ImageView()
+    public let _textField = Label()
+
+    open override func makeUI() {
+        super.makeUI()
+
+        imageView = _imageView
+        textField = _textField
+
+        addSubview(_imageView)
+        addSubview(_textField)
+
+        _imageView.makeConstraints { make in
+            make.leftAnchor.constraint(equalTo: leftAnchor)
+            make.centerYAnchor.constraint(equalTo: centerYAnchor)
+        }
+
+        _textField.makeConstraints { make in
+            make.leftAnchor.constraint(equalTo: _imageView.rightAnchor, constant: 10)
+            make.centerYAnchor.constraint(equalTo: centerYAnchor)
+        }
+    }
+}
+
+open class TextTableCellView: TableCellView {
+    public let _textField = Label()
+
+    open override func makeUI() {
+        super.makeUI()
+
+        textField = _textField
+
+        addSubview(_textField)
+
+        _textField.makeConstraints { make in
+            make.leftAnchor.constraint(equalTo: leftAnchor)
+            make.centerYAnchor.constraint(equalTo: centerYAnchor)
+        }
     }
 }
 
