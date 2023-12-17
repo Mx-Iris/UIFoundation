@@ -1,10 +1,4 @@
-//
-//  BorderLabel.swift
-//  CodeOrganizerUI
-//
-//  Created by JH on 2023/10/13.
-//
-
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
 import AppKit
 
 open class RoundedBorderLabel: Label {
@@ -40,3 +34,4 @@ open class RoundedBorderLabel: Label {
         layer?.cornerRadius = bounds.height / 2
     }
 }
+#endif

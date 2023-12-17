@@ -19,6 +19,35 @@ extension FrameworkToolbox where Base: NSColor {
     public static func fromHexString(hexString: String) -> NSColor {
         return NSColor(hexString: hexString) ?? NSColor.black
     }
+    
+    private struct Components {
+        var r: CGFloat = 0.0
+        var g: CGFloat = 0.0
+        var b: CGFloat = 0.0
+        var a: CGFloat = 0.0
+    }
+
+    private func components() -> Components {
+        var result = Components()
+        base.getRed(&result.r, green: &result.g, blue: &result.b, alpha: &result.a)
+        return result
+    }
+
+    public var contrastingTextColor: NSColor {
+        if base == NSColor.clear {
+            return .textColor
+        }
+
+        guard let c1 = base.usingColorSpace(.deviceRGB) else {
+            return .textColor
+        }
+
+        let rgbColor = c1.box.components()
+
+        // Counting the perceptive luminance - human eye favors green color...
+        let avgGray: CGFloat = 1 - (0.299 * rgbColor.r + 0.587 * rgbColor.g + 0.114 * rgbColor.b)
+        return avgGray > 0.5 ? .white : .black
+    }
 }
 
 extension NSColor {
@@ -82,6 +111,8 @@ extension NSColor {
         let alpha = CGFloat(hex8 & 0x000000FF) / divisor
         self.init(red: red, green: green, blue: blue, alpha: alpha)
     }
+    
+    
 }
 
 #endif

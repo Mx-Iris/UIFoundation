@@ -59,6 +59,25 @@ extension FrameworkToolbox where Base: NSImage {
         image.unlockFocus()
         return image
     }
+    
+    public func image(withTintColor tintColor: NSColor) -> NSImage {
+        guard base.isTemplate else {
+            return base
+        }
+
+        guard let copiedImage = base.copy() as? NSImage else {
+            return base
+        }
+
+        copiedImage.lockFocus()
+        tintColor.set()
+        let imageBounds = CGRect(x: 0, y: 0, width: copiedImage.size.width, height: copiedImage.size.height)
+        imageBounds.fill(using: .sourceAtop)
+        copiedImage.unlockFocus()
+
+        copiedImage.isTemplate = false
+        return copiedImage
+    }
 }
 
 #endif
