@@ -6,7 +6,6 @@ open class Button: NSButton {
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
-        isBordered = false
     }
 
     @available(*, unavailable)

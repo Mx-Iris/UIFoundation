@@ -1,7 +1,16 @@
 // swift-tools-version: 5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
-
+import Foundation
 import PackageDescription
+extension Package.Dependency {
+    static func package(localPath: String, remotePath: String, branch: String) -> Package.Dependency {
+        if FileManager.default.fileExists(atPath: localPath) {
+            return .package(path: localPath)
+        } else {
+            return .package(url: remotePath, branch: branch)
+        }
+    }
+}
 
 let package = Package(
     name: "UIFoundation",
@@ -18,7 +27,11 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/Mx-Iris/FrameworkToolbox", branch: "main")
+        .package(
+            localPath: "/Volumes/Repositories/Private/Personal/Library/Multi/FrameworkToolbox",
+            remotePath: "https://github.com/Mx-Iris/FrameworkToolbox",
+            branch: "main"
+        )
     ],
     targets: [
         .target(
