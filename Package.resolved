@@ -1,0 +1,14 @@
+{
+  "pins" : [
+    {
+      "identity" : "frameworktoolbox",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Mx-Iris/FrameworkToolbox",
+      "state" : {
+        "branch" : "main",
+        "revision" : "0244de971fa6f7c201bcc59e781097f1b69a50d6"
+      }
+    }
+  ],
+  "version" : 2
+}
