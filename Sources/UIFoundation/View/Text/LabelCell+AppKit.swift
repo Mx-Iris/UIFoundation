@@ -1,7 +1,7 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
-
+import UIFoundationToolbox
 
 open class LabelCell: NSTextFieldCell {
     open var contentInsets: NSEdgeInsets = .zero
@@ -38,6 +38,5 @@ open class LabelCell: NSTextFieldCell {
         super.drawInterior(withFrame: insetRect, in: controlView)
     }
 }
-
 
 #endif
