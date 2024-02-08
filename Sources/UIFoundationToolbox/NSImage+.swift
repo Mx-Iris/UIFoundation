@@ -78,6 +78,40 @@ extension FrameworkToolbox where Base: NSImage {
         copiedImage.isTemplate = false
         return copiedImage
     }
+    
+    public func toSize(_ targetSize: NSSize) -> NSImage {
+        // 假设你已经有了一个 NSImage 实例叫做 originalImage
+        let originalImage = base
+
+        // 创建一个新的 NSImage 实例
+        let scaledImage = NSImage(size: targetSize)
+
+        scaledImage.lockFocus()
+        NSGraphicsContext.current?.imageInterpolation = .high
+
+        // 计算宽度和高度的缩放比例
+//        let aspectRatio = originalImage.size.width / originalImage.size.height
+        let widthRatio = targetSize.width / originalImage.size.width
+        let heightRatio = targetSize.height / originalImage.size.height
+
+        // 保持宽高比
+        let scaleFactor = min(widthRatio, heightRatio)
+        let scaledWidth = originalImage.size.width * scaleFactor
+        let scaledHeight = originalImage.size.height * scaleFactor
+
+        // 计算绘制起点，使图像居中
+        let x = (targetSize.width - scaledWidth) / 2.0
+        let y = (targetSize.height - scaledHeight) / 2.0
+
+        // 绘制图像
+        let rect = NSRect(x: x, y: y, width: scaledWidth, height: scaledHeight)
+        originalImage.draw(in: rect, from: NSRect(origin: .zero, size: originalImage.size), operation: .copy, fraction: 1.0)
+
+        scaledImage.unlockFocus()
+
+        // 现在 scaledImage 包含了保持宽高比缩放后的图像
+        return scaledImage
+    }
 }
 
 #endif

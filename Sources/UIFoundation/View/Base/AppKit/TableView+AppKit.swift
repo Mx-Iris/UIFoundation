@@ -7,7 +7,7 @@ open class TableView: NSTableView {
 
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        wantsLayer = true
+        commonInit()
         addTableColumn(NSTableColumn(identifier: Self.defaultTableColumnIdentifier))
         headerView = nil
         backgroundColor = .clear
@@ -16,9 +16,15 @@ open class TableView: NSTableView {
             style = .inset
         }
     }
-
+    open override var wantsUpdateLayer: Bool { true }
+    
+    private func commonInit() {
+        wantsLayer = true
+    }
+    
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
+        commonInit()
     }
 
     open class func scrollableTableView() -> (scrollView: ScrollView, tableView: TableView) {

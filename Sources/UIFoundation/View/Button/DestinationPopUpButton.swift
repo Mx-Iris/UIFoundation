@@ -1,11 +1,12 @@
 import AppKit
+import UIFoundationToolbox
 
 open class DestinationPopUpButton: PopUpButton {
     private static let latestDestinationURLKey = "ClonePopUpButton.latestDestinationURLKey"
 
     private let contentMenu = NSMenu()
 
-    private(set) var selectedDestinationURL: URL?
+    public private(set) var selectedDestinationURL: URL?
 
     public var didSelectDestination: ((URL) -> Void)? {
         didSet {
@@ -18,17 +19,9 @@ open class DestinationPopUpButton: PopUpButton {
 
     private var initialByUserDefaults = false
 
-    public override init(frame buttonFrame: NSRect, pullsDown flag: Bool) {
-        super.init(frame: buttonFrame, pullsDown: flag)
-        commonInit()
-    }
-
-    public required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        commonInit()
-    }
-
-    func commonInit() {
+    open override func setup() {
+        super.setup()
+        
         menu = contentMenu
         if let latestDestinationURL = UserDefaults.standard.url(forKey: Self.latestDestinationURLKey) {
             let item = addURLItem(latestDestinationURL)
@@ -76,7 +69,7 @@ open class DestinationPopUpButton: PopUpButton {
             self.url = url
             super.init(title: url.path, action: action, keyEquivalent: keyEquivalent)
             let resources = try? url.resourceValues(forKeys: [.effectiveIconKey])
-            image = (resources?.effectiveIcon as? NSImage)?.toSize(.init(width: 18, height: 18))
+            image = (resources?.effectiveIcon as? NSImage)?.box.toSize(.init(width: 18, height: 18))
         }
 
         @available(*, unavailable)
@@ -86,38 +79,3 @@ open class DestinationPopUpButton: PopUpButton {
     }
 }
 
-extension NSImage {
-    func toSize(_ targetSize: NSSize) -> NSImage {
-        // 假设你已经有了一个 NSImage 实例叫做 originalImage
-        let originalImage = self
-
-        // 创建一个新的 NSImage 实例
-        let scaledImage = NSImage(size: targetSize)
-
-        scaledImage.lockFocus()
-        NSGraphicsContext.current?.imageInterpolation = .high
-
-        // 计算宽度和高度的缩放比例
-//        let aspectRatio = originalImage.size.width / originalImage.size.height
-        let widthRatio = targetSize.width / originalImage.size.width
-        let heightRatio = targetSize.height / originalImage.size.height
-
-        // 保持宽高比
-        let scaleFactor = min(widthRatio, heightRatio)
-        let scaledWidth = originalImage.size.width * scaleFactor
-        let scaledHeight = originalImage.size.height * scaleFactor
-
-        // 计算绘制起点，使图像居中
-        let x = (targetSize.width - scaledWidth) / 2.0
-        let y = (targetSize.height - scaledHeight) / 2.0
-
-        // 绘制图像
-        let rect = NSRect(x: x, y: y, width: scaledWidth, height: scaledHeight)
-        originalImage.draw(in: rect, from: NSRect(origin: .zero, size: originalImage.size), operation: .copy, fraction: 1.0)
-
-        scaledImage.unlockFocus()
-
-        // 现在 scaledImage 包含了保持宽高比缩放后的图像
-        return scaledImage
-    }
-}

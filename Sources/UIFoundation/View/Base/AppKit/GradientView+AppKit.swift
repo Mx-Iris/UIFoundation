@@ -6,6 +6,7 @@ open class GradientView: View {
     
     public private(set) var gradient: NSGradient?
     
+    @Invalidating(.display)
     open var colors: [NSColor] = [] {
         didSet {
             gradient = .init(colors: colors)

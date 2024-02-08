@@ -5,17 +5,27 @@ import AppKit
 open class ScrollView: NSScrollView {
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        wantsLayer = true
+        commonInit()
     }
 
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
+        commonInit()
     }
+
+    private func commonInit() {
+        wantsLayer = true
+        setup()
+    }
+
+    open func setup() {}
 
     open override var drawsBackground: Bool {
         set {}
         get { false }
     }
+
+    open override var wantsUpdateLayer: Bool { true }
 
     open override func didAddSubview(_ subview: NSView) {
         super.didAddSubview(subview)

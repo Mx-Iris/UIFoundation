@@ -6,14 +6,21 @@ open class TableCellView: NSTableCellView {
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         identifier = .init(String(describing: Self.self))
-        makeUI()
+        commonInit()
     }
 
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
-        makeUI()
+        commonInit()
     }
 
+    private func commonInit() {
+        wantsLayer = true
+        makeUI()
+    }
+    
+    open override var wantsUpdateLayer: Bool { true }
+    
     open func makeUI() {}
 
     open func firstLayout() {}

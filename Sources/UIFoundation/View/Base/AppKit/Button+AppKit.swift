@@ -5,13 +5,22 @@ import AppKit
 open class Button: NSButton {
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        wantsLayer = true
+        commonInit()
     }
 
-    @available(*, unavailable)
     public required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+        super.init(coder: coder)
+        commonInit()
     }
+    
+    private func commonInit() {
+        wantsLayer = true
+        setup()
+    }
+    
+    open func setup() {}
+    
+    open override var wantsUpdateLayer: Bool { true }
 }
 
 #endif

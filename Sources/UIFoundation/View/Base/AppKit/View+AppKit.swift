@@ -28,10 +28,12 @@ open class View: NSView {
         firstLayout()
     }()
 
-    open func commonInit() {
+    private func commonInit() {
         wantsLayer = true
         setup()
     }
+    
+    open override var wantsUpdateLayer: Bool { true }
 }
 
 #endif
