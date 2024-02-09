@@ -40,6 +40,8 @@ let package = Package(
             name: "UIFoundationToolbox",
             dependencies: [
                 .product(name: "FrameworkToolbox", package: "FrameworkToolbox"),
+                .product(name: "FrameworkToolboxMacro", package: "FrameworkToolbox"),
+                .product(name: "FoundationToolbox", package: "FrameworkToolbox"),
             ]
         ),
 

@@ -6,7 +6,16 @@
       "location" : "https://github.com/Mx-Iris/FrameworkToolbox",
       "state" : {
         "branch" : "main",
-        "revision" : "0244de971fa6f7c201bcc59e781097f1b69a50d6"
+        "revision" : "e4d352973e9716e82be9ed6d2a54842e32024581"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-syntax.git",
+      "state" : {
+        "revision" : "64889f0c732f210a935a0ad7cda38f77f876262d",
+        "version" : "509.1.1"
       }
     }
   ],
