@@ -3,7 +3,7 @@ import AppKit
 import UIFoundationToolbox
 
 open class Label: NSTextField {
-    @Invalidating(.display)
+    @Invalidating(.display, .layout)
     open var contentInsets: NSEdgeInsets = .zero {
         didSet {
             guard let cell = cell as? LabelCell else { return }

@@ -2,13 +2,13 @@
 import AppKit
 
 open class RoundedBorderLabel: Label {
-    @Invalidating(.display)
+    @Invalidating(.display, .layout)
     open var borderColor: NSColor = .clear
 
-    @Invalidating(.display)
+    @Invalidating(.display, .layout)
     open var borderWidth: CGFloat = 0
 
-    @Invalidating(.display)
+    @Invalidating(.display, .layout)
     open var layerBackgroundColor: NSColor = .clear
 
     public override init(frame frameRect: NSRect) {

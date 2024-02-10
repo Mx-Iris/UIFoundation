@@ -38,4 +38,8 @@ open class TableView: NSTableView {
     }
 }
 
+class SingleColumnTableView: TableView {
+    
+}
+
 #endif
