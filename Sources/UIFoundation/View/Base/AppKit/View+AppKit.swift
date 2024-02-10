@@ -30,6 +30,7 @@ open class View: NSView {
 
     private func commonInit() {
         wantsLayer = true
+        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
     

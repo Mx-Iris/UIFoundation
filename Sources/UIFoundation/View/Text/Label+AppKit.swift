@@ -18,11 +18,27 @@ open class Label: NSTextField {
 
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
+        commonInit()
+    }
+
+    public required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        commonInit()
+    }
+
+    private func commonInit() {
         isEditable = false
         drawsBackground = false
         isBordered = false
+        wantsLayer = true
+        layerContentsRedrawPolicy = .onSetNeedsDisplay
+        setup()
     }
 
+    open func setup() {}
+
+    open override var wantsUpdateLayer: Bool { true }
+    
     open override class var cellClass: AnyClass? {
         set {}
         get { LabelCell.self }
@@ -34,14 +50,6 @@ open class Label: NSTextField {
         intrinsicContentSize.height += contentInsets.top + contentInsets.bottom
         return intrinsicContentSize
     }
-
-    @available(*, unavailable)
-    public required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
 }
 
 #endif
-
-
-

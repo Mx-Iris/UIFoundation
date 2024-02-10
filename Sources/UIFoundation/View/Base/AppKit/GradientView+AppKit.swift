@@ -3,10 +3,9 @@
 import AppKit
 
 open class GradientView: View {
-    
-    public private(set) var gradient: NSGradient?
-    
     @Invalidating(.display)
+    public private(set) var gradient: NSGradient? = nil
+    
     open var colors: [NSColor] = [] {
         didSet {
             gradient = .init(colors: colors)
@@ -15,8 +14,8 @@ open class GradientView: View {
     
     open var angle: CGFloat = .pi / 2
     
-    open override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
+    open override func updateLayer() {
+        super.updateLayer()
         
         if let gradient {
             gradient.draw(in: bounds, angle: angle)

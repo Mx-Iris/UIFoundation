@@ -16,6 +16,7 @@ open class TableCellView: NSTableCellView {
 
     private func commonInit() {
         wantsLayer = true
+        layerContentsRedrawPolicy = .onSetNeedsDisplay
         makeUI()
     }
     

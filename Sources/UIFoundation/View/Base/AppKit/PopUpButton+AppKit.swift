@@ -15,6 +15,7 @@ open class PopUpButton: NSPopUpButton {
     
     private func commonInit() {
         wantsLayer = true
+        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
     

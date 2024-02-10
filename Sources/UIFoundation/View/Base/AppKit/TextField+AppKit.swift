@@ -15,6 +15,7 @@ open class TextField: NSTextField {
 
     private func commonInit() {
         wantsLayer = true
+        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
     

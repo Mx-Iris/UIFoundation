@@ -15,6 +15,7 @@ open class Button: NSButton {
     
     private func commonInit() {
         wantsLayer = true
+        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
     

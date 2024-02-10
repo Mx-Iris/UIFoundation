@@ -20,6 +20,7 @@ open class TableView: NSTableView {
     
     private func commonInit() {
         wantsLayer = true
+        layerContentsRedrawPolicy = .onSetNeedsDisplay
     }
     
     public required init?(coder: NSCoder) {

@@ -15,6 +15,7 @@ open class ScrollView: NSScrollView {
 
     private func commonInit() {
         wantsLayer = true
+        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
 

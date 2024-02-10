@@ -15,6 +15,7 @@ open class ImageView: NSImageView {
 
     private func commonInit() {
         wantsLayer = true
+        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
 
@@ -22,11 +23,16 @@ open class ImageView: NSImageView {
     
     open override var wantsUpdateLayer: Bool { true }
 
-    @Invalidating(.display, .layout)
-    open var isRounded: Bool = false
+    @Invalidating(.display)
+    open var isRounded: Bool = false {
+        didSet {
+            
+        }
+    }
 
     open override func layout() {
         super.layout()
+        
     }
 
     open override func updateLayer() {
