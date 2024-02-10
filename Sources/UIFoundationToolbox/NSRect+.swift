@@ -14,6 +14,6 @@ extension FrameworkToolbox where Base == NSRect {
     }
 }
 
-extension NSRect: FrameworkToolboxCompatible {}
+extension NSRect: FrameworkToolboxCompatible, FrameworkToolboxDynamicMemberLookup {}
 
 #endif

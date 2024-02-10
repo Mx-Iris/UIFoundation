@@ -3,7 +3,7 @@
 import CoreGraphics
 import FrameworkToolbox
 
-extension CGSize: FrameworkToolboxCompatible {}
+extension CGSize: FrameworkToolboxCompatible, FrameworkToolboxDynamicMemberLookup {}
 
 extension FrameworkToolbox where Base == CGSize {
     public static var max: CGSize {
