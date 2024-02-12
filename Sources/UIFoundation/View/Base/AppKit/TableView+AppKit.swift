@@ -3,12 +3,9 @@
 import AppKit
 
 open class TableView: NSTableView {
-    public static let defaultTableColumnIdentifier = NSUserInterfaceItemIdentifier("DefaultTableColumnIdentifier")
-
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         commonInit()
-        addTableColumn(NSTableColumn(identifier: Self.defaultTableColumnIdentifier))
         headerView = nil
         backgroundColor = .clear
         intercellSpacing = .zero
@@ -16,21 +13,22 @@ open class TableView: NSTableView {
             style = .inset
         }
     }
-    open override var wantsUpdateLayer: Bool { true }
-    
-    private func commonInit() {
-        wantsLayer = true
-        layerContentsRedrawPolicy = .onSetNeedsDisplay
-    }
-    
+
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
         commonInit()
     }
 
-    open class func scrollableTableView() -> (scrollView: ScrollView, tableView: TableView) {
+    private func commonInit() {
+        wantsLayer = true
+        setup()
+    }
+
+    open func setup() {}
+
+    open class func scrollableTableView() -> (ScrollView, TableView) {
         let scrollView = ScrollView()
-        let tableView = TableView()
+        let tableView = Self()
         scrollView.do {
             $0.documentView = tableView
             $0.hasVerticalScroller = true
@@ -39,8 +37,13 @@ open class TableView: NSTableView {
     }
 }
 
-class SingleColumnTableView: TableView {
-    
+open class SingleColumnTableView: TableView {
+    public static let defaultTableColumnIdentifier = NSUserInterfaceItemIdentifier("DefaultTableColumnIdentifier")
+
+    open override func setup() {
+        super.setup()
+        addTableColumn(NSTableColumn(identifier: Self.defaultTableColumnIdentifier))
+    }
 }
 
 #endif

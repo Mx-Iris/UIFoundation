@@ -8,15 +8,15 @@ import UIKit
 
 
 
-extension _NSUIStackView {
+extension NSUIStackView {
     /// The spacing and sizing distribution of stacked views along the primary axis. Defaults to GravityAreas.
-    public func distribution(_ dist: _NSUIStackViewDistribution) -> Self {
+    public func distribution(_ dist: NSUIStackViewDistribution) -> Self {
         distribution = dist
         return self
     }
 
     /// The view alignment within the stack view.
-    public func alignment(_ alignment: _NSUIStackViewAlignment) -> Self {
+    public func alignment(_ alignment: NSUIStackViewAlignment) -> Self {
         self.alignment = alignment
         return self
     }
@@ -37,22 +37,22 @@ extension _NSUIStackView {
 
     /// Set the edge insets for the stack view
     public func stackPadding(_ edgeInset: CGFloat) -> Self {
-        edgeInsets = _NSUIEdgeInsets(edgeInset: edgeInset)
+        edgeInsets = NSUIEdgeInsets(edgeInset: edgeInset)
         return self
     }
 
     /// Set the edge insets for the stack view
-    public func stackPadding(_ edgeInsets: _NSUIEdgeInsets) -> Self {
+    public func stackPadding(_ edgeInsets: NSUIEdgeInsets) -> Self {
         self.edgeInsets = edgeInsets
         return self
     }
 
     /// Sets the Auto Layout priority for the stack view to minimize its size, for a specified user interface axis.
     public func hugging(h: Float? = nil, v: Float? = nil) -> Self {
-        if let h = _NSUILayoutPriority.valueOrNil(h) {
+        if let h = NSUILayoutPriority.valueOrNil(h) {
             setHuggingPriority(h, for: .horizontal)
         }
-        if let v = _NSUILayoutPriority.valueOrNil(v) {
+        if let v = NSUILayoutPriority.valueOrNil(v) {
             setHuggingPriority(v, for: .vertical)
         }
         return self
@@ -88,9 +88,9 @@ extension _NSUIStackView {
     #endif
 }
 
-extension _NSUIView {
+extension NSUIView {
     /// Set the hugging priorites for the stack
-    public func contentHugging(h: _NSUILayoutPriority? = nil, v: _NSUILayoutPriority? = nil) -> Self {
+    public func contentHugging(h: NSUILayoutPriority? = nil, v: NSUILayoutPriority? = nil) -> Self {
         if let h {
             setContentHuggingPriority(h, for: .horizontal)
         }
@@ -100,7 +100,7 @@ extension _NSUIView {
         return self
     }
 
-    public func contentCompressionResistance(h: _NSUILayoutPriority? = nil, v: _NSUILayoutPriority? = nil) -> Self {
+    public func contentCompressionResistance(h: NSUILayoutPriority? = nil, v: NSUILayoutPriority? = nil) -> Self {
         if let h {
             setContentCompressionResistancePriority(h, for: .horizontal)
         }
@@ -121,7 +121,7 @@ extension _NSUIView {
     }
 }
 
-extension _NSUILayoutPriority {
+extension NSUILayoutPriority {
     #if canImport(AppKit) && !targetEnvironment(macCatalyst)
     static let fittingSize: Self = .fittingSizeCompression
     #endif
@@ -131,8 +131,8 @@ extension _NSUILayoutPriority {
     #endif
 }
 
-extension _NSUIStackViewOrientationOrAxis {
-    var nsLayoutConstraintOrientationOrAxis: _NSUILayoutConstraintOrientationOrAxis {
+extension NSUIStackViewOrientationOrAxis {
+    var nsLayoutConstraintOrientationOrAxis: NSUILayoutConstraintOrientationOrAxis {
         switch self {
         case .horizontal:
             return .horizontal
@@ -144,7 +144,7 @@ extension _NSUIStackViewOrientationOrAxis {
     }
 }
 
-extension _NSUIStackViewDistribution {
+extension NSUIStackViewDistribution {
 //    public static var defaultValue: Self {
 //        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 //        return .gravityAreas
@@ -164,7 +164,7 @@ extension _NSUIStackViewDistribution {
     #endif
 }
 
-extension _NSUIStackViewAlignment {
+extension NSUIStackViewAlignment {
     #if canImport(AppKit) && !targetEnvironment(macCatalyst)
     public static let hStackCenter: Self = .centerY
     public static let vStackCenter: Self = .centerX

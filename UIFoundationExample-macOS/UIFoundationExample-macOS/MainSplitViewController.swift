@@ -9,7 +9,7 @@ import AppKit
 import UIFoundation
 
 class MainSplitViewController: NSSplitViewController, StoryboardViewController {
-    static var storyboard: _NSUIStoryboard { .main }
+    static var storyboard: NSUIStoryboard { .main }
     static var storyboardIdentifier: String { .init(describing: self) }
 }
 

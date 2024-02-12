@@ -15,7 +15,7 @@ open class ScrollView: NSScrollView {
 
     private func commonInit() {
         wantsLayer = true
-        layerContentsRedrawPolicy = .onSetNeedsDisplay
+//        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
 
@@ -26,7 +26,7 @@ open class ScrollView: NSScrollView {
         get { false }
     }
 
-    open override var wantsUpdateLayer: Bool { true }
+//    open override var wantsUpdateLayer: Bool { true }
 
     open override func didAddSubview(_ subview: NSView) {
         super.didAddSubview(subview)

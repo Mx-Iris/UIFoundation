@@ -49,9 +49,9 @@ enum NVActivityIndicatorShape {
     case stroke
 
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    func layerWith(size: CGSize, color: _NSUIColor) -> CALayer {
+    func layerWith(size: CGSize, color: NSUIColor) -> CALayer {
         let layer = CAShapeLayer()
-        var path = _NSUIBezierPath()
+        var path = NSUIBezierPath()
         let lineWidth: CGFloat = 2
 
         switch self {
@@ -160,7 +160,7 @@ enum NVActivityIndicatorShape {
             path.close()
             layer.fillColor = color.cgColor
         case .line:
-            path = _NSUIBezierPath(
+            path = NSUIBezierPath(
                 roundedRect: CGRect(x: 0, y: 0, width: size.width, height: size.height),
                 cornerRadius: size.width / 2
             )

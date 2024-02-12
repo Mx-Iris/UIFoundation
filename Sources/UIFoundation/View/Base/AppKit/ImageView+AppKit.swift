@@ -15,31 +15,28 @@ open class ImageView: NSImageView {
 
     private func commonInit() {
         wantsLayer = true
-        layerContentsRedrawPolicy = .onSetNeedsDisplay
+//        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
 
     open func setup() {}
     
-    open override var wantsUpdateLayer: Bool { true }
+//    open override var wantsUpdateLayer: Bool { true }
 
     @Invalidating(.display)
-    open var isRounded: Bool = false {
-        didSet {
-            
-        }
-    }
+    open var isRounded: Bool = false
 
-    open override func layout() {
-        super.layout()
+    open override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
         
-    }
-
-    open override func updateLayer() {
-        super.updateLayer()
-
         layer?.cornerRadius = isRounded ? max(bounds.midX, bounds.midY) : 0
     }
+    
+//    open override func updateLayer() {
+//        super.updateLayer()
+//
+//        layer?.cornerRadius = isRounded ? max(bounds.midX, bounds.midY) : 0
+//    }
 }
 
 #endif

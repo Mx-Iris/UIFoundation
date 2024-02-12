@@ -11,9 +11,18 @@ open class RoundedBorderLabel: Label {
     @Invalidating(.display, .layout)
     open var layerBackgroundColor: NSColor = .clear
 
-    open override func updateLayer() {
-        super.updateLayer()
-
+//    open override func updateLayer() {
+//        super.updateLayer()
+//
+//        layer?.cornerRadius = bounds.height / 2
+//        layer?.backgroundColor = layerBackgroundColor.cgColor
+//        layer?.borderWidth = borderWidth
+//        layer?.borderColor = borderColor.cgColor
+//    }
+    
+    open override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        
         layer?.cornerRadius = bounds.height / 2
         layer?.backgroundColor = layerBackgroundColor.cgColor
         layer?.borderWidth = borderWidth

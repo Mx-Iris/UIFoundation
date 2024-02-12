@@ -4,7 +4,9 @@ import AppKit
 import UIFoundationToolbox
 
 open class LabelCell: NSTextFieldCell {
-    open var contentInsets: NSEdgeInsets = .zero
+    open var contentInsets: NSEdgeInsets = .zero {
+        didSet {}
+    }
 
     open override func cellSize(forBounds rect: NSRect) -> NSSize {
         var size = super.cellSize(forBounds: rect)

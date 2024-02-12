@@ -8,7 +8,7 @@ import UIKit
 
 
 
-public protocol StackViewComponent: _NSUIView {}
+public protocol StackViewComponent: NSUIView {}
 
 extension StackViewComponent {
     public func size(width: CGFloat? = nil, height: CGFloat? = nil) -> Self {
@@ -28,4 +28,4 @@ extension StackViewComponent {
     }
 }
 
-extension _NSUIView: StackViewComponent {}
+extension NSUIView: StackViewComponent {}

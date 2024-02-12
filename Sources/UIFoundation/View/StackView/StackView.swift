@@ -8,8 +8,8 @@ import UIKit
 
 
 
-extension _NSUIStackView {
-    public convenience init(orientationOrAxis: _NSUIStackViewOrientationOrAxis, distribution: _NSUIStackViewDistribution, alignment: _NSUIStackViewAlignment, spacing: CGFloat, views: [_NSUIView]) {
+extension NSUIStackView {
+    public convenience init(orientationOrAxis: NSUIStackViewOrientationOrAxis, distribution: NSUIStackViewDistribution, alignment: NSUIStackViewAlignment, spacing: CGFloat, views: [NSUIView]) {
         #if canImport(AppKit) && !targetEnvironment(macCatalyst)
         self.init(views: [])
         self.orientation = orientationOrAxis
@@ -51,14 +51,14 @@ extension _NSUIStackView {
     }
 }
 
-public class HStackView: _NSUIStackView {
-    public convenience init(distribution: _NSUIStackViewDistribution = .defaultValue, alignment: _NSUIStackViewAlignment = .hStackCenter, spacing: CGFloat = 0, @StackViewBuilder views: () -> [StackViewComponent]) {
+public class HStackView: NSUIStackView {
+    public convenience init(distribution: NSUIStackViewDistribution = .defaultValue, alignment: NSUIStackViewAlignment = .hStackCenter, spacing: CGFloat = 0, @StackViewBuilder views: () -> [StackViewComponent]) {
         self.init(orientationOrAxis: .horizontal, distribution: distribution, alignment: alignment, spacing: spacing, views: views())
     }
 }
 
-public class VStackView: _NSUIStackView {
-    public convenience init(distribution: _NSUIStackViewDistribution = .defaultValue, alignment: _NSUIStackViewAlignment = .vStackCenter, spacing: CGFloat = 0, @StackViewBuilder views: () -> [StackViewComponent]) {
+public class VStackView: NSUIStackView {
+    public convenience init(distribution: NSUIStackViewDistribution = .defaultValue, alignment: NSUIStackViewAlignment = .vStackCenter, spacing: CGFloat = 0, @StackViewBuilder views: () -> [StackViewComponent]) {
         self.init(orientationOrAxis: .vertical, distribution: distribution, alignment: alignment, spacing: spacing, views: views())
     }
 }

@@ -16,7 +16,7 @@ public protocol IndicatorProtocol {
     /**
      The primary color of the indicator.
      */
-    var color: _NSUIColor { get set }
+    var color: NSUIColor { get set }
     /**
      Current status of animation, read-only.
      */

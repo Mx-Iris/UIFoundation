@@ -18,7 +18,7 @@ open class VisualEffectView: NSVisualEffectView {
         setup()
     }
     
-    open override var wantsUpdateLayer: Bool { true }
+//    open override var wantsUpdateLayer: Bool { true }
     
     open func setup() {}
 }

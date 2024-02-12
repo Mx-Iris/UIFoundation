@@ -15,13 +15,13 @@ open class Button: NSButton {
     
     private func commonInit() {
         wantsLayer = true
-        layerContentsRedrawPolicy = .onSetNeedsDisplay
+//        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
     
     open func setup() {}
     
-    open override var wantsUpdateLayer: Bool { true }
+//    open override var wantsUpdateLayer: Bool { true }
 }
 
 #endif

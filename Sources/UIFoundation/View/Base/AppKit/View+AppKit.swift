@@ -18,7 +18,7 @@ open class View: NSView {
         _ = _firstLayout
     }
 
-    open override var acceptsFirstResponder: Bool { true }
+//    open override var acceptsFirstResponder: Bool { true }
 
     open func setup() {}
 
@@ -30,11 +30,11 @@ open class View: NSView {
 
     private func commonInit() {
         wantsLayer = true
-        layerContentsRedrawPolicy = .onSetNeedsDisplay
+//        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
     
-    open override var wantsUpdateLayer: Bool { true }
+//    open override var wantsUpdateLayer: Bool { true }
 }
 
 #endif

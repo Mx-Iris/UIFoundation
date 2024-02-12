@@ -8,7 +8,7 @@ import UIKit
 
 
 
-open class XiblessViewController<View: _NSUIView>: _NSUIViewController {
+open class XiblessViewController<View: NSUIView>: NSUIViewController {
     public let contentView: View
 
     public init(viewGenerator: @autoclosure () -> View) {

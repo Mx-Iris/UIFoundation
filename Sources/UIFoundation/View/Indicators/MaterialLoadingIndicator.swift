@@ -11,7 +11,7 @@ import UIKit
 open class MaterialLoadingIndicator: Indicator {
     fileprivate let drawableLayer = CAShapeLayer()
 
-    open override var color: _NSUIColor {
+    open override var color: NSUIColor {
         didSet {
             drawableLayer.strokeColor = color.cgColor
         }
@@ -31,7 +31,7 @@ open class MaterialLoadingIndicator: Indicator {
         }
     }
 
-    public convenience init(radius: CGFloat = 18.0, color: _NSUIColor = .gray) {
+    public convenience init(radius: CGFloat = 18.0, color: NSUIColor = .gray) {
         self.init()
         self.radius = radius
         self.color = color
@@ -91,7 +91,7 @@ open class MaterialLoadingIndicator: Indicator {
         #endif
         drawableLayer.strokeColor = color.cgColor
         drawableLayer.lineWidth = lineWidth
-        drawableLayer.fillColor = _NSUIColor.clear.cgColor
+        drawableLayer.fillColor = NSUIColor.clear.cgColor
         drawableLayer.lineJoin = .round
         drawableLayer.lineCap = .round
         drawableLayer.strokeStart = 0.99

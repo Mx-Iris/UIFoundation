@@ -2,7 +2,7 @@
 
 import AppKit
 
-open class VisualEffectViewController<View: _NSUIView>: _NSUIViewController {
+open class VisualEffectViewController<View: NSUIView>: NSUIViewController {
     public let contentView: View
 
     public let visualEffectView = NSVisualEffectView()

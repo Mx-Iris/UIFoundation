@@ -31,19 +31,19 @@ open class Label: NSTextField {
         drawsBackground = false
         isBordered = false
         wantsLayer = true
-        layerContentsRedrawPolicy = .onSetNeedsDisplay
+//        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
 
     open func setup() {}
 
-    open override var wantsUpdateLayer: Bool { true }
+//    open override var wantsUpdateLayer: Bool { true }
     
     open override class var cellClass: AnyClass? {
         set {}
         get { LabelCell.self }
     }
-
+    
     open override var intrinsicContentSize: NSSize {
         var intrinsicContentSize = super.intrinsicContentSize
         intrinsicContentSize.width += contentInsets.left + contentInsets.right

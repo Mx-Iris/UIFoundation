@@ -6,9 +6,7 @@ import AppKit
 import UIKit
 #endif
 
-
-
-public class MaxSpacer: _NSUIView {
+public class MaxSpacer: NSUIView {
     public init() {
         super.init(frame: .zero)
         #if canImport(AppKit) && !targetEnvironment(macCatalyst)

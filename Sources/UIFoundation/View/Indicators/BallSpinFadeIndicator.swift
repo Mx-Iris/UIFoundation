@@ -90,7 +90,7 @@ open class BallSpinFadeIndicator: Indicator {
         }
     }
 
-    func circleAt(angle: CGFloat, size: CGFloat, origin: CGPoint, containerSize: CGSize, color: _NSUIColor) -> CALayer {
+    func circleAt(angle: CGFloat, size: CGFloat, origin: CGPoint, containerSize: CGSize, color: NSUIColor) -> CALayer {
         let radius = containerSize.width / 2 - size / 2
         let circle = NVActivityIndicatorShape.circle.layerWith(size: CGSize(width: size, height: size), color: color)
         let frame = CGRect(

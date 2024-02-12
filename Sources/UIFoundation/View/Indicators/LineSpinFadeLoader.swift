@@ -73,7 +73,7 @@ open class LineSpinFadeLoader: Indicator {
         }
     }
 
-    func lineAt(angle: CGFloat, size: CGSize, origin: CGPoint, containerSize: CGSize, color: _NSUIColor) -> CALayer {
+    func lineAt(angle: CGFloat, size: CGSize, origin: CGPoint, containerSize: CGSize, color: NSUIColor) -> CALayer {
         let radius = containerSize.width / 2 - max(size.width, size.height) / 2
         let lineContainerSize = CGSize(width: max(size.width, size.height), height: max(size.width, size.height))
         let lineContainer = CALayer()

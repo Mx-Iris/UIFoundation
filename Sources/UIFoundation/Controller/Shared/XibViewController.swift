@@ -8,7 +8,7 @@ import UIKit
 
 
 
-open class XibViewController: _NSUIViewController {
+open class XibViewController: NSUIViewController {
     public init() {
         super.init(nibName: String(describing: Self.self), bundle: .main)
         commonInit()

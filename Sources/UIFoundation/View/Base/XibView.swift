@@ -2,7 +2,7 @@
 
 import AppKit
 
-open class XibView: _NSUIView {
+open class XibView: NSUIView {
     @IBOutlet open var contentView: NSView!
 
     open func commonInit() {

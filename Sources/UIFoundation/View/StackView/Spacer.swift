@@ -6,12 +6,10 @@ import AppKit
 import UIKit
 #endif
 
-
-
-public class Spacer: _NSUIView {
+public class Spacer: NSUIView {
     public let spacing: CGFloat
 
-    var orientationOrAxis: _NSUIStackViewOrientationOrAxis = .horizontal
+    var orientationOrAxis: NSUIStackViewOrientationOrAxis = .horizontal
 
     public init(spacing: CGFloat = 5) {
         self.spacing = spacing
@@ -34,9 +32,9 @@ public class Spacer: _NSUIView {
     public override var intrinsicContentSize: CGSize {
         switch orientationOrAxis {
         case .horizontal:
-            return .init(width: spacing, height: _NSUIView.noIntrinsicMetric)
+            return .init(width: spacing, height: NSUIView.noIntrinsicMetric)
         case .vertical:
-            return .init(width: _NSUIView.noIntrinsicMetric, height: spacing)
+            return .init(width: NSUIView.noIntrinsicMetric, height: spacing)
         @unknown default:
             return super.intrinsicContentSize
         }

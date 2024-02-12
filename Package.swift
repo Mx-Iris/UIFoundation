@@ -8,21 +8,29 @@ let package = Package(
         .library(
             name: "UIFoundation",
             targets: [
-                "UIFoundation"
+                "UIFoundation",
             ]
         ),
         .library(
             name: "UIFoundationToolbox",
-            targets: [ 
-                "UIFoundationToolbox"
+            targets: [
+                "UIFoundationToolbox",
             ]
+        ),
+        .library(
+            name: "UIFoundationAppleInternal",
+            targets: ["UIFoundationAppleInternal"]
+        ),
+        .library(
+            name: "UIFoundationAppleInternalObjC",
+            targets: ["UIFoundationAppleInternalObjC"]
         )
     ],
     dependencies: [
         .package(
             url: "https://github.com/Mx-Iris/FrameworkToolbox",
             branch: "main"
-        )
+        ),
     ],
     targets: [
         .target(
@@ -33,10 +41,6 @@ let package = Package(
         ),
         
         .target(
-            name: "UIFoundationInternal"
-        ),
-
-        .target(
             name: "UIFoundationToolbox",
             dependencies: [
                 .product(name: "FrameworkToolbox", package: "FrameworkToolbox"),
@@ -46,13 +50,20 @@ let package = Package(
         ),
 
         .target(
-            name: "UIFoundationAppleInternal"
+            name: "UIFoundationAppleInternal",
+            dependencies: [
+                "UIFoundationAppleInternalObjC"
+            ]
+        ),
+
+        .target(
+            name: "UIFoundationAppleInternalObjC"
         ),
 
         .testTarget(
             name: "UIFoundationTests",
             dependencies: [
-                "UIFoundation"
+                "UIFoundation",
             ]
         ),
     ]

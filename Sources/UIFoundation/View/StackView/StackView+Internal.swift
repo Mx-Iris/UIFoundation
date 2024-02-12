@@ -8,14 +8,14 @@ import UIKit
 
 
 
-extension _NSUILayoutPriority {
-    @inlinable static func valueOrNil(_ value: Float?) -> _NSUILayoutPriority? {
+extension NSUILayoutPriority {
+    @inlinable static func valueOrNil(_ value: Float?) -> NSUILayoutPriority? {
         guard let v = value else { return nil }
-        return _NSUILayoutPriority(rawValue: v)
+        return NSUILayoutPriority(rawValue: v)
     }
 }
 
-extension _NSUIEdgeInsets {
+extension NSUIEdgeInsets {
     @inlinable init(edgeInset: CGFloat) {
         self.init(top: edgeInset, left: edgeInset, bottom: edgeInset, right: edgeInset)
     }

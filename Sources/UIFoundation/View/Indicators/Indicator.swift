@@ -8,12 +8,12 @@ import UIKit
 
 
 
-open class Indicator: _NSUIView, IndicatorProtocol {
+open class Indicator: NSUIView, IndicatorProtocol {
     open var isAnimating: Bool = false
     open var radius: CGFloat = 18.0
-    open var color: _NSUIColor = .lightGray
+    open var color: NSUIColor = .lightGray
 
-    public convenience init(radius: CGFloat = 18.0, color: _NSUIColor = .gray) {
+    public convenience init(radius: CGFloat = 18.0, color: NSUIColor = .gray) {
         self.init()
         self.radius = radius
         self.color = color

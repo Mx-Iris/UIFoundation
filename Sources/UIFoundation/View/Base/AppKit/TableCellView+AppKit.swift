@@ -16,13 +16,13 @@ open class TableCellView: NSTableCellView {
 
     private func commonInit() {
         wantsLayer = true
-        layerContentsRedrawPolicy = .onSetNeedsDisplay
-        makeUI()
+//        layerContentsRedrawPolicy = .onSetNeedsDisplay
+        setup()
     }
-    
-    open override var wantsUpdateLayer: Bool { true }
-    
-    open func makeUI() {}
+
+//    open override var wantsUpdateLayer: Bool { true }
+
+    open func setup() {}
 
     open func firstLayout() {}
 
@@ -40,8 +40,8 @@ open class ImageTextTableCellView: TableCellView {
     public let _imageView = ImageView()
     public let _textField = Label()
 
-    open override func makeUI() {
-        super.makeUI()
+    open override func setup() {
+        super.setup()
 
         imageView = _imageView
         textField = _textField
@@ -59,7 +59,7 @@ open class ImageTextTableCellView: TableCellView {
             make.centerYAnchor.constraint(equalTo: centerYAnchor)
             make.rightAnchor.constraint(lessThanOrEqualTo: rightAnchor)
         }
-        
+
         _textField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         _textField.maximumNumberOfLines = 1
     }
@@ -68,8 +68,8 @@ open class ImageTextTableCellView: TableCellView {
 open class TextTableCellView: TableCellView {
     public let _textField = Label()
 
-    open override func makeUI() {
-        super.makeUI()
+    open override func setup() {
+        super.setup()
 
         textField = _textField
 
@@ -80,7 +80,7 @@ open class TextTableCellView: TableCellView {
             make.centerYAnchor.constraint(equalTo: centerYAnchor)
             make.rightAnchor.constraint(lessThanOrEqualTo: rightAnchor)
         }
-        
+
         _textField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         _textField.maximumNumberOfLines = 1
     }

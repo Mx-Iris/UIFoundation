@@ -14,13 +14,21 @@ open class GradientView: View {
     
     open var angle: CGFloat = .pi / 2
     
-    open override func updateLayer() {
-        super.updateLayer()
+    open override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
         
         if let gradient {
             gradient.draw(in: bounds, angle: angle)
         }
     }
+    
+//    open override func updateLayer() {
+//        super.updateLayer()
+//        
+//        if let gradient {
+//            gradient.draw(in: bounds, angle: angle)
+//        }
+//    }
 }
 
 #endif

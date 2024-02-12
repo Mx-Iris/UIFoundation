@@ -2,7 +2,7 @@
 
 import AppKit
 
-open class ScrollViewController<View: _NSUIView>: _NSUIViewController {
+open class ScrollViewController<View: NSUIView>: NSUIViewController {
     public let contentView: View
 
     public let scrollView = NSScrollView()

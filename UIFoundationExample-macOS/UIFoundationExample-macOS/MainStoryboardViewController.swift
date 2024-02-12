@@ -9,7 +9,7 @@ import Cocoa
 import UIFoundation
 
 class MainStoryboardViewController: NSViewController, StoryboardViewController {
-    class var storyboard: _NSUIStoryboard { .main }
+    class var storyboard: NSUIStoryboard { .main }
 
     class var storyboardIdentifier: String { .init(describing: Self.self) }
 

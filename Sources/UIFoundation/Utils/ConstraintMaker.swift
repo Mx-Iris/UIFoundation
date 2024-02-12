@@ -6,9 +6,9 @@ import AppKit
 import UIKit
 #endif
 
-extension _NSUIView: ConstraintMaker {}
+extension NSUIView: ConstraintMaker {}
 
-protocol ConstraintMaker: _NSUIView {}
+protocol ConstraintMaker: NSUIView {}
 
 extension ConstraintMaker {
     func makeConstraints(@ArrayBuilder<NSLayoutConstraint> _ constraintsBuilder: (_ make: Self) -> [NSLayoutConstraint]) {

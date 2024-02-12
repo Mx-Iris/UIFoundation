@@ -6,7 +6,7 @@ import AppKit
 import UIKit
 #endif
 
-open class XiblessView: _NSUIView {
+open class XiblessView: NSUIView {
     public override init(frame frameRect: CGRect) {
         super.init(frame: frameRect)
     }
