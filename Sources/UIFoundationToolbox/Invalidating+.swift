@@ -1,3 +1,5 @@
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+
 import AppKit
 
 public protocol ViewReloading: NSView {
@@ -20,3 +22,5 @@ extension NSView.Invalidations {
         }
     }
 }
+
+#endif

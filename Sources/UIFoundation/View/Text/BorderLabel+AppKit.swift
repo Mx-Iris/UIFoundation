@@ -1,15 +1,16 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 import AppKit
 
+@IBDesignable
 open class RoundedBorderLabel: Label {
-    @Invalidating(.display, .layout)
-    open var borderColor: NSColor = .clear
+    @Invalidating(.display)
+    @IBInspectable
+    open dynamic var borderColor: NSColor? = nil
 
-    @Invalidating(.display, .layout)
-    open var borderWidth: CGFloat = 0
+    @Invalidating(.display)
+    @IBInspectable
+    open dynamic var borderWidth: CGFloat = 0
 
-    @Invalidating(.display, .layout)
-    open var layerBackgroundColor: NSColor = .clear
 
 //    open override func updateLayer() {
 //        super.updateLayer()
@@ -24,9 +25,8 @@ open class RoundedBorderLabel: Label {
         super.draw(dirtyRect)
         
         layer?.cornerRadius = bounds.height / 2
-        layer?.backgroundColor = layerBackgroundColor.cgColor
         layer?.borderWidth = borderWidth
-        layer?.borderColor = borderColor.cgColor
+        layer?.borderColor = borderColor?.cgColor
     }
 }
 #endif

@@ -36,10 +36,7 @@ import AppKit
 import UIKit
 #endif
 
-
-
 open class LineScalePulseIndicator: Indicator {
-
     open override func setupAnimation(in layer: CALayer, size: CGSize) {
         let lineSize = size.width / 9
         let x = (layer.bounds.size.width - size.width) / 2
@@ -62,10 +59,12 @@ open class LineScalePulseIndicator: Indicator {
         // Draw lines
         for i in 0 ..< 5 {
             let line = NVActivityIndicatorShape.line.layerWith(size: CGSize(width: lineSize, height: size.height), color: color)
-            let frame = CGRect(x: x + lineSize * 2 * CGFloat(i),
-                               y: y,
-                               width: lineSize,
-                               height: size.height)
+            let frame = CGRect(
+                x: x + lineSize * 2 * CGFloat(i),
+                y: y,
+                width: lineSize,
+                height: size.height
+            )
 
             animation.beginTime = beginTime + beginTimes[i]
             line.frame = frame

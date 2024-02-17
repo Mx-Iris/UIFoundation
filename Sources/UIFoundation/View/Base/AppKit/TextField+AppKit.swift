@@ -15,13 +15,10 @@ open class TextField: NSTextField {
 
     private func commonInit() {
         wantsLayer = true
-//        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
     
     open func setup() {}
-    
-//    open override var wantsUpdateLayer: Bool { true }
     
     public convenience init(bezelStyle: BezelStyle) {
         self.init(frame: .zero)

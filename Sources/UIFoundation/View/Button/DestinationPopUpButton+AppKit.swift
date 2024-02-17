@@ -1,3 +1,5 @@
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+
 import AppKit
 import UIFoundationToolbox
 
@@ -21,7 +23,7 @@ open class DestinationPopUpButton: PopUpButton {
 
     open override func setup() {
         super.setup()
-        
+
         menu = contentMenu
         if let latestDestinationURL = UserDefaults.standard.url(forKey: Self.latestDestinationURLKey) {
             let item = addURLItem(latestDestinationURL)
@@ -79,3 +81,5 @@ open class DestinationPopUpButton: PopUpButton {
     }
 }
 
+
+#endif

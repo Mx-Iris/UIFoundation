@@ -12,6 +12,32 @@ open class OutlineView: NSOutlineView {
         }
         return (scrollView, outlineView)
     }
+    
+    open class func scrollableOutlineView<OutlineViewType: OutlineView>() -> (scrollView: ScrollView, outlineView: OutlineViewType) {
+        let scrollView = ScrollView()
+        let outlineView = OutlineViewType()
+        scrollView.do {
+            $0.documentView = outlineView
+            $0.hasVerticalScroller = true
+        }
+        return (scrollView, outlineView)
+    }
+    
+    public override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        commonInit()
+    }
+    
+    public required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        commonInit()
+    }
+    
+    private func commonInit() {
+        wantsLayer = true
+    }
+    
+    open func setup() {}
 }
 
 #endif

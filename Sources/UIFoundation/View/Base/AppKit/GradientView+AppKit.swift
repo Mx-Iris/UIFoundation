@@ -2,33 +2,84 @@
 
 import AppKit
 
+@IBDesignable
 open class GradientView: View {
-    @Invalidating(.display)
-    public private(set) var gradient: NSGradient? = nil
-    
-    open var colors: [NSColor] = [] {
-        didSet {
-            gradient = .init(colors: colors)
-        }
-    }
-    
-    open var angle: CGFloat = .pi / 2
-    
-    open override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
+
+    public enum Position {
+        case topLeft
+        case centerLeft
+        case bottomLeft
+        case topCenter
+        case center
+        case bottomCenter
+        case topRight
+        case centerRight
+        case bottomRight
         
-        if let gradient {
-            gradient.draw(in: bounds, angle: angle)
+        var cgPoint: CGPoint {
+            switch self {
+            case .topLeft:
+                CGPoint(x: 0, y: 1)
+            case .centerLeft:
+                CGPoint(x: 0, y: 0.5)
+            case .bottomLeft:
+                CGPoint(x: 0, y: 0)
+            case .topCenter:
+                CGPoint(x: 0.5, y: 1)
+            case .center:
+                CGPoint(x: 0.5, y: 0.5)
+            case .bottomCenter:
+                CGPoint(x: 0.5, y: 0)
+            case .topRight:
+                CGPoint(x: 1, y: 1)
+            case .centerRight:
+                CGPoint(x: 1, y: 0.5)
+            case .bottomRight:
+                CGPoint(x: 1, y: 0)
+            }
         }
     }
     
-//    open override func updateLayer() {
-//        super.updateLayer()
-//        
-//        if let gradient {
-//            gradient.draw(in: bounds, angle: angle)
-//        }
-//    }
+    private let gradientLayer = CAGradientLayer()
+    
+    @Invalidating(.display)
+    @IBInspectable
+    open dynamic var colors: [NSColor] = []
+
+    @Invalidating(.display)
+    @IBInspectable
+    open dynamic var startPoint: NSPoint = .init(x: 0, y: 0.5)
+
+    @Invalidating(.display)
+    @IBInspectable
+    open dynamic var endPoint: NSPoint = .init(x: 1, y: 0.5)
+
+    @Invalidating(.display)
+    @IBInspectable
+    open dynamic var locations: [CGFloat] = [0, 1]
+    
+    public func setStartPosition(_ startPosition: Position) {
+        startPoint = startPosition.cgPoint
+    }
+    
+    public func setEndPosition(_ endPosition: Position) {
+        endPoint = endPosition.cgPoint
+    }
+    
+    open override func updateLayer() {
+        super.updateLayer()
+        gradientLayer.colors = colors.map(\.cgColor)
+        gradientLayer.startPoint = startPoint
+        gradientLayer.endPoint = endPoint
+        gradientLayer.locations = locations.map { NSNumber(value: $0) }
+    }
+    
+    open override func setup() {
+        super.setup()
+        
+        layer?.addSublayer(gradientLayer)
+        gradientLayer.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
+    }
 }
 
 #endif

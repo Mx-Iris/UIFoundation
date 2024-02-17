@@ -35,6 +35,16 @@ open class TableView: NSTableView {
         }
         return (scrollView, tableView)
     }
+    
+    open class func scrollableTableView<TableViewType: NSTableView>() -> (ScrollView, TableViewType) {
+        let scrollView = ScrollView()
+        let tableView = TableViewType()
+        scrollView.do {
+            $0.documentView = tableView
+            $0.hasVerticalScroller = true
+        }
+        return (scrollView, tableView)
+    }
 }
 
 open class SingleColumnTableView: TableView {

@@ -6,8 +6,6 @@ import AppKit
 import UIKit
 #endif
 
-
-
 open class MaterialLoadingIndicator: Indicator {
     fileprivate let drawableLayer = CAShapeLayer()
 
@@ -177,6 +175,8 @@ open class MaterialLoadingIndicator: Indicator {
     }
 }
 
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+
 extension NSBezierPath {
     var asCGPath: CGPath {
         if #available(macOS 14.0, *) {
@@ -201,3 +201,6 @@ extension NSBezierPath {
         }
     }
 }
+
+
+#endif

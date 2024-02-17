@@ -37,4 +37,19 @@ open class ScrollView: NSScrollView {
     }
 }
 
+open class GenericScrollView<DocumentView: NSView>: ScrollView {
+    public let genericDocumentView: DocumentView
+
+    public init(documentView: DocumentView, frame: NSRect = .zero) {
+        self.genericDocumentView = documentView
+        super.init(frame: frame)
+        self.documentView = documentView
+    }
+
+    @available(*, unavailable)
+    public required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
 #endif

@@ -1,10 +1,10 @@
-#if canImport(AppKit)
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
 
 extension NSNib {
-    public convenience init?(nibClass: (some NSObject).Type) {
-        self.init(nibNamed: .init(describing: nibClass), bundle: nil)
+    public convenience init?(nibClass: AnyClass, bundle: Bundle? = nil) {
+        self.init(nibNamed: .init(describing: nibClass), bundle: bundle)
     }
 }
 

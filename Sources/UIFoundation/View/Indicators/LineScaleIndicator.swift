@@ -36,10 +36,7 @@ import AppKit
 import UIKit
 #endif
 
-
-
 open class LineScaleIndicator: Indicator {
-    
     open override func setupAnimation(in layer: CALayer, size: CGSize) {
         let lineSize = size.width / 9
         let x = (layer.bounds.size.width - size.width) / 2

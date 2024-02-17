@@ -6,8 +6,6 @@ import AppKit
 import UIKit
 #endif
 
-
-
 open class XiblessViewController<View: NSUIView>: NSUIViewController {
     public let contentView: View
 
@@ -25,9 +23,9 @@ open class XiblessViewController<View: NSUIView>: NSUIViewController {
     public required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-    
+
     open func commonInit() {}
-    
+
     open override func loadView() {
         view = contentView
     }

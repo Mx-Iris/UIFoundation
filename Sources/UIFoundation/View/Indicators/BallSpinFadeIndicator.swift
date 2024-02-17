@@ -36,10 +36,7 @@ import AppKit
 import UIKit
 #endif
 
-
-
 open class BallSpinFadeIndicator: Indicator {
-    
     open override func setupAnimation(in layer: CALayer, size: CGSize) {
         let circleSpacing: CGFloat = -2
         let circleSize = (size.width - 4 * circleSpacing) / 5
@@ -78,11 +75,13 @@ open class BallSpinFadeIndicator: Indicator {
 
         // Draw circles
         for i in 0 ..< 8 {
-            let circle = circleAt(angle: CGFloat(Double.pi / 4) * CGFloat(i),
-                                  size: circleSize,
-                                  origin: CGPoint(x: x, y: y),
-                                  containerSize: size,
-                                  color: color)
+            let circle = circleAt(
+                angle: CGFloat(Double.pi / 4) * CGFloat(i),
+                size: circleSize,
+                origin: CGPoint(x: x, y: y),
+                containerSize: size,
+                color: color
+            )
 
             animation.beginTime = beginTime + beginTimes[i]
             circle.add(animation, forKey: "animation")
@@ -97,7 +96,8 @@ open class BallSpinFadeIndicator: Indicator {
             x: origin.x + radius * (cos(angle) + 1),
             y: origin.y + radius * (sin(angle) + 1),
             width: size,
-            height: size)
+            height: size
+        )
 
         circle.frame = frame
 

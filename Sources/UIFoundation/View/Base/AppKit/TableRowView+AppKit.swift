@@ -12,11 +12,20 @@ open class NoEmphasizedTableRowView: NSTableRowView {
 open class TableRowView: NSTableRowView {
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
+        commonInit()
     }
 
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
+        commonInit()
     }
+    
+    private func commonInit() {
+        wantsLayer = true
+        setup()
+    }
+    
+    open func setup() {}
 }
 
 #endif

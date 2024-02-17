@@ -1,12 +1,7 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 import AppKit
-#endif
 
-#if canImport(UIKit)
-import UIKit
-#endif
-
-open class XiblessView: NSUIView {
+open class XiblessView: View {
     public override init(frame frameRect: CGRect) {
         super.init(frame: frameRect)
     }
@@ -16,3 +11,5 @@ open class XiblessView: NSUIView {
         fatalError("init(coder:) has not been implemented")
     }
 }
+
+#endif

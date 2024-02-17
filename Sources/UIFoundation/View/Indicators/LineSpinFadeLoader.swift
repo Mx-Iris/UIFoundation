@@ -31,10 +31,7 @@ import AppKit
 import UIKit
 #endif
 
-
-
 open class LineSpinFadeLoader: Indicator {
-
     open override func setupAnimation(in layer: CALayer, size: CGSize) {
         let lineSpacing: CGFloat = 2
         let lineSize = CGSize(width: (size.width - 4 * lineSpacing) / 5, height: (size.height - 2 * lineSpacing) / 3)
@@ -61,11 +58,13 @@ open class LineSpinFadeLoader: Indicator {
 
         // Draw lines
         for i in 0 ..< 8 {
-            let line = lineAt(angle: CGFloat(Double.pi / 4 * Double(i)),
-                              size: lineSize,
-                              origin: CGPoint(x: x, y: y),
-                              containerSize: size,
-                              color: color)
+            let line = lineAt(
+                angle: CGFloat(Double.pi / 4 * Double(i)),
+                size: lineSize,
+                origin: CGPoint(x: x, y: y),
+                containerSize: size,
+                color: color
+            )
 
             animation.beginTime = beginTime + beginTimes[i]
             line.add(animation, forKey: "animation")
@@ -81,13 +80,15 @@ open class LineSpinFadeLoader: Indicator {
             x: origin.x + radius * (cos(angle) + 1),
             y: origin.y + radius * (sin(angle) + 1),
             width: lineContainerSize.width,
-            height: lineContainerSize.height)
+            height: lineContainerSize.height
+        )
         let line = NVActivityIndicatorShape.line.layerWith(size: size, color: color)
         let lineFrame = CGRect(
             x: (lineContainerSize.width - size.width) / 2,
             y: (lineContainerSize.height - size.height) / 2,
             width: size.width,
-            height: size.height)
+            height: size.height
+        )
 
         lineContainer.frame = lineContainerFrame
         line.frame = lineFrame

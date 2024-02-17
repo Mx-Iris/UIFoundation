@@ -6,8 +6,6 @@ import AppKit
 import UIKit
 #endif
 
-
-
 extension NSUILayoutPriority {
     @inlinable static func valueOrNil(_ value: Float?) -> NSUILayoutPriority? {
         guard let v = value else { return nil }

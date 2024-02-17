@@ -6,8 +6,6 @@ import AppKit
 import UIKit
 #endif
 
-
-
 extension NSUIStackView {
     /// The spacing and sizing distribution of stacked views along the primary axis. Defaults to GravityAreas.
     public func distribution(_ dist: NSUIStackViewDistribution) -> Self {

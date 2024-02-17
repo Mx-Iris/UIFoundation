@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "UIFoundation",
-    platforms: [.macOS(.v12), .iOS(.v15), .tvOS(.v15), .macCatalyst(.v15)],
+    platforms: [.macOS(.v12), .iOS(.v15)],
     products: [
         .library(
             name: "UIFoundation",

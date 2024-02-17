@@ -1,3 +1,5 @@
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+
 //
 //  NSApplication.swift
 //  SegmentedControl
@@ -30,3 +32,6 @@ extension FrameworkToolbox where Base: NSApplication {
     }
 
 }
+
+
+#endif

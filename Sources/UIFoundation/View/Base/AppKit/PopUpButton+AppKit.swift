@@ -3,6 +3,11 @@
 import AppKit
 
 open class PopUpButton: NSPopUpButton {
+    
+    public convenience init() {
+        self.init(frame: .zero, pullsDown: false)
+    }
+    
     public override init(frame buttonFrame: NSRect, pullsDown flag: Bool) {
         super.init(frame: buttonFrame, pullsDown: flag)
         commonInit()
@@ -15,13 +20,10 @@ open class PopUpButton: NSPopUpButton {
     
     private func commonInit() {
         wantsLayer = true
-//        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
     
     open func setup() {}
-    
-//    open override var wantsUpdateLayer: Bool { true }
 }
 
 

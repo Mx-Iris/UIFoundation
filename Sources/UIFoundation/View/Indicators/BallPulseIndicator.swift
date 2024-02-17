@@ -36,10 +36,7 @@ import AppKit
 import UIKit
 #endif
 
-
-
 open class BallPulseIndicator: Indicator {
-
     open override func setupAnimation(in layer: CALayer, size: CGSize) {
         let circleSpacing: CGFloat = 2
         let circleSize: CGFloat = (size.width - 2 * circleSpacing) / 3
@@ -62,10 +59,12 @@ open class BallPulseIndicator: Indicator {
         // Draw circles
         for i in 0 ..< 3 {
             let circle = NVActivityIndicatorShape.circle.layerWith(size: CGSize(width: circleSize, height: circleSize), color: color)
-            let frame = CGRect(x: x + circleSize * CGFloat(i) + circleSpacing * CGFloat(i),
-                               y: y,
-                               width: circleSize,
-                               height: circleSize)
+            let frame = CGRect(
+                x: x + circleSize * CGFloat(i) + circleSpacing * CGFloat(i),
+                y: y,
+                width: circleSize,
+                height: circleSize
+            )
 
             animation.beginTime = beginTime + beginTimes[i]
             circle.frame = frame

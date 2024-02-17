@@ -3,7 +3,7 @@
 import CoreGraphics
 import FrameworkToolbox
 
-#if canImport(AppKit)
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
 import AppKit
 
 extension FrameworkToolbox where Base: CGImage {

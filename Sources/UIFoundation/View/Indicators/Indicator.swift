@@ -6,8 +6,6 @@ import AppKit
 import UIKit
 #endif
 
-
-
 open class Indicator: NSUIView, IndicatorProtocol {
     open var isAnimating: Bool = false
     open var radius: CGFloat = 18.0

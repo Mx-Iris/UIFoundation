@@ -33,8 +33,6 @@ import AppKit
 import UIKit
 #endif
 
-
-
 enum NVActivityIndicatorShape {
     case circle
     case circleSemi
@@ -56,7 +54,7 @@ enum NVActivityIndicatorShape {
 
         switch self {
         case .circle:
-            
+
             path.addArc(
                 withCenter: CGPoint(x: size.width / 2, y: size.height / 2),
                 radius: size.width / 2,
@@ -197,18 +195,22 @@ enum NVActivityIndicatorShape {
     }
 }
 
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+
 extension NSBezierPath {
     @inlinable
     func addArc(withCenter center: CGPoint, radius: CGFloat, startAngle: CGFloat, endAngle: CGFloat, clockwise: Bool) {
         appendArc(withCenter: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: clockwise)
     }
-    
+
     @inlinable
     func addLine(to point: CGPoint) {
         line(to: point)
     }
-    
+
     convenience init(roundedRect rect: CGRect, cornerRadius: CGFloat) {
         self.init(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius)
     }
 }
+
+#endif
