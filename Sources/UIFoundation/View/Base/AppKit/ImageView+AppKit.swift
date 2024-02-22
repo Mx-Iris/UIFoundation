@@ -21,7 +21,7 @@ open class ImageView: NSImageView {
 
     open func setup() {}
 
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     open var isRounded: Bool = false
 
     open override var wantsUpdateLayer: Bool { true }

@@ -6,6 +6,8 @@ import AppKit
 import UIKit
 #endif
 
+import UIFoundationTypealias
+
 public class Spacer: NSUIView {
     public let spacing: CGFloat
 

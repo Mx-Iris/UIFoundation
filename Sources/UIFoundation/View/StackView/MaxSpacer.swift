@@ -6,6 +6,8 @@ import AppKit
 import UIKit
 #endif
 
+import UIFoundationTypealias
+
 public class MaxSpacer: NSUIView {
     public init() {
         super.init(frame: .zero)

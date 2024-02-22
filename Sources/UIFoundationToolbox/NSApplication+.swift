@@ -1,12 +1,5 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
-//
-//  NSApplication.swift
-//  SegmentedControl
-//
-//  Created by John on 30/03/2021.
-//
-
 import AppKit
 import FrameworkToolbox
 

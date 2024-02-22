@@ -3,11 +3,11 @@ import AppKit
 
 @IBDesignable
 open class RoundedBorderLabel: Label {
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var borderColor: NSColor? = nil
 
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var borderWidth: CGFloat = 0
 

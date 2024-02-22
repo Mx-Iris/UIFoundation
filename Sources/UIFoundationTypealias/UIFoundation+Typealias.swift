@@ -13,6 +13,7 @@ public typealias NSUIStackViewDistribution = NSUIStackView.Distribution
 public typealias NSUIEdgeInsets = NSEdgeInsets
 public typealias NSUILayoutGuide = NSLayoutGuide
 public typealias NSUIColor = NSColor
+public typealias NSUIFont = NSFont
 public typealias NSUIBezierPath = NSBezierPath
 #endif
 
@@ -32,4 +33,5 @@ public typealias NSUIEdgeInsets = UIEdgeInsets
 public typealias NSUILayoutGuide = UILayoutGuide
 public typealias NSUIColor = UIColor
 public typealias NSUIBezierPath = UIBezierPath
+public typealias NSUIFont = UIFont
 #endif

@@ -6,6 +6,8 @@ import AppKit
 import UIKit
 #endif
 
+import UIFoundationTypealias
+
 open class XiblessViewController<View: NSUIView>: NSUIViewController {
     public let contentView: View
 

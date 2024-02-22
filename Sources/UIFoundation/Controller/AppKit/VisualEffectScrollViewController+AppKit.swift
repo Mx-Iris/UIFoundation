@@ -2,7 +2,7 @@
 
 import AppKit
 
-open class VisualEffectScrollViewController<View: NSUIView>: NSUIViewController {
+open class VisualEffectScrollViewController<View: NSView>: NSViewController {
     public let contentView: View
 
     public let visualEffectView = NSVisualEffectView()

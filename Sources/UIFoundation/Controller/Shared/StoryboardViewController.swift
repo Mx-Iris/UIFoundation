@@ -6,6 +6,8 @@ import AppKit
 import UIKit
 #endif
 
+import UIFoundationTypealias
+
 public protocol StoryboardViewController: NSUIViewController {
     static var storyboard: NSUIStoryboard { get }
     static var storyboardIdentifier: String { get }

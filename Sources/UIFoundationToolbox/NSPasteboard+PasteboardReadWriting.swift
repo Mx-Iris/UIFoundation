@@ -1,11 +1,5 @@
-//
-//  NSPasteboard+PasteboardReadWriting.swift
-//
-//
-//  Created by Florian Zand on 31.12.23.
-//
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
-#if os(macOS)
 import AppKit
 import FrameworkToolbox
 import FrameworkToolboxMacro

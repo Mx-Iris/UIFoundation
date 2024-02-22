@@ -4,9 +4,9 @@ import UIFoundationToolbox
 
 @IBDesignable
 open class Label: NSTextField {
-    @Invalidating(.display, .layout)
+    @ViewInvalidating(.display, .layout)
     @IBInspectable
-    open dynamic var contentInsets: NSEdgeInsets = .zero {
+    open dynamic var contentInsets: NSEdgeInsets = .box.zero {
         didSet {
             guard let cell = cell as? LabelCell else { return }
             cell.contentInsets = contentInsets

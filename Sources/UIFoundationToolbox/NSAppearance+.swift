@@ -1,15 +1,8 @@
-//
-//  NSAppearance+.swift
-//
-//
-//  Created by Florian Zand on 06.08.22.
-//
-
-#if os(macOS)
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
-import Foundation
 import FrameworkToolbox
+
 extension FrameworkToolbox where Base: NSAppearance {
     /// Returns a aqua appearance.
     public static var aqua: NSAppearance {

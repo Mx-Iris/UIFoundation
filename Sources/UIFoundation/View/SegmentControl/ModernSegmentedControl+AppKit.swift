@@ -46,7 +46,7 @@ public class ModernSegmentedControl: Control {
                 return
             }
 
-            CATransaction.box.withAnimation(duration: 0.3, timing: .easeOut) {
+            CATransaction.box.performWithAnimation(duration: 0.3, timing: .easeOut) {
                 for idx in 0..<segments.count {
                     segments[idx].isSelected = (idx == newValue)
                 }
@@ -202,7 +202,7 @@ public class ModernSegmentedControl: Control {
         }
 
         if !animated {
-            CATransaction.box.withoutAnimation {
+            CATransaction.box.performWithoutAnimation {
                 selectedSegmentIndex = idx
             }
         } else {

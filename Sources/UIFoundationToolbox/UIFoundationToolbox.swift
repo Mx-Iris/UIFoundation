@@ -1,2 +1,2 @@
 @_exported import FrameworkToolbox
-import FoundationToolbox
+@_exported import UIFoundationTypealias

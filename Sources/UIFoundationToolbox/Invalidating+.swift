@@ -10,17 +10,17 @@ extension NSTableView: ViewReloading {}
 
 extension NSCollectionView: ViewReloading {}
 
-extension NSViewInvalidating where Self == NSView.Invalidations.ReloadData {
-    public static var reloadData: Self { Self() }
-}
-
-extension NSView.Invalidations {
-    public struct ReloadData: NSViewInvalidating {
-        public func invalidate(view: NSView) {
-            guard let view = view as? ViewReloading else { return }
-            view.reloadData()
-        }
-    }
-}
+//extension NSViewInvalidating where Self == NSView.Invalidations.ReloadData {
+//    public static var reloadData: Self { Self() }
+//}
+//
+//extension NSView.Invalidations {
+//    public struct ReloadData: NSViewInvalidating {
+//        public func invalidate(view: NSView) {
+//            guard let view = view as? ViewReloading else { return }
+//            view.reloadData()
+//        }
+//    }
+//}
 
 #endif

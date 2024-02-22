@@ -1,11 +1,5 @@
-//
-//  NSAnimatablePropertyContainer+.swift
-//
-//
-//  Created by Florian Zand on 21.09.23.
-//
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
-#if os(macOS)
 import AppKit
 import FrameworkToolbox
 
@@ -17,5 +11,6 @@ extension FrameworkToolbox where Base: NSAnimatablePropertyContainer {
         animate ? base.animator() : base
     }
 }
+
 
 #endif

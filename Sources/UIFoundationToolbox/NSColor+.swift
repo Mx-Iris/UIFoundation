@@ -3,21 +3,16 @@
 import AppKit
 import FrameworkToolbox
 
-extension FrameworkToolbox where Base == String {
+extension FrameworkToolbox where Base: StringProtocol {
     public var nsColor: NSColor {
-        NSColor.box.fromHexString(hexString: base)
-    }
-}
-
-extension FrameworkToolbox where Base == NSString {
-    public var nsColor: NSColor {
-        NSColor.box.fromHexString(hexString: base as String)
+        return NSColor(hexString: String(base)) ?? NSColor.black
     }
 }
 
 extension FrameworkToolbox where Base: NSColor {
+    @available(*, deprecated, renamed: "NSColor(hexString:)")
     public static func fromHexString(hexString: String) -> NSColor {
-        return NSColor(hexString: hexString) ?? NSColor.black
+        return hexString.nsColor
     }
     
     private struct Components {

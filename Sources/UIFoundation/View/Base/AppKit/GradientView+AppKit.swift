@@ -42,19 +42,19 @@ open class GradientView: View {
     
     private let gradientLayer = CAGradientLayer()
     
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var colors: [NSColor] = []
 
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var startPoint: NSPoint = .init(x: 0, y: 0.5)
 
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var endPoint: NSPoint = .init(x: 1, y: 0.5)
 
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var locations: [CGFloat] = [0, 1]
     

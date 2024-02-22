@@ -6,6 +6,8 @@ import AppKit
 import UIKit
 #endif
 
+import UIFoundationTypealias
+
 open class XibViewController: NSUIViewController {
     public init() {
         super.init(nibName: String(describing: Self.self), bundle: .main)

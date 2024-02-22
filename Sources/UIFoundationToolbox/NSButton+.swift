@@ -3,13 +3,6 @@
 import AppKit
 import FrameworkToolbox
 
-extension FrameworkToolbox where Base: NSButton {
-    public func setTarget(_ target: AnyObject, action: Selector) {
-        base.target = target
-        base.action = action
-    }
-}
-
 extension NSButton {
     public convenience init(
         title: String = "",
@@ -36,6 +29,12 @@ extension NSButton {
 extension FrameworkToolbox where Base == Bool {
     public var controlState: NSControl.StateValue {
         base ? .on : .off
+    }
+}
+
+extension NSControl.StateValue: ExpressibleByBooleanLiteral {
+    public init(booleanLiteral value: BooleanLiteralType) {
+        self = value ? .on : .off
     }
 }
 

@@ -7,12 +7,17 @@ import AppKit
 
     @MainActor public let scrollView: ScrollView
 
-    public init(style: TableView.Style) {
+    public init() {
         let (scrollView, tableView) = TableView.scrollableTableView()
         self.scrollView = scrollView
         self.tableView = tableView
         super.init(viewGenerator: scrollView)
-        self.tableView.style = style
+    }
+
+    @available(macOS 11.0, *)
+    convenience init(style: TableView.Style) {
+        self.init()
+        tableView.style = style
     }
 
     open override func commonInit() {

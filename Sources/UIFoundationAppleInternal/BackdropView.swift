@@ -21,6 +21,7 @@ import UIFoundationAppleInternalObjC
 /// cannot be applied if the view is not the `window`'s `contentView`.
 ///
 /// Note: A NotificationCenter effect is simulated with `kCAFilterColorBrightness @ 0.5`.
+@available(macOS 11.0, *)
 public final class BackdropView: NSVisualEffectView {
     /// The `Effect` structure describes the parameters used by the `BackdropView`
     /// to produce its effects. Note that these effects do not cascade to any

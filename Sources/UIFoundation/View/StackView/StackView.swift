@@ -6,6 +6,8 @@ import AppKit
 import UIKit
 #endif
 
+import UIFoundationTypealias
+
 extension NSUIStackView {
     public convenience init(orientationOrAxis: NSUIStackViewOrientationOrAxis, distribution: NSUIStackViewDistribution, alignment: NSUIStackViewAlignment, spacing: CGFloat, views: [NSUIView]) {
         #if canImport(AppKit) && !targetEnvironment(macCatalyst)

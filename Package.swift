@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "UIFoundation",
-    platforms: [.macOS(.v12), .iOS(.v15)],
+    platforms: [.macOS(.v10_15), .iOS(.v13)],
     products: [
         .library(
             name: "UIFoundation",
@@ -24,7 +24,7 @@ let package = Package(
         .library(
             name: "UIFoundationAppleInternalObjC",
             targets: ["UIFoundationAppleInternalObjC"]
-        )
+        ),
     ],
     dependencies: [
         .package(
@@ -34,25 +34,31 @@ let package = Package(
     ],
     targets: [
         .target(
+            name: "UIFoundationTypealias"
+        ),
+
+        .target(
             name: "UIFoundation",
             dependencies: [
                 "UIFoundationToolbox",
+                "UIFoundationTypealias",
             ]
         ),
-        
+
         .target(
             name: "UIFoundationToolbox",
             dependencies: [
                 .product(name: "FrameworkToolbox", package: "FrameworkToolbox"),
                 .product(name: "FrameworkToolboxMacro", package: "FrameworkToolbox"),
                 .product(name: "FoundationToolbox", package: "FrameworkToolbox"),
+                "UIFoundationTypealias",
             ]
         ),
 
         .target(
             name: "UIFoundationAppleInternal",
             dependencies: [
-                "UIFoundationAppleInternalObjC"
+                "UIFoundationAppleInternalObjC",
             ]
         ),
 

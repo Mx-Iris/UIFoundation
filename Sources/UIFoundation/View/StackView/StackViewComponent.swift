@@ -6,6 +6,8 @@ import AppKit
 import UIKit
 #endif
 
+import UIFoundationTypealias
+
 public protocol StackViewComponent: NSUIView {}
 
 extension StackViewComponent {

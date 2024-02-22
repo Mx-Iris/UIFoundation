@@ -1,11 +1,5 @@
-//
-//  NSScreen+.swift
-//
-//
-//  Created by Florian Zand on 10.07.22.
-//
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
-#if os(macOS)
 import AppKit
 import CoreGraphics
 import IOKit.pwr_mgt
@@ -25,7 +19,7 @@ extension FrameworkToolbox where Base: NSScreen {
 
     /// Returns the identifier of the display.
     public var displayID: CGDirectDisplayID {
-        base.deviceDescription[.screenNumber] as? CGDirectDisplayID ?? 0
+        base.deviceDescription[.box.screenNumber] as? CGDirectDisplayID ?? 0
     }
 
     /// Returns the ordered index of the screen.
@@ -128,8 +122,11 @@ extension FrameworkToolbox where Base: NSScreen {
     }
 }
 
-extension NSDeviceDescriptionKey {
+extension NSDeviceDescriptionKey: FrameworkToolboxCompatible, FrameworkToolboxDynamicMemberLookup {}
+
+extension FrameworkToolbox where Base == NSDeviceDescriptionKey {
     /// The corresponding value is an `UInt32` value that identifies a `NSScreen` object.
     public static let screenNumber = NSDeviceDescriptionKey("NSScreenNumber")
 }
+
 #endif

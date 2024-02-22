@@ -1,11 +1,5 @@
-//
-//  NSPasteboard+.swift
-//
-//
-//  Created by Florian Zand on 08.06.23.
-//
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
-#if os(macOS)
 import AppKit
 import FrameworkToolbox
 
@@ -142,5 +136,6 @@ extension FrameworkToolbox where Base: NSDraggingInfo {
         set { base.draggingPasteboard.sounds = newValue }
     }
 }
+
 
 #endif

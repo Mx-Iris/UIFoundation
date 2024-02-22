@@ -1,17 +1,11 @@
-//
-//  NSAnimationContext+.swift
-//
-//
-//  Created by Florian Zand on 11.10.23.
-//
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
-#if os(macOS)
 import AppKit
 import FrameworkToolbox
 
 extension FrameworkToolbox where Base: NSAnimationContext {
     /// Runs the changes of the specified block non-animated.
-    public static func runNonAnimated(_ changes: () -> Void) {
+    public static func performWithoutAnimation(_ changes: () -> Void) {
         Base.runAnimationGroup { context in
             context.duration = 0.0
             context.allowsImplicitAnimation = true
@@ -38,4 +32,5 @@ extension FrameworkToolbox where Base: NSAnimationContext {
         }
     }
 }
+
 #endif

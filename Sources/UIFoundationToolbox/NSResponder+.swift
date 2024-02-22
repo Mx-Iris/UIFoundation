@@ -1,11 +1,5 @@
-//
-//  NSResponder+.swift
-//
-//
-//  Created by Florian Zand on 14.11.22.
-//
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
-#if os(macOS)
 import AppKit
 import FrameworkToolbox
 
@@ -21,4 +15,5 @@ extension FrameworkToolbox where Base: NSResponder {
         return chain
     }
 }
+
 #endif

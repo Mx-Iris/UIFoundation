@@ -6,6 +6,8 @@ import AppKit
 import UIKit
 #endif
 
+import UIFoundationTypealias
+
 public protocol IndicatorProtocol {
     /// The radius of the indicator.
     var radius: CGFloat { get set }

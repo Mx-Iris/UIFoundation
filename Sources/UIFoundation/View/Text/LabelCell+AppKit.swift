@@ -4,7 +4,7 @@ import AppKit
 import UIFoundationToolbox
 
 open class LabelCell: NSTextFieldCell {
-    open var contentInsets: NSEdgeInsets = .zero {
+    open var contentInsets: NSEdgeInsets = .box.zero {
         didSet {}
     }
 

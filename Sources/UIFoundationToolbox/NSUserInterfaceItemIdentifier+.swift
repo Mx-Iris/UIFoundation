@@ -3,7 +3,7 @@
 import AppKit
 import FrameworkToolbox
 
-extension NSUserInterfaceItemIdentifier: ExpressibleByStringLiteral, ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral {
+extension NSUserInterfaceItemIdentifier: ExpressibleByStringLiteral, ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral, ExpressibleByStringInterpolation {
     public init(stringLiteral value: String) {
         self.init(rawValue: value)
     }
@@ -18,12 +18,6 @@ extension NSUserInterfaceItemIdentifier: ExpressibleByStringLiteral, Expressible
 
     public init(_ anyClass: AnyClass) {
         self.init(String(describing: anyClass))
-    }
-}
-
-extension FrameworkToolbox {
-    public static var typeIdentifier: NSUserInterfaceItemIdentifier {
-        .init(String(describing: self))
     }
 }
 

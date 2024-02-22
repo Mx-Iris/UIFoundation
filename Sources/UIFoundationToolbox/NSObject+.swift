@@ -4,8 +4,13 @@ import AppKit
 import FrameworkToolbox
 
 extension FrameworkToolbox where Base: NSObject {
+    @available(*, deprecated, renamed: "classIdentifier")
     public static var typeNameIdentifier: NSUserInterfaceItemIdentifier {
-        .init(String(describing: Base.self))
+        self.classIdentifier
+    }
+
+    public static var classIdentifier: NSUserInterfaceItemIdentifier {
+        .init(Base.self)
     }
 }
 

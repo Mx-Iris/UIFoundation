@@ -20,39 +20,39 @@ open class View: NSView {
         _ = _firstLayout
     }
 
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var borderColor: NSColor? = nil
 
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var borderWidth: CGFloat = 0
 
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var cornerRadius: CGFloat = 0
 
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var backgroundColor: NSColor? = nil
 
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     @IBInspectable
     open var shadowColor: NSColor? = nil
 
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     @IBInspectable
     open var shadowOpacity: Float = 0.0
 
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     @IBInspectable
     open var shadowOffset: CGSize = .init(width: 0, height: -3)
 
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     @IBInspectable
     open var shadowRadius: CGFloat = 3
 
-    @Invalidating(.display)
+    @ViewInvalidating(.display)
     open var shadowPath: NSBezierPath? = nil
 
     open func setup() {}

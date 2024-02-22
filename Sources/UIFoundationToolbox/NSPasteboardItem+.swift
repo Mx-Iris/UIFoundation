@@ -1,11 +1,5 @@
-//
-//  NSPasteboardItem+.swift
-//
-//
-//  Created by Florian Zand on 01.02.24.
-//
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
-#if os(macOS)
 import AppKit
 import FrameworkToolbox
 

@@ -6,6 +6,8 @@ import AppKit
 import UIKit
 #endif
 
+import UIFoundationTypealias
+
 open class MaterialLoadingIndicator: Indicator {
     fileprivate let drawableLayer = CAShapeLayer()
 

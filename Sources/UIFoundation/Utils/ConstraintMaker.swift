@@ -6,6 +6,8 @@ import AppKit
 import UIKit
 #endif
 
+import UIFoundationTypealias
+
 extension NSUIView: ConstraintMaker {}
 
 protocol ConstraintMaker: NSUIView {}
