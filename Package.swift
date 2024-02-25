@@ -46,7 +46,6 @@ let package = Package(
             dependencies: [
                 "UIFoundationToolbox",
                 "UIFoundationTypealias",
-                .product(name: "AssociatedObject", package: "AssociatedObject")
             ]
         ),
 
