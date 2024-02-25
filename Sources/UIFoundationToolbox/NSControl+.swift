@@ -3,6 +3,7 @@
 import AppKit
 import FrameworkToolbox
 import AssociatedObject
+import FoundationToolbox
 
 extension FrameworkToolbox where Base: NSControl {
     public func heightForWidth(_ width: CGFloat) -> CGFloat {
@@ -53,8 +54,15 @@ extension NSControl {
         }
     }
 
-    @AssociatedObject(.retain(.nonatomic))
-    internal var actionHandler: ActionHandler?
+//    @AssociatedObject(.retain(.nonatomic))
+    internal var actionHandler: ActionHandler? {
+        set {
+            set(associatedValue: newValue, key: #function, object: self)
+        }
+        get {
+            getAssociatedValue(key: #function, object: self)
+        }
+    }
 }
 
 #endif
