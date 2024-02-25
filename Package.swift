@@ -31,6 +31,10 @@ let package = Package(
             url: "https://github.com/Mx-Iris/FrameworkToolbox",
             branch: "main"
         ),
+        .package(
+            url: "https://github.com/p-x9/AssociatedObject",
+            branch: "main"
+        )
     ],
     targets: [
         .target(
@@ -42,16 +46,18 @@ let package = Package(
             dependencies: [
                 "UIFoundationToolbox",
                 "UIFoundationTypealias",
+                .product(name: "AssociatedObject", package: "AssociatedObject")
             ]
         ),
 
         .target(
             name: "UIFoundationToolbox",
             dependencies: [
+                "UIFoundationTypealias",
                 .product(name: "FrameworkToolbox", package: "FrameworkToolbox"),
                 .product(name: "FrameworkToolboxMacro", package: "FrameworkToolbox"),
                 .product(name: "FoundationToolbox", package: "FrameworkToolbox"),
-                "UIFoundationTypealias",
+                .product(name: "AssociatedObject", package: "AssociatedObject"),
             ]
         ),
 
