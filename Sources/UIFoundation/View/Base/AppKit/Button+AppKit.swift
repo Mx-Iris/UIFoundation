@@ -69,6 +69,10 @@ open class MultipleTargetButton: NSButton {
     open func addTarget(_ target: AnyObject?, action: Selector?) {
         actionProxy.addForwardTarget(target, action: action, doubleAction: nil)
     }
+    
+    open func removeTarget(_ target: AnyObject?) {
+        actionProxy.removeForwardTarget(target)
+    }
 }
 
 final class ActionProxy<Owner: AnyObject>: NSObject {
@@ -96,13 +100,28 @@ final class ActionProxy<Owner: AnyObject>: NSObject {
         self.owner = owner
     }
 
-    private var currentTargetPair: Pair = .init()
-    private var forwardTargetPairs: [Pair] = []
-
+    private var forwardTargetPairs: [AnyHashable: Pair] = [:]
+    
+    
     public func addForwardTarget(_ target: AnyObject?, action: Selector?, doubleAction: Selector?) {
-        forwardTargetPairs.append(Pair(target: target, action: action, doubleAction: doubleAction))
+        let pair = Pair(target: target, action: action, doubleAction: doubleAction)
+        if let target {
+            let address = Unmanaged.passUnretained(target).toOpaque()
+            forwardTargetPairs[address] = pair
+        } else {
+            forwardTargetPairs[UUID()] = pair
+        }
     }
 
+    public func removeForwardTarget(_ target: AnyObject?) {
+        if let target {
+            let address = Unmanaged.passUnretained(target).toOpaque()
+            forwardTargetPairs.removeValue(forKey: address)
+        } else {
+            forwardTargetPairs.removeAll()
+        }
+    }
+    
     @objc private func action(_ sender: Any?) {
         func invoke(_ pair: Pair) {
             guard let action = pair.action else { return }
@@ -112,8 +131,7 @@ final class ActionProxy<Owner: AnyObject>: NSObject {
                 _ = pair.target?.perform(action, with: sender)
             }
         }
-        invoke(currentTargetPair)
-        forwardTargetPairs.forEach(invoke(_:))
+        forwardTargetPairs.map(\.value).forEach(invoke(_:))
     }
 
     @objc private func doubleAction(_ sender: Any?) {
@@ -125,8 +143,7 @@ final class ActionProxy<Owner: AnyObject>: NSObject {
                 _ = target.perform(doubleAction, with: sender)
             }
         }
-        invoke(currentTargetPair)
-        forwardTargetPairs.forEach(invoke(_:))
+        forwardTargetPairs.map(\.value).forEach(invoke(_:))
     }
 }
 #endif

@@ -3,6 +3,13 @@
 import AppKit
 import FrameworkToolbox
 
+extension FrameworkToolbox where Base: StringProtocol {
+    public var nsImage: NSImage? {
+        .init(named: String(base))
+    }
+}
+
+
 extension FrameworkToolbox where Base: NSImage {
     public var cgImage: CGImage? {
         guard let imageData = base.tiffRepresentation else { return nil }
