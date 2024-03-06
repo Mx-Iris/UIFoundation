@@ -3,8 +3,15 @@
 import AppKit
 
 open class XibWindowController: NSWindowController {
-    public convenience init() {
-        self.init(windowNibName: String(describing: Self.self))
+    open override var windowNibName: NSNib.Name? { String(describing: Self.self) }
+
+    public init() {
+        super.init(window: nil)
+    }
+
+    @available(*, unavailable)
+    public required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
     }
 }
 

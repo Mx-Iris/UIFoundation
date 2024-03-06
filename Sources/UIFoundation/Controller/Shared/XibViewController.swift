@@ -9,8 +9,11 @@ import UIKit
 import UIFoundationTypealias
 
 open class XibViewController: NSUIViewController {
+
+    open class var nibBundle: Bundle { .main }
+
     public init() {
-        super.init(nibName: String(describing: Self.self), bundle: .main)
+        super.init(nibName: String(describing: Self.self), bundle: Self.nibBundle)
         commonInit()
     }
 
