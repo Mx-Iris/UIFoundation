@@ -3,6 +3,8 @@
 import AppKit
 
 open class ScrollView: NSScrollView {
+    public var isHiddenVisualEffectView: Bool = false
+
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         commonInit()
@@ -15,7 +17,6 @@ open class ScrollView: NSScrollView {
 
     private func commonInit() {
         wantsLayer = true
-//        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
 
@@ -26,12 +27,10 @@ open class ScrollView: NSScrollView {
         get { false }
     }
 
-//    open override var wantsUpdateLayer: Bool { true }
-
     open override func didAddSubview(_ subview: NSView) {
         super.didAddSubview(subview)
 
-        if subview is NSVisualEffectView {
+        if isHiddenVisualEffectView, subview is NSVisualEffectView {
             subview.isHidden = true
         }
     }
