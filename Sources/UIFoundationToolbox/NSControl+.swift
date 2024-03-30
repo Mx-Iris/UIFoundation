@@ -54,15 +54,8 @@ extension NSControl {
         }
     }
 
-//    @AssociatedObject(.retain(.nonatomic))
-    internal var actionHandler: ActionHandler? {
-        set {
-            set(associatedValue: newValue, key: #function, object: self)
-        }
-        get {
-            getAssociatedValue(key: #function, object: self)
-        }
-    }
+    @AssociatedObject(.retain(.nonatomic))
+    internal var actionHandler: ActionHandler?
 }
 
 #endif

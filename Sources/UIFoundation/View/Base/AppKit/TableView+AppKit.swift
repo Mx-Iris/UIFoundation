@@ -36,8 +36,8 @@ open class TableView: NSTableView {
         return (scrollView, tableView)
     }
     
-    open class func scrollableTableView<TableViewType: NSTableView>() -> (ScrollView, TableViewType) {
-        let scrollView = ScrollView()
+    open class func scrollableTableView<ScrollViewType: NSScrollView, TableViewType: NSTableView>() -> (ScrollViewType, TableViewType) {
+        let scrollView = ScrollViewType()
         let tableView = TableViewType()
         scrollView.do {
             $0.documentView = tableView

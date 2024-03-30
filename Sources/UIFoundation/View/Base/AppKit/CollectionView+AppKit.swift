@@ -13,8 +13,8 @@ open class CollectionView: NSCollectionView {
         return (scrollView, collectionView)
     }
 
-    open class func scrollableCollectionView<CollectionViewType: CollectionView>() -> (scrollView: ScrollView, collectionView: CollectionViewType) {
-        let scrollView = ScrollView()
+    open class func scrollableCollectionView<ScrollViewType: NSScrollView, CollectionViewType: CollectionView>() -> (scrollView: ScrollViewType, collectionView: CollectionViewType) {
+        let scrollView = ScrollViewType()
         let collectionView = CollectionViewType()
         scrollView.do {
             $0.documentView = collectionView

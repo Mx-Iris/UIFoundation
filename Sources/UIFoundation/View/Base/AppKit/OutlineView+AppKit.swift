@@ -13,8 +13,8 @@ open class OutlineView: NSOutlineView {
         return (scrollView, outlineView)
     }
     
-    open class func scrollableOutlineView<OutlineViewType: OutlineView>() -> (scrollView: ScrollView, outlineView: OutlineViewType) {
-        let scrollView = ScrollView()
+    open class func scrollableOutlineView<ScrollViewType: NSScrollView, OutlineViewType: OutlineView>() -> (scrollView: ScrollViewType, outlineView: OutlineViewType) {
+        let scrollView = ScrollViewType()
         let outlineView = OutlineViewType()
         scrollView.do {
             $0.documentView = outlineView
