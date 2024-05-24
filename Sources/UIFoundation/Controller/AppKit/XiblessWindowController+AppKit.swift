@@ -3,10 +3,12 @@
 import AppKit
 
 open class XiblessWindowController<Window: NSWindow>: NSWindowController {
-    public private(set) var contentWindow: Window
+    public private(set) lazy var contentWindow: Window = windowGenerator()
 
-    public init(windowGenerator: @autoclosure () -> Window) {
-        self.contentWindow = windowGenerator()
+    private let windowGenerator: () -> Window
+    
+    public init(windowGenerator: @autoclosure @escaping () -> Window) {
+        self.windowGenerator = windowGenerator
         super.init(window: nil)
     }
 
