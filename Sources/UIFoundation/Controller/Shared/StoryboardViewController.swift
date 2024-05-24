@@ -13,12 +13,21 @@ public protocol StoryboardViewController: NSUIViewController {
     static var storyboardIdentifier: String { get }
 }
 
-public extension StoryboardViewController {
-    static func create() -> Self {
+extension StoryboardViewController {
+    public static var storyboard: NSUIStoryboard { .main }
+    public static var storyboardIdentifier: String { .init(describing: self) }
+}
+
+extension NSUIStoryboard {
+    static let main = NSUIStoryboard(name: "Main", bundle: .main)
+}
+
+extension StoryboardViewController {
+    public static func create() -> Self {
         return create(nil)
     }
 
-    static func create<ViewController: StoryboardViewController>(_ creator: ((NSCoder) -> ViewController?)? = nil) -> ViewController {
+    public static func create<ViewController: StoryboardViewController>(_ creator: ((NSCoder) -> ViewController?)? = nil) -> ViewController {
         #if canImport(AppKit) && !targetEnvironment(macCatalyst)
         return storyboard.instantiateController(identifier: storyboardIdentifier, creator: creator)
         #endif

@@ -9,6 +9,12 @@ public protocol StoryboardWindowController: NSWindowController {
 }
 
 extension StoryboardWindowController {
+    public static var storyboard: NSStoryboard { .main }
+
+    public static var storyboardIdentifier: String { .init(describing: self) }
+}
+
+extension StoryboardWindowController {
     public static func create() -> Self {
         return create(nil)
     }
@@ -19,3 +25,5 @@ extension StoryboardWindowController {
 }
 
 #endif
+
+
