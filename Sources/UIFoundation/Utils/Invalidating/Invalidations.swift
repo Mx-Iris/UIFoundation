@@ -81,7 +81,7 @@ public enum Invalidations {
         public static let configuration: Self = .init()
 
         public func invalidate(view: InvalidatingViewType) {
-            if #available(iOS 14, *) {
+            if #available(iOS 14, tvOS 14, *) {
                 switch view {
                 case let view as UITableViewCell:
                     view.setNeedsUpdateConfiguration()
