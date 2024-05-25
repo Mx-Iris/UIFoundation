@@ -75,7 +75,7 @@ extension FrameworkToolbox where Base == CGRect {
         // NSIntegralRectWithOptions is not available in ObjC Foundation on iOS
         // "self.integral" is not the same, but for now it has to be enough
         // https://twitter.com/krzyzanowskim/status/1512451888515629063
-        integral
+        base.integral
         #endif
     }
 }

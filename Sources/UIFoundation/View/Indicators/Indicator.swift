@@ -19,7 +19,7 @@ open class Indicator: NSUIView, IndicatorProtocol {
         self.color = color
     }
 
-    public override init(frame frameRect: NSRect) {
+    public override init(frame frameRect: CGRect) {
         super.init(frame: frameRect)
         #if canImport(AppKit) && !targetEnvironment(macCatalyst)
         self.wantsLayer = true

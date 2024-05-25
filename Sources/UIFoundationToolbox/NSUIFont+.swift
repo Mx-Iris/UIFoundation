@@ -25,16 +25,16 @@ extension FrameworkToolbox where Base == NSUIFont {
         }
 
         // Compute line spacing before the line metrics hacks are applied.
-        let lineSpacing = round(ascent) + round(descent) + round(lineGap);
+        var lineSpacing = round(ascent) + round(descent) + round(lineGap);
 
         // Hack Hiragino line metrics to allow room for marked text underlines.
-        if descent < 3, lineGap >= 3, base.familyName?.hasPrefix("Hiragino") == true {
+        if descent < 3, lineGap >= 3, base.nsuiFamilyName?.hasPrefix("Hiragino") == true {
             lineGap -= 3 - descent
             descent = 3
         }
 
     #if os(iOS)
-        let adjustment = shouldUseAdjustment(font) ? ceil(ascent + descent) * kLineHeightAdjustment : 0
+        let adjustment = shouldUseAdjustment(base) ? ceil(ascent + descent) * kLineHeightAdjustment : 0
         lineGap = ceil(lineGap)
         lineSpacing = ceil(ascent) + adjustment + ceil(descent) + lineGap
         ascent = ceil((ascent + adjustment))
@@ -45,7 +45,7 @@ extension FrameworkToolbox where Base == NSUIFont {
     }
 
     private func shouldUseAdjustment(_ font: NSUIFont) -> Bool {
-        guard let familyName = font.familyName else {
+        guard let familyName = font.nsuiFamilyName else {
             return false
         }
 
@@ -55,3 +55,19 @@ extension FrameworkToolbox where Base == NSUIFont {
             || familyName.caseInsensitiveCompare(".Helvetica NeueUI") == .orderedSame
     }
 }
+
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+extension NSFont {
+    var nsuiFamilyName: String? {
+        familyName
+    }
+}
+#endif
+
+#if canImport(UIKit)
+extension UIFont {
+    var nsuiFamilyName: String? {
+        familyName
+    }
+}
+#endif

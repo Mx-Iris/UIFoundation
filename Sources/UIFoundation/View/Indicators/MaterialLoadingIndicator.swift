@@ -206,3 +206,13 @@ extension NSBezierPath {
 
 
 #endif
+
+#if canImport(UIKit)
+
+extension UIBezierPath {
+    var asCGPath: CGPath {
+        cgPath
+    }
+}
+
+#endif
