@@ -2,7 +2,7 @@
 
 import AppKit
 
-public final class LoadingIndicator: NSWindowController {
+public final class LoadingIndicator {
     private final class ContentWindow: NSWindow {
         convenience init(contentView: NSView) {
             self.init(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
@@ -22,16 +22,27 @@ public final class LoadingIndicator: NSWindowController {
 
     public static let shared = LoadingIndicator()
 
-    public var backgroundColor: NSColor = .black.withAlphaComponent(0.8) {
+    public var containerBackgroundColor: NSColor = .black.withAlphaComponent(0.5) {
         didSet {
-            indicatorMaskView.layer?.backgroundColor = backgroundColor.cgColor
+            containerView.layer?.backgroundColor = containerBackgroundColor.cgColor
         }
     }
 
-    public var cornerRadius: CGFloat = 10 {
+    public var containerCornerRadius: CGFloat = 10 {
         didSet {
-            indicatorMaskView.layer?.cornerRadius = cornerRadius
+            containerView.layer?.cornerRadius = containerCornerRadius
         }
+    }
+
+    public var indicatorType: IndicatorType = .materialLoading(lineWidth: 3)
+
+    public var indicatorRadius: CGFloat = 20
+
+    public var indicatorColor: NSColor = .controlAccentColor
+
+    public var ignoresMouseEvents: Bool {
+        set { contentWindow.ignoresMouseEvents = newValue }
+        get { contentWindow.ignoresMouseEvents }
     }
 
     private var isLoading: Bool = false
@@ -40,62 +51,28 @@ public final class LoadingIndicator: NSWindowController {
 
     private lazy var contentView = ContentView()
 
-    private lazy var indicatorMaskView = NSView()
-
-    public var type: IndicatorType = .materialLoading(lineWidth: 3)
-
-    public var radius: CGFloat = 20
-
-    public var color: NSColor = .controlAccentColor
+    private lazy var containerView = NSView()
 
     private var indicatorView: Indicator!
 
     private init() {
-        super.init(window: nil)
-
-        contentView.addSubview(indicatorMaskView)
+        contentView.addSubview(containerView)
         contentView.translatesAutoresizingMaskIntoConstraints = false
         contentView.wantsLayer = true
 
-        indicatorMaskView.translatesAutoresizingMaskIntoConstraints = false
-        indicatorMaskView.wantsLayer = true
-        indicatorMaskView.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.5).cgColor
-        indicatorMaskView.layer?.cornerRadius = 10
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.wantsLayer = true
+        containerView.layer?.backgroundColor = containerBackgroundColor.cgColor
+        containerView.layer?.cornerRadius = containerCornerRadius
 
         NSLayoutConstraint.activate([
-            indicatorMaskView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            indicatorMaskView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            indicatorMaskView.widthAnchor.constraint(equalToConstant: 80),
-            indicatorMaskView.heightAnchor.constraint(equalToConstant: 80),
+            containerView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            containerView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            containerView.widthAnchor.constraint(equalToConstant: 80),
+            containerView.heightAnchor.constraint(equalToConstant: 80),
         ])
 
         reloadIndicator()
-    }
-
-    public override var windowNibName: NSNib.Name? { "" }
-
-    public override func loadWindow() {
-        window = contentWindow
-    }
-
-    @available(*, unavailable)
-    public override init(window: NSWindow?) {
-        fatalError("use shared instance")
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("use shared instance")
-    }
-
-    @available(*, unavailable)
-    public override func showWindow(_ sender: Any?) {
-        fatalError("call to show(in:) function")
-    }
-
-    @available(*, unavailable)
-    public override func close() {
-        fatalError("call to hide(in:) function")
     }
 
     public func show(in mainWindow: NSWindow) {
@@ -112,8 +89,7 @@ public final class LoadingIndicator: NSWindowController {
 //        }
         indicatorView.startAnimating()
         contentWindow.setFrame(mainWindow.frame, display: true)
-//        contentWindow.orderFront(nil)
-        super.showWindow(nil)
+        contentWindow.orderFront(nil)
     }
 
     public func hide(in mainWindow: NSWindow) {
@@ -121,8 +97,7 @@ public final class LoadingIndicator: NSWindowController {
         isLoading = false
         mainWindow.removeChildWindow(contentWindow)
         indicatorView.stopAnimating()
-//        contentWindow.close()
-        super.close()
+        contentWindow.close()
     }
 
     func reloadIndicator() {
@@ -130,34 +105,34 @@ public final class LoadingIndicator: NSWindowController {
             indicatorView.removeFromSuperview()
         }
         let indicator: Indicator
-        switch type {
+        switch indicatorType {
         case .ballbeat:
-            indicator = BallBeatIndicator(radius: radius, color: color)
+            indicator = BallBeatIndicator(radius: indicatorRadius, color: indicatorColor)
         case .ballPulse:
-            indicator = BallPulseIndicator(radius: radius, color: color)
+            indicator = BallPulseIndicator(radius: indicatorRadius, color: indicatorColor)
         case .ballPulseSync:
-            indicator = BallPulseSyncIndicator(radius: radius, color: color)
+            indicator = BallPulseSyncIndicator(radius: indicatorRadius, color: indicatorColor)
         case .ballSpinFadeIn:
-            indicator = BallSpinFadeIndicator(radius: radius, color: color)
+            indicator = BallSpinFadeIndicator(radius: indicatorRadius, color: indicatorColor)
         case .lineScale:
-            indicator = LineScaleIndicator(radius: radius, color: color)
+            indicator = LineScaleIndicator(radius: indicatorRadius, color: indicatorColor)
         case .lineScalePulse:
-            indicator = LineScalePulseIndicator(radius: radius, color: color)
+            indicator = LineScalePulseIndicator(radius: indicatorRadius, color: indicatorColor)
         case .lineSpinFadeLoader:
-            indicator = LineSpinFadeLoaderIndicator(radius: radius, color: color)
+            indicator = LineSpinFadeLoaderIndicator(radius: indicatorRadius, color: indicatorColor)
         case let .materialLoading(lineWidth):
-            indicator = MaterialLoadingIndicator(radius: radius, color: color).then {
+            indicator = MaterialLoadingIndicator(radius: indicatorRadius, color: indicatorColor).then {
                 $0.lineWidth = lineWidth
             }
         }
-        indicator.radius = radius
-        indicator.color = color
+        indicator.radius = indicatorRadius
+        indicator.color = indicatorColor
         indicatorView = indicator
         indicatorView.translatesAutoresizingMaskIntoConstraints = false
-        indicatorMaskView.addSubview(indicatorView)
+        containerView.addSubview(indicatorView)
         NSLayoutConstraint.activate([
-            indicatorView.centerXAnchor.constraint(equalTo: indicatorMaskView.centerXAnchor),
-            indicatorView.centerYAnchor.constraint(equalTo: indicatorMaskView.centerYAnchor),
+            indicatorView.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
+            indicatorView.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
             indicatorView.widthAnchor.constraint(equalToConstant: 50),
             indicatorView.heightAnchor.constraint(equalToConstant: 50),
         ])
