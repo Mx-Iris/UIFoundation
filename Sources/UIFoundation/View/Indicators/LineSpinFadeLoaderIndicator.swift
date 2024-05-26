@@ -8,7 +8,7 @@ import UIKit
 
 import UIFoundationTypealias
 
-open class LineSpinFadeLoader: Indicator {
+open class LineSpinFadeLoaderIndicator: Indicator {
     open override func setupAnimation(in layer: CALayer, size: CGSize) {
         let lineSpacing: CGFloat = 2
         let lineSize = CGSize(width: (size.width - 4 * lineSpacing) / 5, height: (size.height - 2 * lineSpacing) / 3)

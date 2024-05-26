@@ -8,6 +8,18 @@ import UIKit
 
 import UIFoundationTypealias
 
+
+public enum IndicatorType {
+    case ballbeat
+    case ballPulse
+    case ballPulseSync
+    case ballSpinFadeIn
+    case lineScale
+    case lineScalePulse
+    case lineSpinFadeLoader
+    case materialLoading(lineWidth: CGFloat)
+}
+
 open class Indicator: NSUIView, IndicatorProtocol {
     open var isAnimating: Bool = false
     open var radius: CGFloat = 18.0
