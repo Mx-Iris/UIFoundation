@@ -1,7 +1,7 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
-import AssociatedObject
+@_implementationOnly import AssociatedObject
 import FoundationToolbox
 
 extension NSView {

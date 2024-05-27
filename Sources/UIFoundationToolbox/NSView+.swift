@@ -2,7 +2,7 @@
 
 import AppKit
 import FrameworkToolbox
-import AssociatedObject
+@_implementationOnly import AssociatedObject
 
 extension FrameworkToolbox where Base: NSView {
     public func scrollPageDown() {

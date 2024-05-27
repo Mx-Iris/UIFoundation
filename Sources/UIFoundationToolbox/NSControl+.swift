@@ -2,7 +2,7 @@
 
 import AppKit
 import FrameworkToolbox
-import AssociatedObject
+@_implementationOnly import AssociatedObject
 import FoundationToolbox
 
 extension FrameworkToolbox where Base: NSControl {
