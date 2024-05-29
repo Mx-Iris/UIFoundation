@@ -2,6 +2,7 @@
 
 import AppKit
 
+@IBDesignable
 open class ImageView: NSImageView {
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -22,6 +23,7 @@ open class ImageView: NSImageView {
     open func setup() {}
 
     @ViewInvalidating(.display)
+    @IBInspectable
     open var isRounded: Bool = false
 
     open override var wantsUpdateLayer: Bool { true }
