@@ -1,8 +1,8 @@
 # UIFoundation
 
-> 目前该框架还处于开发状态，不保证任何API的稳定性！！！
+> **This framework is currently under development, and the stability of any API is not guaranteed!!!**
 
-这是一个构建在AppKit/UIKit之上的框架，致力于提供基础和实用的组件。
+This framework is built on top of AppKit/UIKit and aims to provide basic and practical components.
 
-- UIFoundation: 基于Apple公开的API构建
-- UIFoundationAppleInternal: 基于Apple私有的API构建，使用此框架有被拒审的风险，但提供了更多的功能
+- **UIFoundation**: Built based on Apple's public APIs.
+- **UIFoundationAppleInternal**: Built based on Apple's private APIs. Using this framework carries the risk of app rejection but provides more functionality. 
