@@ -60,9 +60,9 @@ public class ModernSegmentedControl: Control {
      * Custom tint color for the selected segment background.
      */
     @IBInspectable
-    public var tintColor: NSColor? {
+    public var controlTintColor: NSColor? {
         didSet {
-            if tintColor != oldValue {
+            if controlTintColor != oldValue {
                 updateSegments()
                 updateSelectionHighlightColor()
             }
@@ -172,12 +172,12 @@ public class ModernSegmentedControl: Control {
         commonInit()
     }
 
-    public convenience init(labels: [String], tintColor: NSColor, isMomentary: Bool) {
+    public convenience init(labels: [String], controlTintColor: NSColor, isMomentary: Bool) {
         self.init(frame: .zero)
         labels.enumerated().forEach { index, label in
             self.insertSegment(title: label, at: index)
         }
-        self.tintColor = tintColor
+        self.controlTintColor = controlTintColor
         self.isMomentary = isMomentary
     }
     
@@ -498,7 +498,7 @@ public class ModernSegmentedControl: Control {
     private func updateSegments() {
         for segment in segments {
             segment.isMomentary = isMomentary
-            segment.tintColor = tintColor
+            segment.tintColor = controlTintColor
         }
     }
 
@@ -518,7 +518,7 @@ public class ModernSegmentedControl: Control {
     private func updateSelectionHighlightColor() {
         // Ensure CGColor is appearance aware:
         NSApp.box.withEffectiveAppearance {
-            selectionHighlight.backgroundColor = (tintColor ?? NSColor.controlColor).cgColor
+            selectionHighlight.backgroundColor = (controlTintColor ?? NSColor.controlColor).cgColor
         }
     }
 
