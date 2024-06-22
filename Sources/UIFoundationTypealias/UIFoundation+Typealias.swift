@@ -15,6 +15,7 @@ public typealias NSUILayoutGuide = NSLayoutGuide
 public typealias NSUIColor = NSColor
 public typealias NSUIFont = NSFont
 public typealias NSUIBezierPath = NSBezierPath
+public typealias NSUIImage = NSImage
 #endif
 
 #if canImport(UIKit)
@@ -34,4 +35,5 @@ public typealias NSUILayoutGuide = UILayoutGuide
 public typealias NSUIColor = UIColor
 public typealias NSUIBezierPath = UIBezierPath
 public typealias NSUIFont = UIFont
+public typealias NSUIImage = UIImage
 #endif
