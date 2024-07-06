@@ -1,12 +1,18 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
-import AssociatedObject
 import FoundationToolbox
 
 extension NSView {
-    @AssociatedObject(.retain(.nonatomic))
-    public var interactions: [NSInteraction] = []
+//    @AssociatedObject(.retain(.nonatomic))
+    public private(set) var interactions: [NSInteraction] {
+        set {
+            objc_setAssociatedObject(self, #function, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+        get {
+            (objc_getAssociatedObject(self, #function) as? [NSInteraction]) ?? []
+        }
+    }
 
     public func addInteraction(_ interaction: NSInteraction) {
         interactions.append(interaction)

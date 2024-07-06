@@ -2,7 +2,7 @@
 
 import AppKit
 import FrameworkToolbox
-import AssociatedObject
+//import AssociatedObject
 import FoundationToolbox
 
 extension FrameworkToolbox where Base: NSControl {
@@ -54,8 +54,15 @@ extension NSControl {
         }
     }
 
-    @AssociatedObject(.retain(.nonatomic))
-    internal var actionHandler: ActionHandler?
+//    @AssociatedObject(.retain(.nonatomic))
+    internal var actionHandler: ActionHandler? {
+        set {
+            objc_setAssociatedObject(self, #function, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+        get {
+            objc_getAssociatedObject(self, #function) as? ActionHandler
+        }
+    }
 }
 
 #endif
