@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="22154" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+<document type="com.apple.InterfaceBuilder3.Cocoa.Storyboard.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
         <deployment identifier="macosx"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22154"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="22690"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -740,14 +740,23 @@
             </objects>
             <point key="canvasLocation" x="596" y="497"/>
         </scene>
-        <!--View Controller-->
+        <!--Main Storyboard View Controller-->
         <scene sceneID="FFP-IW-YOy">
             <objects>
-                <viewController id="38j-lm-yIo" sceneMemberID="viewController">
+                <viewController id="38j-lm-yIo" customClass="MainStoryboardViewController" customModule="UIFoundationExample_macOS" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" id="VIr-8r-ifY">
                         <rect key="frame" x="0.0" y="0.0" width="270" height="300"/>
                         <autoresizingMask key="autoresizingMask"/>
+                        <subviews>
+                            <customView fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="NhE-Sf-CV5" customClass="View" customModule="UIFoundation">
+                                <rect key="frame" x="54" y="102" width="163" height="96"/>
+                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
+                            </customView>
+                        </subviews>
                     </view>
+                    <connections>
+                        <outlet property="customView" destination="NhE-Sf-CV5" id="Eax-cK-PCS"/>
+                    </connections>
                 </viewController>
                 <customObject id="goL-a5-T8i" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
             </objects>
