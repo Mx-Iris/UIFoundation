@@ -32,7 +32,7 @@ open class DisclosureButton: Button {
 
     private func commonInit() {
         super.bezelStyle = .disclosure
-//        super.setButtonType(.momentaryPushIn)
+        super.setButtonType(.pushOnPushOff)
     }
 }
 #endif
