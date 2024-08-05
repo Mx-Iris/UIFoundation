@@ -7,6 +7,7 @@ import UIFoundationToolbox
 open class View: NSView {
     public struct BorderPositions: OptionSet, Hashable {
         public let rawValue: Int
+
         public init(rawValue: Int) {
             self.rawValue = rawValue
         }
@@ -32,12 +33,6 @@ open class View: NSView {
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
         commonInit()
-    }
-
-    open override func layout() {
-        super.layout()
-        _ = _firstLayout
-        borderLayer?.frame = bounds
     }
 
     private var borderLayer: CAShapeLayer?
@@ -128,6 +123,13 @@ open class View: NSView {
     }
 
     open override var wantsUpdateLayer: Bool { true }
+
+    open override func layout() {
+        super.layout()
+        _ = _firstLayout
+        borderLayer?.frame = bounds
+        borderLayer?.path = NSBezierPath(bounds: bounds, borderWidth: borderWidth, borderInsets: borderInsets, borderLocation: borderLocation, borderPositions: borderPositions).asCGPath
+    }
 
     private func performUpdateLayer() {
         guard let layer else { return }
