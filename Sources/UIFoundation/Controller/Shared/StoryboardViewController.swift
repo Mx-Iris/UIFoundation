@@ -22,6 +22,7 @@ extension NSUIStoryboard {
     static let main = NSUIStoryboard(name: "Main", bundle: .main)
 }
 
+@available(iOS 13.0, macOS 10.15, *)
 extension StoryboardViewController {
     public static func create() -> Self {
         return create(nil)
