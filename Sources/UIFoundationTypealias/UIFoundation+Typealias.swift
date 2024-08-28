@@ -16,6 +16,9 @@ public typealias NSUIColor = NSColor
 public typealias NSUIFont = NSFont
 public typealias NSUIBezierPath = NSBezierPath
 public typealias NSUIImage = NSImage
+public typealias NSUISymbolWeight = NSFont.Weight
+public typealias NSUIFontDescriptor = NSFontDescriptor
+public typealias NSUIImageView = NSImageView
 #endif
 
 #if canImport(UIKit)
@@ -36,4 +39,7 @@ public typealias NSUIColor = UIColor
 public typealias NSUIBezierPath = UIBezierPath
 public typealias NSUIFont = UIFont
 public typealias NSUIImage = UIImage
+public typealias NSUISymbolWeight = UIImage.SymbolWeight
+public typealias NSUIFontDescriptor = UIFontDescriptor
+public typealias NSUIImageView = UIImageView
 #endif
