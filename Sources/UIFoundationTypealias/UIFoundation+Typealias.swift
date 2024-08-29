@@ -39,6 +39,7 @@ public typealias NSUIColor = UIColor
 public typealias NSUIBezierPath = UIBezierPath
 public typealias NSUIFont = UIFont
 public typealias NSUIImage = UIImage
+@available(iOS 13.0, *)
 public typealias NSUISymbolWeight = UIImage.SymbolWeight
 public typealias NSUIFontDescriptor = UIFontDescriptor
 public typealias NSUIImageView = UIImageView
