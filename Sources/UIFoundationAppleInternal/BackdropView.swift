@@ -1,27 +1,27 @@
 import AppKit
 import UIFoundationAppleInternalObjC
 
-/// `NSVisualEffectView`:
-///
-/// A view that adds translucency and vibrancy effects to the views in your interface.
-/// When you want views to be more prominent in your interface, place them in a
-/// backdrop view. The backdrop view is partially transparent, allowing some of
-/// the underlying content to show through. Typically, you use a backdrop view
-/// to blur background content, instead of obscuring it completely. It can also
-/// make its contained content more vibrant to ensure that it remains prominent.
-///
-/// A suggested use in designing visual containers is the use of "cards"; apply
-/// a `.light` or `.dark` effect to the backdrop view, set its `cornerRadius = 4.5`,
-/// `rimOpacity = 0.25`, and add a `NSView.shadow` (visually similar to `NSWindow`).
-///
-/// Note: if set as the containing `window`'s `contentView`, the window's
-/// `isOpaque` value will be changed. If the window's `contentView` is changed,
-/// the original settings are restored. However, unlike `NSVisualEffectView`,
-/// no desktop bleed blending will occur. In  addition, `.behindWindow` blending
-/// cannot be applied if the view is not the `window`'s `contentView`.
-///
-/// Note: A NotificationCenter effect is simulated with `kCAFilterColorBrightness @ 0.5`.
-@available(macOS 11.0, *)
+// `NSVisualEffectView`:
+//
+// A view that adds translucency and vibrancy effects to the views in your interface.
+// When you want views to be more prominent in your interface, place them in a
+// backdrop view. The backdrop view is partially transparent, allowing some of
+// the underlying content to show through. Typically, you use a backdrop view
+// to blur background content, instead of obscuring it completely. It can also
+// make its contained content more vibrant to ensure that it remains prominent.
+//
+// A suggested use in designing visual containers is the use of "cards"; apply
+// a `.light` or `.dark` effect to the backdrop view, set its `cornerRadius = 4.5`,
+// `rimOpacity = 0.25`, and add a `NSView.shadow` (visually similar to `NSWindow`).
+//
+// Note: if set as the containing `window`'s `contentView`, the window's
+// `isOpaque` value will be changed. If the window's `contentView` is changed,
+// the original settings are restored. However, unlike `NSVisualEffectView`,
+// no desktop bleed blending will occur. In  addition, `.behindWindow` blending
+// cannot be applied if the view is not the `window`'s `contentView`.
+//
+// Note: A NotificationCenter effect is simulated with `kCAFilterColorBrightness @ 0.5`.
+
 public final class BackdropView: NSVisualEffectView {
     /// The `Effect` structure describes the parameters used by the `BackdropView`
     /// to produce its effects. Note that these effects do not cascade to any
@@ -232,7 +232,7 @@ public final class BackdropView: NSVisualEffectView {
 
     /// Always `.appearanceBased`; use `effect` instead.
     public override var material: NSVisualEffectView.Material {
-        get { return .appearanceBased }
+        get { return .init(rawValue: 0) ?? .contentBackground }
         set {}
     }
 
@@ -276,7 +276,7 @@ public final class BackdropView: NSVisualEffectView {
         // Essentially, tell the `NSVisualEffectView` to not do its job:
         super.state = .active
         super.blendingMode = .withinWindow
-        super.material = .appearanceBased
+        super.material = .init(rawValue: 0) ?? .contentBackground
         setValue(true, forKey: "clear") // internal material
 
         // Set up our backdrop view:
@@ -428,8 +428,15 @@ public final class BackdropView: NSVisualEffectView {
         // NSAnimationContext handles per-thread activation of CATransaction for us.
         NSAnimationContext.beginGrouping()
         CATransaction.setDisableActions(!actions)
-        effectiveAppearance.performAsCurrentDrawingAppearance {
+        if #available(macOS 11.0, *) {
+            effectiveAppearance.performAsCurrentDrawingAppearance {
+                handler()
+            }
+        } else {
+            let saved = NSAppearance.current
+            NSAppearance.current = effectiveAppearance
             handler()
+            NSAppearance.current = saved
         }
 
         NSAnimationContext.endGrouping()
