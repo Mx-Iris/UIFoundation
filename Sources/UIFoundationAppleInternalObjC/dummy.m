@@ -6,3 +6,5 @@
 //
 
 #import <Foundation/Foundation.h>
+#import "NSButton+Private.h"
+#import "_NSSimpleImageView.h"
