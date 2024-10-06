@@ -3,11 +3,15 @@
 import AppKit
 
 open class XiblessWindowController<Window: NSWindow>: NSWindowController {
-    public private(set) lazy var contentWindow: Window = windowGenerator()
+    public lazy var contentWindow: Window = windowGenerator() {
+        didSet {
+            window = contentWindow
+        }
+    }
 
     private let windowGenerator: () -> Window
-    
-    public init(windowGenerator: @autoclosure @escaping () -> Window) {
+
+    public init(windowGenerator: @autoclosure @escaping () -> Window = Window(contentRect: .zero, styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)) {
         self.windowGenerator = windowGenerator
         super.init(window: nil)
     }
@@ -21,12 +25,6 @@ open class XiblessWindowController<Window: NSWindow>: NSWindowController {
 
     open override func loadWindow() {
         window = contentWindow
-    }
-}
-
-open class PlainXiblessWindowController: XiblessWindowController<NSWindow> {
-    public init() {
-        super.init(windowGenerator: NSWindow(contentRect: .zero, styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false))
     }
 }
 

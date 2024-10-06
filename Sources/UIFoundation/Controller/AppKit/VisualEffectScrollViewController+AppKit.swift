@@ -8,7 +8,7 @@ open class VisualEffectScrollViewController<View: NSView>: NSViewController {
     public let visualEffectView = NSVisualEffectView()
 
     public let scrollView = NSScrollView()
-    
+
     public init(viewGenerator: @autoclosure () -> View) {
         self.contentView = viewGenerator()
         super.init(nibName: nil, bundle: nil)
@@ -26,7 +26,6 @@ open class VisualEffectScrollViewController<View: NSView>: NSViewController {
 
     open func commonInit() {}
 
-    
     open override func loadView() {
         view = visualEffectView
         visualEffectView.addSubview(scrollView)
@@ -36,11 +35,9 @@ open class VisualEffectScrollViewController<View: NSView>: NSViewController {
             make.rightAnchor.constraint(equalTo: visualEffectView.rightAnchor)
             make.bottomAnchor.constraint(equalTo: visualEffectView.bottomAnchor)
         }
-        
+
         scrollView.documentView = contentView
     }
 }
-
-
 
 #endif

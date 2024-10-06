@@ -3,18 +3,16 @@
 import AppKit
 
 open class ScrollViewController<View: NSView>: NSViewController {
-    public let contentView: View
+    public lazy var documentView: View = documentViewGenerator()
 
     public let scrollView = NSScrollView()
     
-    public init(viewGenerator: @autoclosure () -> View) {
-        self.contentView = viewGenerator()
+    private let documentViewGenerator: () -> View
+    
+    public init(viewGenerator: @autoclosure @escaping () -> View = View()) {
+        self.documentViewGenerator = viewGenerator
         super.init(nibName: nil, bundle: nil)
         commonInit()
-    }
-
-    public convenience init() {
-        self.init(viewGenerator: View())
     }
 
     @available(*, unavailable)
@@ -27,7 +25,7 @@ open class ScrollViewController<View: NSView>: NSViewController {
     
     open override func loadView() {
         view = scrollView
-        scrollView.documentView = contentView
+        scrollView.documentView = documentView
     }
 }
 

@@ -24,7 +24,6 @@ open class VisualEffectViewController<View: NSView>: NSViewController {
 
     open func commonInit() {}
 
-    
     open override func loadView() {
         view = visualEffectView
         visualEffectView.addSubview(contentView)

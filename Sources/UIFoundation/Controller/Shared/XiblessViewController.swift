@@ -9,16 +9,18 @@ import UIKit
 import UIFoundationTypealias
 
 open class XiblessViewController<View: NSUIView>: NSUIViewController {
-    public let contentView: View
-
-    public init(viewGenerator: @autoclosure () -> View) {
-        self.contentView = viewGenerator()
-        super.init(nibName: nil, bundle: nil)
-        commonInit()
+    public lazy var contentView: View = contentViewGenerator() {
+        didSet {
+            view = contentView
+        }
     }
 
-    public convenience init() {
-        self.init(viewGenerator: View())
+    private let contentViewGenerator: () -> View
+    
+    public init(viewGenerator: @autoclosure @escaping () -> View = View()) {
+        self.contentViewGenerator = viewGenerator
+        super.init(nibName: nil, bundle: nil)
+        commonInit()
     }
 
     @available(*, unavailable)

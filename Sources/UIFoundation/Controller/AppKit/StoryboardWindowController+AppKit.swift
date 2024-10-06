@@ -25,5 +25,3 @@ extension StoryboardWindowController {
 }
 
 #endif
-
-

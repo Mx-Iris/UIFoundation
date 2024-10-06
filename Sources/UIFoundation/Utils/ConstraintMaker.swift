@@ -10,10 +10,10 @@ import UIFoundationTypealias
 
 extension NSUIView: ConstraintMaker {}
 
-protocol ConstraintMaker: NSUIView {}
+public protocol ConstraintMaker: NSUIView {}
 
 extension ConstraintMaker {
-    func makeConstraints(@ArrayBuilder<NSLayoutConstraint> _ constraintsBuilder: (_ make: Self) -> [NSLayoutConstraint]) {
+    public func makeConstraints(@ArrayBuilder<NSLayoutConstraint> _ constraintsBuilder: (_ make: Self) -> [NSLayoutConstraint]) {
         translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate(constraintsBuilder(self))
     }
