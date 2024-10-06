@@ -2,10 +2,10 @@
 
 import AppKit
 
-@MainActor open class TableViewController: XiblessViewController<ScrollView>, NSTableViewDataSource, NSTableViewDelegate {
+@MainActor open class TableViewController: XiblessViewController<NSScrollView>, NSTableViewDataSource, NSTableViewDelegate {
     @MainActor public let tableView: TableView
 
-    @MainActor public let scrollView: ScrollView
+    @MainActor public let scrollView: NSScrollView
 
     public init() {
         let (scrollView, tableView) = TableView.scrollableTableView()
