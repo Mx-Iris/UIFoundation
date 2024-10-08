@@ -47,18 +47,22 @@ extension NSUIStackView {
                 maxSpacer.setContentHuggingPriority(.fittingSize, for: orientationOrAxis.nsLayoutConstraintOrientationOrAxis)
                 maxSpacer.setContentCompressionResistancePriority(.fittingSize, for: orientationOrAxis.nsLayoutConstraintOrientationOrAxis)
             }
+            
+            if let customSpacing = view._customSpacing {
+                setCustomSpacing(customSpacing, after: view)
+            }
         }
     }
 }
 
 public class HStackView: NSUIStackView {
-    public convenience init(distribution: NSUIStackViewDistribution = .defaultValue, alignment: NSUIStackViewAlignment = .hStackCenter, spacing: CGFloat = 0, @StackViewBuilder views: () -> [StackViewComponent]) {
+    public convenience init(distribution: NSUIStackViewDistribution = .defaultValue, alignment: NSUIStackViewAlignment = .hStackDefaultValue, spacing: CGFloat = 0, @StackViewBuilder views: () -> [StackViewComponent]) {
         self.init(orientationOrAxis: .horizontal, distribution: distribution, alignment: alignment, spacing: spacing, views: views())
     }
 }
 
 public class VStackView: NSUIStackView {
-    public convenience init(distribution: NSUIStackViewDistribution = .defaultValue, alignment: NSUIStackViewAlignment = .vStackCenter, spacing: CGFloat = 0, @StackViewBuilder views: () -> [StackViewComponent]) {
+    public convenience init(distribution: NSUIStackViewDistribution = .defaultValue, alignment: NSUIStackViewAlignment = .vStackDefaultValue, spacing: CGFloat = 0, @StackViewBuilder views: () -> [StackViewComponent]) {
         self.init(orientationOrAxis: .vertical, distribution: distribution, alignment: alignment, spacing: spacing, views: views())
     }
 }

@@ -64,7 +64,7 @@ extension NSUIStackView {
         }
         return self
     }
-    
+
     @discardableResult
     public func clippingResistance(h: Float? = nil, v: Float? = nil) -> Self {
         if let h = NSLayoutConstraint.Priority.valueOrNil(h) {
@@ -111,6 +111,7 @@ extension NSUIView {
         }
         return self
     }
+
     @discardableResult
     public func contentCompressionResistance(h: NSUILayoutPriority? = nil, v: NSUILayoutPriority? = nil) -> Self {
         if let h {
@@ -159,16 +160,6 @@ extension NSUIStackViewOrientationOrAxis {
 }
 
 extension NSUIStackViewDistribution {
-//    public static var defaultValue: Self {
-//        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
-//        return .gravityAreas
-//        #endif
-//
-//        #if canImport(UIKit)
-//        return .fill
-//        #endif
-//    }
-
     #if canImport(AppKit) && !targetEnvironment(macCatalyst)
     public static let defaultValue: Self = .gravityAreas
     #endif
@@ -188,34 +179,14 @@ extension NSUIStackViewAlignment {
     public static let hStackCenter: Self = .center
     public static let vStackCenter: Self = .center
     #endif
+
+    #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+    public static let hStackDefaultValue: Self = hStackCenter
+    public static let vStackDefaultValue: Self = vStackCenter
+    #endif
+
+    #if canImport(UIKit)
+    public static let hStackDefaultValue: Self = .fill
+    public static let vStackDefaultValue: Self = .fill
+    #endif
 }
-
-#if canImport(AppKit) && !targetEnvironment(macCatalyst)
-
-extension NSView {
-    private static var __associated_gravityKey: UInt8 = 0
-    var _gravity: NSStackView.Gravity? {
-        get {
-            objc_getAssociatedObject(
-                self,
-                &Self.__associated_gravityKey
-            ) as? NSStackView.Gravity?
-                ?? nil
-        }
-        set {
-            objc_setAssociatedObject(
-                self,
-                &Self.__associated_gravityKey,
-                newValue,
-                .OBJC_ASSOCIATION_COPY
-            )
-        }
-    }
-
-    public func gravity(_ gravity: NSStackView.Gravity) -> Self {
-        _gravity = gravity
-        return self
-    }
-}
-
-#endif
