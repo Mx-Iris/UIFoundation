@@ -27,7 +27,7 @@ extension NSCollectionView: CollectionViewProtocol {}
 
 extension CollectionViewProtocol {
     public static func scrollableCollectionView() -> (scrollView: NSScrollView, collectionView: Self) {
-        let scrollView = ScrollView()
+        let scrollView = NSScrollView()
         let collectionView = Self()
         scrollView.do {
             $0.documentView = collectionView

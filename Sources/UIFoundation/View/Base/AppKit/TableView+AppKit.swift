@@ -42,7 +42,7 @@ extension NSTableView: TableViewProtocol {}
 
 extension TableViewProtocol {
     public static func scrollableTableView() -> (NSScrollView, Self) {
-        let scrollView = ScrollView()
+        let scrollView = NSScrollView()
         let tableView = Self()
         scrollView.do {
             $0.documentView = tableView
