@@ -11,7 +11,7 @@ extension FrameworkToolbox where Base: NSTableView {
         } else {
             let cellView = View()
             cellView.identifier = .init(cls)
-            return View()
+            return cellView
         }
     }
 
