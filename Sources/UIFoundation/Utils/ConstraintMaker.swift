@@ -6,6 +6,7 @@ import AppKit
 import UIKit
 #endif
 
+import SwiftStdlibToolbox
 import UIFoundationTypealias
 
 extension NSUIView: ConstraintMaker {}

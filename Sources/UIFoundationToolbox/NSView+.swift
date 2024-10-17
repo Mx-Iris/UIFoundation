@@ -2,6 +2,7 @@
 
 import AppKit
 import FrameworkToolbox
+import UIFoundationTypealias
 //import AssociatedObject
 
 extension FrameworkToolbox where Base: NSView {
@@ -55,6 +56,19 @@ extension FrameworkToolbox where Base: NSView {
         gestureRecognizer.action = #selector(GestureRecognizerHandler.handleGestureRecognizerAction(_:))
         base.addGestureRecognizer(gestureRecognizer)
         actionHandlers.append(actionHandler)
+    }
+    
+    public func addSubview(_ subview: NSUIView, fill: Bool) {
+        base.addSubview(subview)
+        if fill {
+            subview.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                subview.topAnchor.constraint(equalTo: base.topAnchor),
+                subview.leadingAnchor.constraint(equalTo: base.leadingAnchor),
+                subview.trailingAnchor.constraint(equalTo: base.trailingAnchor),
+                subview.bottomAnchor.constraint(equalTo: base.bottomAnchor),
+            ])
+        }
     }
 }
 

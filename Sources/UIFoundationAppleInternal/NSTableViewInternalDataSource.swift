@@ -11,4 +11,5 @@ public protocol NSTableViewInternalDataSource: NSTableViewDataSource {
     @objc(_tableView:isGroupRow:)
     func _tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool
 }
+
 #endif

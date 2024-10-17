@@ -31,10 +31,10 @@ let package = Package(
             url: "https://github.com/Mx-Iris/FrameworkToolbox",
             branch: "main"
         ),
-//        .package(
-//            url: "https://github.com/p-x9/AssociatedObject",
-//            .upToNextMajor(from: "0.10.0")
-//        )
+        .package(
+            url: "https://github.com/p-x9/AssociatedObject",
+            .upToNextMajor(from: "0.12.0")
+        ),
     ],
     targets: [
         .target(
@@ -56,7 +56,7 @@ let package = Package(
                 .product(name: "FrameworkToolbox", package: "FrameworkToolbox"),
                 .product(name: "FrameworkToolboxMacro", package: "FrameworkToolbox"),
                 .product(name: "FoundationToolbox", package: "FrameworkToolbox"),
-//                .product(name: "AssociatedObject", package: "AssociatedObject"),
+                .product(name: "AssociatedObject", package: "AssociatedObject"),
             ]
         ),
 

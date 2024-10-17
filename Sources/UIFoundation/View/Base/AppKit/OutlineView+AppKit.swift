@@ -22,6 +22,7 @@ open class OutlineView: NSOutlineView {
 }
 
 public protocol OutlineViewProtocol: NSOutlineView {}
+
 extension NSOutlineView: OutlineViewProtocol {}
 
 extension OutlineViewProtocol {
