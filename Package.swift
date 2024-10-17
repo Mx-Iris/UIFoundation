@@ -33,7 +33,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/p-x9/AssociatedObject",
-            .upToNextMajor(from: "0.12.0")
+            .upToNextMajor(from: "0.12.1")
         ),
     ],
     targets: [
