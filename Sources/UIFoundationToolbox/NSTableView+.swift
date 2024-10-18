@@ -9,9 +9,9 @@ extension FrameworkToolbox where Base: NSTableView {
         if let reuseView = base.makeView(withIdentifier: .init(cls), owner: owner) as? View {
             return reuseView
         } else {
-            let cellView = View()
-            cellView.identifier = .init(cls)
-            return cellView
+            let view = View()
+            view.identifier = .init(cls)
+            return view
         }
     }
 

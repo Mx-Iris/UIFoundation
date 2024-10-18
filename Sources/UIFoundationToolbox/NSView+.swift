@@ -3,7 +3,7 @@
 import AppKit
 import FrameworkToolbox
 import UIFoundationTypealias
-//import AssociatedObject
+import AssociatedObject
 
 extension FrameworkToolbox where Base: NSView {
     public func scrollPageDown() {
@@ -34,20 +34,8 @@ extension FrameworkToolbox where Base: NSView {
         }
     }
 
-    ///    @AssociatedObject(.retain(.nonatomic))
-    private var actionHandlers: [NSObject] {
-        set {
-            objc_setAssociatedObject(base, #function, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
-        }
-        mutating get {
-            if let actionHandlers = objc_getAssociatedObject(base, #function) as? [NSObject] {
-                return actionHandlers
-            } else {
-                self.actionHandlers = []
-                return []
-            }
-        }
-    }
+    @AssociatedObject(.retain(.nonatomic))
+    private var actionHandlers: [NSObject] = []
 
     public mutating func addGestureRecognizer<Configuration: GestureRecognizerConfiguration>(for configuration: Configuration, action: @escaping (Configuration.GestureRecognizer) -> Void) {
         let gestureRecognizer = configuration.makeGestureRecognizer()
