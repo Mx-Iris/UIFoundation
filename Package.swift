@@ -32,8 +32,8 @@ let package = Package(
             branch: "main"
         ),
         .package(
-            url: "https://github.com/p-x9/AssociatedObject",
-            .upToNextMajor(from: "0.12.1")
+            url: "https://github.com/MxIris-Library-Forks/AssociatedObject",
+            branch: "main"
         ),
     ],
     targets: [
