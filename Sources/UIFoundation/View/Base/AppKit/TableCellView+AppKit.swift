@@ -15,8 +15,11 @@ open class TableCellView: NSTableCellView {
         commonInit()
     }
 
+    open override var wantsUpdateLayer: Bool { true }
+    
     private func commonInit() {
         wantsLayer = true
+        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
 
