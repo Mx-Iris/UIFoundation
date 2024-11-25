@@ -1,9 +1,12 @@
+#import <AppKit/AppKit.h>
 #import <QuartzCore/QuartzCore.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface CALayer (__PrivateSPI)
-@property (assign) BOOL allowsGroupBlending;
+@interface CALayer ()
+
+@property BOOL allowsGroupBlending;
+
 @end
 
 NS_ASSUME_NONNULL_END

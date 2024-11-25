@@ -200,11 +200,11 @@ public final class BackdropView: NSVisualEffectView {
     }
 
     /// The corner radius of the view.
-    public var cornerRadius: CGFloat = 0.0 {
+    public var backdropCornerRadius: CGFloat = 0.0 {
         didSet {
             transaction {
-                self.container?.cornerRadius = self.cornerRadius
-                self.rim?.cornerRadius = self.cornerRadius
+                self.container?.cornerRadius = self.backdropCornerRadius
+                self.rim?.cornerRadius = self.backdropCornerRadius
             }
         }
     }

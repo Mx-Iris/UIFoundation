@@ -1,11 +1,13 @@
-#import <Cocoa/Cocoa.h>
+#import <AppKit/AppKit.h>
 
 @class NSTableViewStyleData;
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface NSTableView (__PrivateSPI)
+@interface NSTableView ()
+
 @property (nonatomic, strong, setter=_setStyleData:, getter=_styleData) NSTableViewStyleData *_styleData;
+
 @end
 
 NS_ASSUME_NONNULL_END

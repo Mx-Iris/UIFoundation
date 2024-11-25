@@ -2,7 +2,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface NSButton (__PrivateSPI)
+@interface NSButton ()
 
 @property (strong, nullable) NSView *contentView;
 

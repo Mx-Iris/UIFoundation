@@ -34,8 +34,6 @@ extension FrameworkToolbox where Base: NSView {
         }
     }
 
-    @AssociatedObject(.retain(.nonatomic))
-    private var actionHandlers: [NSObject] = []
 
     public mutating func addGestureRecognizer<Configuration: GestureRecognizerConfiguration>(for configuration: Configuration, action: @escaping (Configuration.GestureRecognizer) -> Void) {
         let gestureRecognizer = configuration.makeGestureRecognizer()
@@ -43,7 +41,7 @@ extension FrameworkToolbox where Base: NSView {
         gestureRecognizer.target = actionHandler
         gestureRecognizer.action = #selector(GestureRecognizerHandler.handleGestureRecognizerAction(_:))
         base.addGestureRecognizer(gestureRecognizer)
-        actionHandlers.append(actionHandler)
+        base.actionHandlers.append(actionHandler)
     }
     
     public func addSubview(_ subview: NSUIView, fill: Bool) {
@@ -58,6 +56,12 @@ extension FrameworkToolbox where Base: NSView {
             ])
         }
     }
+}
+
+extension NSView {
+    
+    @AssociatedObject(.retain(.nonatomic))
+    fileprivate var actionHandlers: [NSObject] = []
 }
 
 // enum GestureRecognizerConfiguration {
