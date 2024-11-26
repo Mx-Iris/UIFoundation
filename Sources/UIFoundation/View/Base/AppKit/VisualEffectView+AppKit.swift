@@ -14,7 +14,6 @@ open class VisualEffectView: NSVisualEffectView {
     }
     
     private func commonInit() {
-        wantsLayer = true
         setup()
     }
     

@@ -14,7 +14,6 @@ open class Control: NSControl {
     }
     
     private func commonInit() {
-        wantsLayer = true
         setup()
     }
     

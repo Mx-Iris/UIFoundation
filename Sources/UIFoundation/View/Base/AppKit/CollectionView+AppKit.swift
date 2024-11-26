@@ -14,7 +14,6 @@ open class CollectionView: NSCollectionView {
     }
 
     private func commonInit() {
-        wantsLayer = true
         setup()
     }
 

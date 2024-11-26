@@ -21,7 +21,6 @@ open class TableRowView: NSTableRowView {
     }
     
     private func commonInit() {
-        wantsLayer = true
         setup()
     }
     

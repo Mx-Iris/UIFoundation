@@ -14,7 +14,6 @@ open class OutlineView: NSOutlineView {
     }
 
     private func commonInit() {
-        wantsLayer = true
         setup()
     }
 

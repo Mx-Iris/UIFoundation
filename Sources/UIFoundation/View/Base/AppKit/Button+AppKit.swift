@@ -14,7 +14,6 @@ open class Button: NSButton {
     }
 
     private func commonInit() {
-        wantsLayer = true
         setup()
     }
 
@@ -33,7 +32,6 @@ open class MultipleTargetButton: NSButton {
     }
 
     private func commonInit() {
-        wantsLayer = true
         setup()
     }
 

@@ -20,7 +20,6 @@ open class TableView: NSTableView {
     }
 
     private func commonInit() {
-        wantsLayer = true
         setup()
     }
 

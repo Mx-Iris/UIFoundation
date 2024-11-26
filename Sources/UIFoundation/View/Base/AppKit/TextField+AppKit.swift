@@ -14,7 +14,6 @@ open class TextField: NSTextField {
     }
 
     private func commonInit() {
-        wantsLayer = true
         setup()
     }
     

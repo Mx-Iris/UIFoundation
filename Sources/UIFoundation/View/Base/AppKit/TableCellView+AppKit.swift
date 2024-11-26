@@ -15,11 +15,7 @@ open class TableCellView: NSTableCellView {
         commonInit()
     }
 
-    open override var wantsUpdateLayer: Bool { true }
-    
     private func commonInit() {
-        wantsLayer = true
-        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
 
@@ -99,70 +95,68 @@ open class DisclosureHeaderCellView: TableCellView {
             titleLabel.stringValue = title ?? ""
         }
     }
-    
+
     public var titleFont: NSFont = .systemFont(ofSize: 11) {
         didSet {
             titleLabel.font = titleFont
         }
     }
-    
+
     public var titleColor: NSColor = .tertiaryLabelColor {
         didSet {
             titleLabel.textColor = titleColor
         }
     }
 
-    
     public var isExpanded: Bool = false {
         didSet {
             disclosureButton.state = isExpanded ? .on : .off
         }
     }
-    
+
     private lazy var contentStackView = HStackView(distribution: .fill, alignment: .centerY, spacing: 8) {
         titleLabel
         disclosureButton
     }
-    
+
     open override func setup() {
         super.setup()
 
         box.addSubview(contentStackView, fill: true)
-        
+
         titleLabel.font = titleFont
         titleLabel.textColor = titleColor
-        
+
         disclosureButton.alphaValue = 0
         disclosureButton.imagePosition = .imageOnly
         disclosureButton.box.setAction { [weak self] _ in
             self?.disclosureClickHandler()
         }
     }
-    
+
     open override func updateTrackingAreas() {
         super.updateTrackingAreas()
-        
+
         trackingAreas.forEach(removeTrackingArea(_:))
-        
+
         let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .assumeInside]
         let trackingArea = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
         addTrackingArea(trackingArea)
     }
-    
+
     open override func mouseEntered(with event: NSEvent) {
         disclosureButton.alphaValue = 1
     }
-    
+
     open override func mouseMoved(with event: NSEvent) {
         if disclosureButton.alphaValue != 1 {
             disclosureButton.alphaValue = 1
         }
     }
-    
+
     open override func mouseExited(with event: NSEvent) {
         disclosureButton.alphaValue = 0
     }
 }
-
 
 #endif

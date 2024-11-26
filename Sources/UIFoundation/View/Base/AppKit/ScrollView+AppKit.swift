@@ -16,7 +16,6 @@ open class ScrollView: NSScrollView {
     }
 
     private func commonInit() {
-        wantsLayer = true
         setup()
     }
 
