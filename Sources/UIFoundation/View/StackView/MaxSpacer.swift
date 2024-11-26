@@ -11,9 +11,6 @@ import UIFoundationTypealias
 public class MaxSpacer: NSUIView {
     public init() {
         super.init(frame: .zero)
-        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
-        wantsLayer = true
-        #endif
     }
 
     @available(*, unavailable)

@@ -16,10 +16,6 @@ public class Spacer: NSUIView {
     public init(spacing: CGFloat = 5) {
         self.spacing = spacing
         super.init(frame: .zero)
-        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
-        wantsLayer = true
-        layer?.backgroundColor = .clear
-        #endif
 
         #if canImport(UIKit)
         backgroundColor = .clear

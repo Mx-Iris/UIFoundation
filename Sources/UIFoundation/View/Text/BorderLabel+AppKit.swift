@@ -21,6 +21,11 @@ open class RoundedBorderLabel: Label {
 //        layer?.borderColor = borderColor.cgColor
 //    }
     
+    open override func setup() {
+        super.setup()
+        wantsLayer = true
+    }
+    
     open override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         

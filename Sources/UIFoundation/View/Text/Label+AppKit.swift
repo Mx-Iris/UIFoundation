@@ -32,7 +32,6 @@ open class Label: NSTextField {
         isEditable = false
         drawsBackground = false
         isBordered = false
-        wantsLayer = true
         setup()
     }
 
