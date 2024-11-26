@@ -4,9 +4,9 @@ NS_HEADER_AUDIT_BEGIN(nullability, sendability)
 
 @interface NSView ()
 
-@property (copy, nullable) NSColor *backgroundColor;
-
-@property CGFloat cornerRadius;
+//@property (copy, nullable) NSColor *backgroundColor;
+//
+//@property CGFloat cornerRadius;
 
 @property (strong, nullable) NSView *maskView;
 

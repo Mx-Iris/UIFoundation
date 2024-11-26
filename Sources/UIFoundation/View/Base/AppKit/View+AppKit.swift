@@ -75,7 +75,7 @@ open class View: NSView {
         }
     }
 
-    #if !canImport(UIFoundationAppleInternalObjC)
+    
     @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var cornerRadius: CGFloat = 0
@@ -83,7 +83,7 @@ open class View: NSView {
     @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var backgroundColor: NSColor? = nil
-    #endif
+    
 
     @ViewInvalidating(.display)
     @IBInspectable
