@@ -1,20 +1,39 @@
-#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+// #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
 import AppKit
+#endif
+
+#if canImport(UIKit)
+import UIKit
+#endif
 import FrameworkToolbox
+import UIFoundationTypealias
 
 extension FrameworkToolbox where Base: StringProtocol {
+    #if canImport(AppKit) && !targetEnvironment(macCatalyst)
     public var nsColor: NSColor {
         return NSColor(hexString: String(base)) ?? NSColor.black
     }
+    #endif
+
+    #if canImport(UIKit)
+    public var uiColor: UIColor {
+        return UIColor(hexString: String(base)) ?? UIColor.black
+    }
+    #endif
+    
+    public var nsuiColor: NSUIColor {
+        return NSUIColor(hexString: String(base)) ?? NSUIColor.black
+    }
 }
 
-extension FrameworkToolbox where Base: NSColor {
-    @available(*, deprecated, renamed: "NSColor(hexString:)")
-    public static func fromHexString(hexString: String) -> NSColor {
-        return hexString.nsColor
+extension FrameworkToolbox where Base: NSUIColor {
+    @available(*, deprecated, renamed: "NSUIColor(hexString:)")
+    public static func fromHexString(hexString: String) -> NSUIColor {
+        return hexString.nsuiColor
     }
-    
+
     private struct Components {
         var r: CGFloat = 0.0
         var g: CGFloat = 0.0
@@ -28,8 +47,9 @@ extension FrameworkToolbox where Base: NSColor {
         return result
     }
 
-    public var contrastingTextColor: NSColor {
-        if base == NSColor.clear {
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+    public var contrastingTextColor: NSUIColor {
+        if base == NSUIColor.clear {
             return .textColor
         }
 
@@ -43,9 +63,10 @@ extension FrameworkToolbox where Base: NSColor {
         let avgGray: CGFloat = 1 - (0.299 * rgbColor.r + 0.587 * rgbColor.g + 0.114 * rgbColor.b)
         return avgGray > 0.5 ? .white : .black
     }
+#endif
 }
 
-extension NSColor {
+extension NSUIColor {
     /// Must have "#" at the beginning (examples: #FF00FF / #FF00FFFF (with alpha)
     public convenience init?(hexString: String) {
         guard hexString.hasPrefix("#") else {
@@ -106,8 +127,6 @@ extension NSColor {
         let alpha = CGFloat(hex8 & 0x000000FF) / divisor
         self.init(red: red, green: green, blue: blue, alpha: alpha)
     }
-    
-    
 }
 
-#endif
+// #endif
