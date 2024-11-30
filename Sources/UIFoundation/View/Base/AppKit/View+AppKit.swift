@@ -75,7 +75,6 @@ open class View: NSView {
         }
     }
 
-    
 //    @ViewInvalidating(.display)
 //    @IBInspectable
 //    open dynamic var borderCornerRadius: CGFloat = 0 {
@@ -83,7 +82,7 @@ open class View: NSView {
 //            createBorderLayerIfNeeded()
 //        }
 //    }
-    
+
     @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var cornerRadius: CGFloat = 0
@@ -91,7 +90,6 @@ open class View: NSView {
     @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var backgroundColor: NSColor? = nil
-    
 
     @ViewInvalidating(.display)
     @IBInspectable
@@ -144,11 +142,9 @@ open class View: NSView {
     private func performUpdateLayer() {
         guard let layer else { return }
 
-        borderLayer?.path = NSBezierPath(bounds: bounds, borderWidth: borderWidth, borderInsets: borderInsets, borderLocation: borderLocation, borderPositions: borderPositions).asCGPath
+        borderLayer?.path = NSBezierPath(bounds: bounds, borderWidth: borderWidth, borderInsets: borderInsets, borderLocation: borderLocation, borderPositions: borderPositions, cornerRadius: cornerRadius).asCGPath
         borderLayer?.strokeColor = borderColor?.cgColor
         borderLayer?.lineWidth = borderWidth
-        borderLayer?.cornerRadius = cornerRadius
-        borderLayer?.masksToBounds = cornerRadius > 0
         layer.cornerRadius = cornerRadius
         layer.backgroundColor = backgroundColor?.cgColor
         layer.shadowColor = shadowColor?.cgColor
@@ -180,7 +176,14 @@ open class View: NSView {
 }
 
 extension NSBezierPath {
-    fileprivate convenience init(bounds: NSRect, borderWidth: CGFloat, borderInsets: NSEdgeInsets, borderLocation: View.BorderLocation, borderPositions: View.BorderPositions) {
+    fileprivate convenience init(
+        bounds: NSRect,
+        borderWidth: CGFloat,
+        borderInsets: NSEdgeInsets,
+        borderLocation: View.BorderLocation,
+        borderPositions: View.BorderPositions,
+        cornerRadius: CGFloat = 0
+    ) { // 添加圆角参数
         let adjustsLocation: (CGFloat, CGFloat, CGFloat) -> CGFloat = { inside, center, outside in
             switch borderLocation {
             case .inside: return inside
@@ -198,82 +201,148 @@ extension NSBezierPath {
         let shouldShowBottomBorder = borderPositions.contains(.bottom)
         let shouldShowRightBorder = borderPositions.contains(.right)
 
-        let points: [String: [NSPoint]] = [
-            "toppath": [
-                NSPoint(
-                    x: (shouldShowLeftBorder ? (-lineCapOffset + verticalInset) : 0) + borderInsets.left,
-                    y: bounds.height - (lineOffset + verticalInset)
-                ),
-                NSPoint(
-                    x: bounds.width + (shouldShowRightBorder ? (lineCapOffset - verticalInset) : 0) - borderInsets.right,
-                    y: bounds.height - (lineOffset + verticalInset)
-                ),
-            ],
-            "leftpath": [
-                NSPoint(
-                    x: lineOffset + verticalInset,
-                    y: (shouldShowBottomBorder ? lineCapOffset - verticalInset : 0) + borderInsets.bottom
-                ),
-                NSPoint(
-                    x: lineOffset + verticalInset,
-                    y: bounds.height - (shouldShowTopBorder ? -lineCapOffset + verticalInset : 0) - borderInsets.top
-                ),
-            ],
-            "bottompath": [
-                NSPoint(
-                    x: bounds.width + (shouldShowRightBorder ? (lineCapOffset - verticalInset) : 0) - borderInsets.right,
-                    y: lineOffset + verticalInset
-                ),
-                NSPoint(
-                    x: (shouldShowLeftBorder ? (-lineCapOffset + verticalInset) : 0) + borderInsets.left,
-                    y: lineOffset + verticalInset
-                ),
-            ],
-            "rightpath": [
-                NSPoint(
-                    x: bounds.width - lineOffset - verticalInset,
-                    y: bounds.height - (shouldShowTopBorder ? -lineCapOffset + verticalInset : 0) - borderInsets.top
-                ),
-                NSPoint(
-                    x: bounds.width - lineOffset - verticalInset,
-                    y: (shouldShowBottomBorder ? lineCapOffset - verticalInset : 0) + borderInsets.bottom
-                ),
-            ],
-        ]
-
         self.init()
 
-        let topPath = NSBezierPath()
-        let leftPath = NSBezierPath()
-        let bottomPath = NSBezierPath()
-        let rightPath = NSBezierPath()
+        if cornerRadius > 0 {
+            // 使用圆角绘制
+            let adjustedBounds = NSRect(
+                x: lineOffset + verticalInset + borderInsets.left,
+                y: lineOffset + verticalInset + borderInsets.bottom,
+                width: bounds.width - 2 * (lineOffset + verticalInset) - borderInsets.left - borderInsets.right,
+                height: bounds.height - 2 * (lineOffset + verticalInset) - borderInsets.top - borderInsets.bottom
+            )
 
-        topPath.move(to: points["toppath"]![0])
-        topPath.line(to: points["toppath"]![1])
+            let radius = min(cornerRadius, min(adjustedBounds.width / 2, adjustedBounds.height / 2))
 
-        leftPath.move(to: points["leftpath"]![0])
-        leftPath.line(to: points["leftpath"]![1])
+            // 开始绘制路径
+            if shouldShowTopBorder || shouldShowRightBorder {
+                // 右上角
+                move(to: NSPoint(x: adjustedBounds.maxX - radius, y: adjustedBounds.maxY))
+                appendArc(
+                    withCenter: NSPoint(x: adjustedBounds.maxX - radius, y: adjustedBounds.maxY - radius),
+                    radius: radius,
+                    startAngle: 90,
+                    endAngle: 0
+                )
+            } else {
+                move(to: NSPoint(x: adjustedBounds.maxX, y: adjustedBounds.maxY - radius))
+            }
 
-        bottomPath.move(to: points["bottompath"]![0])
-        bottomPath.line(to: points["bottompath"]![1])
+            if shouldShowBottomBorder || shouldShowRightBorder {
+                // 右下角
+                line(to: NSPoint(x: adjustedBounds.maxX, y: adjustedBounds.minY + radius))
+                appendArc(
+                    withCenter: NSPoint(x: adjustedBounds.maxX - radius, y: adjustedBounds.minY + radius),
+                    radius: radius,
+                    startAngle: 0,
+                    endAngle: -90
+                )
+            } else {
+                move(to: NSPoint(x: adjustedBounds.maxX - radius, y: adjustedBounds.minY))
+            }
 
-        rightPath.move(to: points["rightpath"]![0])
-        rightPath.line(to: points["rightpath"]![1])
+            if shouldShowBottomBorder || shouldShowLeftBorder {
+                // 左下角
+                line(to: NSPoint(x: adjustedBounds.minX + radius, y: adjustedBounds.minY))
+                appendArc(
+                    withCenter: NSPoint(x: adjustedBounds.minX + radius, y: adjustedBounds.minY + radius),
+                    radius: radius,
+                    startAngle: -90,
+                    endAngle: -180
+                )
+            } else {
+                move(to: NSPoint(x: adjustedBounds.minX, y: adjustedBounds.minY + radius))
+            }
 
-        if shouldShowTopBorder, !topPath.isEmpty {
-            append(topPath)
-        }
+            if shouldShowTopBorder || shouldShowLeftBorder {
+                // 左上角
+                line(to: NSPoint(x: adjustedBounds.minX, y: adjustedBounds.maxY - radius))
+                appendArc(
+                    withCenter: NSPoint(x: adjustedBounds.minX + radius, y: adjustedBounds.maxY - radius),
+                    radius: radius,
+                    startAngle: -180,
+                    endAngle: -270
+                )
 
-        if shouldShowLeftBorder, !leftPath.isEmpty {
-            append(leftPath)
-        }
+                line(to: NSPoint(x: adjustedBounds.maxX - radius, y: adjustedBounds.maxY))
+            }
+        } else {
+            // 原来的直角绘制逻辑
+            let points: [String: [NSPoint]] = [
+                "toppath": [
+                    NSPoint(
+                        x: (shouldShowLeftBorder ? (-lineCapOffset + verticalInset) : 0) + borderInsets.left,
+                        y: bounds.height - (lineOffset + verticalInset)
+                    ),
+                    NSPoint(
+                        x: bounds.width + (shouldShowRightBorder ? (lineCapOffset - verticalInset) : 0) - borderInsets.right,
+                        y: bounds.height - (lineOffset + verticalInset)
+                    ),
+                ],
+                "leftpath": [
+                    NSPoint(
+                        x: lineOffset + verticalInset,
+                        y: (shouldShowBottomBorder ? lineCapOffset - verticalInset : 0) + borderInsets.bottom
+                    ),
+                    NSPoint(
+                        x: lineOffset + verticalInset,
+                        y: bounds.height - (shouldShowTopBorder ? -lineCapOffset + verticalInset : 0) - borderInsets.top
+                    ),
+                ],
+                "bottompath": [
+                    NSPoint(
+                        x: bounds.width + (shouldShowRightBorder ? (lineCapOffset - verticalInset) : 0) - borderInsets.right,
+                        y: lineOffset + verticalInset
+                    ),
+                    NSPoint(
+                        x: (shouldShowLeftBorder ? (-lineCapOffset + verticalInset) : 0) + borderInsets.left,
+                        y: lineOffset + verticalInset
+                    ),
+                ],
+                "rightpath": [
+                    NSPoint(
+                        x: bounds.width - lineOffset - verticalInset,
+                        y: bounds.height - (shouldShowTopBorder ? -lineCapOffset + verticalInset : 0) - borderInsets.top
+                    ),
+                    NSPoint(
+                        x: bounds.width - lineOffset - verticalInset,
+                        y: (shouldShowBottomBorder ? lineCapOffset - verticalInset : 0) + borderInsets.bottom
+                    ),
+                ],
+            ]
 
-        if shouldShowBottomBorder, !bottomPath.isEmpty {
-            append(bottomPath)
-        }
+            let topPath = NSBezierPath()
+            let leftPath = NSBezierPath()
+            let bottomPath = NSBezierPath()
+            let rightPath = NSBezierPath()
 
-        if shouldShowRightBorder, !rightPath.isEmpty {
-            append(rightPath)
+            topPath.move(to: points["toppath"]![0])
+            topPath.line(to: points["toppath"]![1])
+
+            leftPath.move(to: points["leftpath"]![0])
+            leftPath.line(to: points["leftpath"]![1])
+
+            bottomPath.move(to: points["bottompath"]![0])
+            bottomPath.line(to: points["bottompath"]![1])
+
+            rightPath.move(to: points["rightpath"]![0])
+            rightPath.line(to: points["rightpath"]![1])
+
+            if shouldShowTopBorder, !topPath.isEmpty {
+                append(topPath)
+            }
+
+            if shouldShowLeftBorder, !leftPath.isEmpty {
+                append(leftPath)
+            }
+
+            if shouldShowBottomBorder, !bottomPath.isEmpty {
+                append(bottomPath)
+            }
+
+            if shouldShowRightBorder, !rightPath.isEmpty {
+                append(rightPath)
+            }
         }
     }
 }
