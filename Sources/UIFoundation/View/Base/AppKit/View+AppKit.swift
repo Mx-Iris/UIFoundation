@@ -76,6 +76,14 @@ open class View: NSView {
     }
 
     
+//    @ViewInvalidating(.display)
+//    @IBInspectable
+//    open dynamic var borderCornerRadius: CGFloat = 0 {
+//        didSet {
+//            createBorderLayerIfNeeded()
+//        }
+//    }
+    
     @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var cornerRadius: CGFloat = 0
@@ -140,6 +148,7 @@ open class View: NSView {
         borderLayer?.strokeColor = borderColor?.cgColor
         borderLayer?.lineWidth = borderWidth
         borderLayer?.cornerRadius = cornerRadius
+        borderLayer?.masksToBounds = cornerRadius > 0
         layer.cornerRadius = cornerRadius
         layer.backgroundColor = backgroundColor?.cgColor
         layer.shadowColor = shadowColor?.cgColor
