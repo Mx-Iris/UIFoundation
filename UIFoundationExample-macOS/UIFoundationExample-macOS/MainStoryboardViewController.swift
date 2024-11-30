@@ -17,8 +17,8 @@ class MainStoryboardViewController: NSViewController, StoryboardViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        customView.borderLocation = .center
-        customView.borderPositions = [.left, .bottom]
+        customView.borderLocation = .outside
+        customView.borderPositions = .all
         customView.borderWidth = 2
         customView.borderColor = .red
     }

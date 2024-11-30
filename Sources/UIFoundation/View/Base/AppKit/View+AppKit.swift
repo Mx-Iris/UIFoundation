@@ -139,6 +139,7 @@ open class View: NSView {
         borderLayer?.path = NSBezierPath(bounds: bounds, borderWidth: borderWidth, borderInsets: borderInsets, borderLocation: borderLocation, borderPositions: borderPositions).asCGPath
         borderLayer?.strokeColor = borderColor?.cgColor
         borderLayer?.lineWidth = borderWidth
+        borderLayer?.cornerRadius = cornerRadius
         layer.cornerRadius = cornerRadius
         layer.backgroundColor = backgroundColor?.cgColor
         layer.shadowColor = shadowColor?.cgColor
@@ -146,6 +147,7 @@ open class View: NSView {
         layer.shadowOffset = shadowOffset
         layer.shadowRadius = shadowRadius
         layer.shadowPath = shadowPath?.asCGPath
+        layer.masksToBounds = clipsToBounds
     }
 
     private func createBorderLayerIfNeeded() {
