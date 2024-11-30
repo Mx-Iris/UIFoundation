@@ -12,8 +12,10 @@ open class XibViewController: NSUIViewController {
 
     open class var nibBundle: Bundle { .main }
 
+    open class var nibName: String { String(describing: Self.self) }
+    
     public init() {
-        super.init(nibName: String(describing: Self.self), bundle: Self.nibBundle)
+        super.init(nibName: String(describing: Self.nibName), bundle: Self.nibBundle)
         commonInit()
     }
 
