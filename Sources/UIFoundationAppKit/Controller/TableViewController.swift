@@ -3,10 +3,10 @@
 import AppKit
 import UIFoundationShared
 
-@MainActor open class TableViewController: XiblessViewController<NSScrollView>, NSTableViewDataSource, NSTableViewDelegate {
-    @MainActor public let tableView: TableView
+open class TableViewController: XiblessViewController<NSScrollView> {
+    public let tableView: TableView
 
-    @MainActor public let scrollView: NSScrollView
+    public let scrollView: NSScrollView
 
     public init() {
         let (scrollView, tableView) = TableView.scrollableTableView()
@@ -23,9 +23,6 @@ import UIFoundationShared
 
     open override func commonInit() {
         super.commonInit()
-
-        tableView.dataSource = self
-        tableView.delegate = self
     }
 }
 
