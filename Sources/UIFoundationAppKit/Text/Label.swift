@@ -1,6 +1,7 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 import AppKit
 import UIFoundationToolbox
+import UIFoundationUtilities
 
 @IBDesignable
 open class Label: NSTextField {

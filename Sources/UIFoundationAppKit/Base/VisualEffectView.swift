@@ -7,18 +7,16 @@ open class VisualEffectView: NSVisualEffectView {
         super.init(frame: frameRect)
         commonInit()
     }
-    
+
     public required init?(coder: NSCoder) {
         super.init(coder: coder)
         commonInit()
     }
-    
+
     private func commonInit() {
         setup()
     }
-    
-//    open override var wantsUpdateLayer: Bool { true }
-    
+
     open func setup() {}
 }
 

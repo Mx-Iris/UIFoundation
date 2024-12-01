@@ -6,6 +6,7 @@ import AppKit
 import UIKit
 #endif
 
+import UIFoundationToolbox
 import UIFoundationTypealias
 
 public protocol StoryboardViewController: NSUIViewController {
@@ -14,12 +15,8 @@ public protocol StoryboardViewController: NSUIViewController {
 }
 
 extension StoryboardViewController {
-    public static var storyboard: NSUIStoryboard { .main }
+    public static var storyboard: NSUIStoryboard { .box.main }
     public static var storyboardIdentifier: String { .init(describing: self) }
-}
-
-extension NSUIStoryboard {
-    static let main = NSUIStoryboard(name: "Main", bundle: .main)
 }
 
 @available(iOS 13.0, macOS 10.15, *)

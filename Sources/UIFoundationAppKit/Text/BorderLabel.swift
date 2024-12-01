@@ -1,5 +1,6 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 import AppKit
+import UIFoundationUtilities
 
 @IBDesignable
 open class RoundedBorderLabel: Label {

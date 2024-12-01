@@ -1,6 +1,11 @@
 // swift-tools-version: 5.9
 import PackageDescription
 
+let appkitPlatforms: [Platform] = [.macOS]
+
+let uikitPlatforms: [Platform] = [.iOS, .tvOS, .visionOS, .watchOS, .macCatalyst]
+
+
 let package = Package(
     name: "UIFoundation",
     platforms: [.macOS(.v10_15), .iOS(.v12), .macCatalyst(.v13), .tvOS(.v13)],
@@ -44,11 +49,45 @@ let package = Package(
         .target(
             name: "UIFoundation",
             dependencies: [
+                .target(name: "UIFoundationAppKit", condition: .when(platforms: appkitPlatforms)),
+                .target(name: "UIFoundationUIKit", condition: .when(platforms: uikitPlatforms)),
+                "UIFoundationUtilities",
+                "UIFoundationToolbox",
+                "UIFoundationTypealias",
+                "UIFoundationShared",
+            ]
+        ),
+
+        .target(
+            name: "UIFoundationAppKit",
+            dependencies: [
+                "UIFoundationToolbox",
+                "UIFoundationTypealias",
+                "UIFoundationUtilities",
+            ]
+        ),
+        .target(
+            name: "UIFoundationUIKit",
+            dependencies: [
+                "UIFoundationToolbox",
+                "UIFoundationTypealias",
+                "UIFoundationUtilities",
+            ]
+        ),
+        .target(
+            name: "UIFoundationShared",
+            dependencies: [
                 "UIFoundationToolbox",
                 "UIFoundationTypealias",
             ]
         ),
-
+        .target(
+            name: "UIFoundationUtilities",
+            dependencies: [
+                "UIFoundationToolbox",
+                "UIFoundationTypealias",
+            ]
+        ),
         .target(
             name: "UIFoundationToolbox",
             dependencies: [

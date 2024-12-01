@@ -2,6 +2,8 @@
 
 import AppKit
 import UIFoundationToolbox
+import UIFoundationUtilities
+import UIFoundationShared
 
 open class TableCellView: NSTableCellView {
     public override init(frame frameRect: NSRect) {

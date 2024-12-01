@@ -1,6 +1,7 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
+import UIFoundationToolbox
 
 public protocol StoryboardWindowController: NSWindowController {
     static var storyboard: NSStoryboard { get }
@@ -9,7 +10,7 @@ public protocol StoryboardWindowController: NSWindowController {
 }
 
 extension StoryboardWindowController {
-    public static var storyboard: NSStoryboard { .main }
+    public static var storyboard: NSStoryboard { .box.main }
 
     public static var storyboardIdentifier: String { .init(describing: self) }
 }

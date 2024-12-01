@@ -1,6 +1,7 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
+import UIFoundationShared
 
 @MainActor open class TableViewController: XiblessViewController<NSScrollView>, NSTableViewDataSource, NSTableViewDelegate {
     @MainActor public let tableView: TableView

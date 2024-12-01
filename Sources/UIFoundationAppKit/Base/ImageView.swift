@@ -1,6 +1,7 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
+import UIFoundationUtilities
 
 @IBDesignable
 open class ImageView: NSImageView {
