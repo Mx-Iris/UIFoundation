@@ -64,6 +64,7 @@ let package = Package(
                 "UIFoundationToolbox",
                 "UIFoundationTypealias",
                 "UIFoundationUtilities",
+                "UIFoundationShared",
             ]
         ),
         .target(
@@ -72,6 +73,7 @@ let package = Package(
                 "UIFoundationToolbox",
                 "UIFoundationTypealias",
                 "UIFoundationUtilities",
+                "UIFoundationShared",
             ]
         ),
         .target(
