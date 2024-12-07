@@ -1,7 +1,7 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
-import UIFoundationToolbox
+@_implementationOnly import UIFoundationToolbox
 
 open class LabelCell: NSTextFieldCell {
     open var contentInsets: NSEdgeInsets = .box.zero {

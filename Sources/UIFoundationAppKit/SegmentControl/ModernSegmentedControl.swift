@@ -7,7 +7,7 @@
 import AppKit
 import QuartzCore
 import FrameworkToolbox
-import UIFoundationToolbox
+@_implementationOnly import UIFoundationToolbox
 
 /**
  * SegmentedControl: an AppKit segmented control based on UISegmentedControl.

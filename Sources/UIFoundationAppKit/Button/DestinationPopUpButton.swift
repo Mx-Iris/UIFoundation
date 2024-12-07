@@ -1,7 +1,7 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
-import UIFoundationToolbox
+@_implementationOnly import UIFoundationToolbox
 
 open class DestinationPopUpButton: PopUpButton {
     private static let latestDestinationURLKey = "ClonePopUpButton.latestDestinationURLKey"

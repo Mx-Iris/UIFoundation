@@ -1,6 +1,6 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 import AppKit
-import UIFoundationToolbox
+@_implementationOnly import UIFoundationToolbox
 import UIFoundationUtilities
 
 @IBDesignable
