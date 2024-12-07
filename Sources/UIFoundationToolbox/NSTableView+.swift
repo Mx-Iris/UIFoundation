@@ -5,7 +5,7 @@ import FrameworkToolbox
 
 extension FrameworkToolbox where Base: NSTableView {
 
-    public func makeView<View: NSView>(ofClass cls: View.Type, owner: Any?) -> View {
+    public func makeView<View: NSView>(ofClass cls: View.Type, owner: Any? = nil) -> View {
         if let reuseView = base.makeView(withIdentifier: .init(cls), owner: owner) as? View {
             return reuseView
         } else {
@@ -15,7 +15,7 @@ extension FrameworkToolbox where Base: NSTableView {
         }
     }
 
-    public func makeViewFromNib<View: NSView>(ofClass cls: View.Type, owner: Any?) -> View? {
+    public func makeViewFromNib<View: NSView>(ofClass cls: View.Type, owner: Any? = nil) -> View? {
         return base.makeView(withIdentifier: .init(cls), owner: owner) as? View
     }
 
