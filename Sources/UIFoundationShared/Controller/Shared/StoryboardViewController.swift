@@ -6,7 +6,7 @@ import AppKit
 import UIKit
 #endif
 
-@_implementationOnly import UIFoundationToolbox
+import UIFoundationToolbox
 import UIFoundationTypealias
 
 public protocol StoryboardViewController: NSUIViewController {
