@@ -19,6 +19,13 @@ public typealias NSUIImage = NSImage
 public typealias NSUISymbolWeight = NSFont.Weight
 public typealias NSUIFontDescriptor = NSFontDescriptor
 public typealias NSUIImageView = NSImageView
+public typealias NSUICollectionViewFlowLayout = NSCollectionViewFlowLayout
+@available(macOS 10.15.1, *)
+public typealias NSUICollectionViewDiffableDataSource = NSCollectionViewDiffableDataSource
+@available(macOS 11.0, *)
+public typealias NSUITableViewDiffableDataSource = NSTableViewDiffableDataSource
+public typealias NSUICollectionViewUpdateItem = NSCollectionViewUpdateItem
+public typealias NSUICollectionViewDelegateFlowLayout = NSCollectionViewDelegateFlowLayout
 #endif
 
 #if canImport(UIKit)
@@ -43,4 +50,11 @@ public typealias NSUIImage = UIImage
 public typealias NSUISymbolWeight = UIImage.SymbolWeight
 public typealias NSUIFontDescriptor = UIFontDescriptor
 public typealias NSUIImageView = UIImageView
+public typealias NSUICollectionViewFlowLayout = UICollectionViewFlowLayout
+@available(iOS 13.0, *)
+public typealias NSUICollectionViewDiffableDataSource = UICollectionViewDiffableDataSource
+@available(iOS 13.0, *)
+public typealias NSUITableViewDiffableDataSource = UITableViewDiffableDataSource
+public typealias NSUICollectionViewUpdateItem = UICollectionViewUpdateItem
+public typealias NSUICollectionViewDelegateFlowLayout = UICollectionViewDelegateFlowLayout
 #endif

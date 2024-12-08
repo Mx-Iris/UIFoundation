@@ -21,11 +21,6 @@ extension FrameworkToolbox where Base: NSControl {
     public var bestSize: NSSize {
         base.sizeThatFits(NSSize.box.max)
     }
-
-    public func setTarget(_ target: AnyObject, action: Selector) {
-        base.target = target
-        base.action = action
-    }
 }
 
 extension FrameworkToolbox where Base: NSControl {

@@ -112,17 +112,17 @@ extension FrameworkToolbox where Base: NSScreen {
     }
 
     private static var _screenSleepIsDisabled: Bool {
-        get { getAssociatedValue(key: "screenSleepIsDisabled", object: Base.self, initialValue: false) }
-        set { set(associatedValue: newValue, key: "screenSleepIsDisabled", object: Base.self) }
+        get { getAssociatedValue("screenSleepIsDisabled", initialValue: false) }
+        set { setAssociatedValue(newValue, key: "screenSleepIsDisabled") }
     }
 
     private static var noSleepAssertionID: IOPMAssertionID {
-        get { getAssociatedValue(key: "noSleepAssertionID", object: Base.self, initialValue: 0) }
-        set { set(associatedValue: newValue, key: "noSleepAssertionID", object: Base.self) }
+        get { getAssociatedValue("noSleepAssertionID", initialValue: 0) }
+        set { setAssociatedValue(newValue, key: "noSleepAssertionID") }
     }
 }
 
-extension NSDeviceDescriptionKey: FrameworkToolboxCompatible, FrameworkToolboxDynamicMemberLookup {}
+extension NSDeviceDescriptionKey: @retroactive FrameworkToolboxCompatible, @retroactive FrameworkToolboxDynamicMemberLookup {}
 
 extension FrameworkToolbox where Base == NSDeviceDescriptionKey {
     /// The corresponding value is an `UInt32` value that identifies a `NSScreen` object.
