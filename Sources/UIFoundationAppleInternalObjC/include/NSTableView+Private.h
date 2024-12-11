@@ -1,3 +1,4 @@
+#if TARGET_OS_OSX
 #import <AppKit/AppKit.h>
 
 @class NSTableViewStyleData;
@@ -11,3 +12,5 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 NS_ASSUME_NONNULL_END
+
+#endif

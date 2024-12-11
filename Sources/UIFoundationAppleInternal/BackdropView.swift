@@ -1,3 +1,4 @@
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
 import AppKit
 import UIFoundationAppleInternalObjC
 
@@ -591,3 +592,5 @@ public final class BackdropView: NSVisualEffectView {
 
 @_silgen_name("CGSSetWindowTags")
 func CGSSetWindowTags(_ cid: Int32, _ wid: Int32, _ tags: UnsafePointer<Int32>!, _ maxTagSize: Int) -> CGError
+
+#endif

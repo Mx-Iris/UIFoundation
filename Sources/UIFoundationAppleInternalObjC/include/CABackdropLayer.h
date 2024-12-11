@@ -1,3 +1,4 @@
+#if TARGET_OS_OSX
 #import <AppKit/AppKit.h>
 #import <QuartzCore/QuartzCore.h>
 
@@ -40,3 +41,5 @@ typedef struct CAColorMatrix {
 @end
 
 NS_HEADER_AUDIT_END(nullability, sendability)
+
+#endif

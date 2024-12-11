@@ -29,7 +29,6 @@ open class RoundedBorderLabel: Label {
     
     open override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
-        
         layer?.cornerRadius = bounds.height / 2
         layer?.borderWidth = borderWidth
         layer?.borderColor = borderColor?.cgColor

@@ -6,4 +6,4 @@ import UIKit
 import FoundationToolbox
 import UIFoundationTypealias
 
-extension NSUIImage: SecureCodingCodable {}
+extension NSUIImage: @retroactive SecureCodingCodable {}

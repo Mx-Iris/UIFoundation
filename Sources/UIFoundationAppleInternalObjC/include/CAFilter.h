@@ -1,3 +1,4 @@
+#if TARGET_OS_OSX
 #import <AppKit/AppKit.h>
 #import <QuartzCore/QuartzCore.h>
 
@@ -37,3 +38,5 @@ CA_EXTERN NSString *const kCAFilterDestOver;
 
 
 NS_ASSUME_NONNULL_END
+
+#endif

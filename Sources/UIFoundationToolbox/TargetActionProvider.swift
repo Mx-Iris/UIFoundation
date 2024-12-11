@@ -5,10 +5,10 @@
 //  Created by JH on 12/8/24.
 //
 
-import AppKit
+import Foundation
 import FoundationToolbox
-import AssociatedObject
 import FrameworkToolbox
+import AssociatedObject
 
 /// An object with a target and action.
 public protocol TargetActionProvider: NSObject {
@@ -16,24 +16,6 @@ public protocol TargetActionProvider: NSObject {
     typealias ActionBlock = (Self) -> Void
     var target: AnyObject? { get set }
     var action: Selector? { get set }
-}
-
-extension NSControl: TargetActionProvider {}
-extension NSCell: TargetActionProvider {}
-extension NSToolbarItem: TargetActionProvider {}
-extension NSMenuItem: TargetActionProvider {}
-extension NSGestureRecognizer: TargetActionProvider {}
-extension NSColorPanel: TargetActionProvider {
-    public var action: Selector? {
-        get { nil }
-        set { setAction(newValue) }
-    }
-
-    /// The target object that receives action messages from the color panel.
-    public var target: AnyObject? {
-        get { value(forKey: "target") as? AnyObject }
-        set { setTarget(newValue) }
-    }
 }
 
 class ActionTrampoline<T: TargetActionProvider>: NSObject {
@@ -70,15 +52,15 @@ extension FrameworkToolbox where Base: TargetActionProvider {
     /// Sets the action handler of the object.
     @discardableResult
     public func action(_ action: Base.ActionBlock?) -> Base {
-        self.actionBlock = action
+        actionBlock = action
         return base
     }
 
-    internal var actionTrampoline: ActionTrampoline<Base>? {
+    var actionTrampoline: ActionTrampoline<Base>? {
         get { getAssociatedValue("actionTrampoline") }
         nonmutating set { setAssociatedValue(newValue, key: "actionTrampoline") }
     }
-    
+
     /// Performs the `action`.
     public func performAction() {
         if let actionBlock = actionBlock {
@@ -87,10 +69,32 @@ extension FrameworkToolbox where Base: TargetActionProvider {
             _ = target.perform(action)
         }
     }
-    
+
     public func setTarget(_ target: AnyObject?, action: Selector?) {
         base.target = target
         base.action = action
+    }
+}
+
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+
+import AppKit
+
+extension NSControl: TargetActionProvider {}
+extension NSCell: TargetActionProvider {}
+extension NSToolbarItem: TargetActionProvider {}
+extension NSMenuItem: TargetActionProvider {}
+extension NSGestureRecognizer: TargetActionProvider {}
+extension NSColorPanel: TargetActionProvider {
+    public var action: Selector? {
+        get { nil }
+        set { setAction(newValue) }
+    }
+
+    /// The target object that receives action messages from the color panel.
+    public var target: AnyObject? {
+        get { value(forKey: "target") as? AnyObject }
+        set { setTarget(newValue) }
     }
 }
 
@@ -109,3 +113,5 @@ extension TargetActionProvider where Self: NSCell {
         self.actionBlock = action
     }
 }
+
+#endif

@@ -1,3 +1,4 @@
+#if TARGET_OS_OSX
 #import <AppKit/AppKit.h>
 
 NS_HEADER_AUDIT_BEGIN(nullability, sendability)
@@ -15,3 +16,5 @@ NS_HEADER_AUDIT_BEGIN(nullability, sendability)
 @end
 
 NS_HEADER_AUDIT_END(nullability, sendability)
+
+#endif
