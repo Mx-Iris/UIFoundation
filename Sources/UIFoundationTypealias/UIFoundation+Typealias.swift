@@ -26,6 +26,7 @@ public typealias NSUICollectionViewDiffableDataSource = NSCollectionViewDiffable
 public typealias NSUITableViewDiffableDataSource = NSTableViewDiffableDataSource
 public typealias NSUICollectionViewUpdateItem = NSCollectionViewUpdateItem
 public typealias NSUICollectionViewDelegateFlowLayout = NSCollectionViewDelegateFlowLayout
+public typealias NSUIUserInterfaceLayoutOrientation = NSUserInterfaceLayoutOrientation
 #endif
 
 #if canImport(UIKit)
@@ -57,4 +58,5 @@ public typealias NSUICollectionViewDiffableDataSource = UICollectionViewDiffable
 public typealias NSUITableViewDiffableDataSource = UITableViewDiffableDataSource
 public typealias NSUICollectionViewUpdateItem = UICollectionViewUpdateItem
 public typealias NSUICollectionViewDelegateFlowLayout = UICollectionViewDelegateFlowLayout
+public typealias NSUIUserInterfaceLayoutOrientation = UIUserInterfaceLayoutOrientation
 #endif

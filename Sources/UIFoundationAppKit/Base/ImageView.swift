@@ -5,6 +5,25 @@ import UIFoundationUtilities
 
 @IBDesignable
 open class ImageView: NSImageView {
+    /// Constants that specify the image scaling behavior.
+    public enum ImageScaling: Int {
+        /// The image is resized to fit the entire bounds rectangle.
+        case resize
+        /// The image is resized to completely fill the bounds rectangle, while still preserving the aspect of the image.
+        case scaleToFill
+        /// The image is resized to fit the bounds rectangle, preserving the aspect of the image.
+        case scaleToFit
+        /// The image isn't resized.
+        case none
+        
+        var nsImageScaling: NSImageScaling {
+            switch self {
+            case .resize: return .scaleAxesIndependently
+            case .none: return .scaleNone
+            default: return .scaleProportionallyUpOrDown
+            }
+        }
+    }
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         commonInit()
