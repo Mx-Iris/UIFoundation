@@ -174,11 +174,11 @@ public class ModernSegmentedControl: Control {
 
     public convenience init(labels: [String], controlTintColor: NSColor, isMomentary: Bool) {
         self.init(frame: .zero)
+        self.controlTintColor = controlTintColor
+        self.isMomentary = isMomentary
         labels.enumerated().forEach { index, label in
             self.insertSegment(title: label, at: index)
         }
-        self.controlTintColor = controlTintColor
-        self.isMomentary = isMomentary
     }
     
     private func commonInit() {
@@ -723,9 +723,9 @@ extension ModernSegmentedControl {
                 textLayer.opacity = 0
                 selectedTextLayer.opacity = 1
                 // FIXME: 添加可选是否显示对比颜色
-//                selectedTextLayer.foregroundColor = (tintColor?.contrastingTextColor ?? .textColor).cgColor
+                selectedTextLayer.foregroundColor = (tintColor?.contrastingTextColor ?? .textColor).cgColor
                 
-                selectedTextLayer.foregroundColor = NSColor.textColor.cgColor
+//                selectedTextLayer.foregroundColor = NSColor.textColor.cgColor
 
                 // Adjusting the fontSize when the segment is "inset", gives a nice little "push" effect.
                 var fontSize = NSFont.systemFontSize

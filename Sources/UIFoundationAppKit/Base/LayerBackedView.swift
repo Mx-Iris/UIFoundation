@@ -4,8 +4,11 @@ import AppKit
 import UIFoundationToolbox
 import UIFoundationUtilities
 
+@available(*, deprecated, renamed: "LayerBackedView")
+public typealias View = LayerBackedView
+
 @IBDesignable
-open class View: NSView {
+open class LayerBackedView: NSView {
     public struct BorderPositions: OptionSet, Hashable {
         public let rawValue: Int
 
@@ -181,7 +184,7 @@ open class View: NSView {
 }
 
 extension NSBezierPath {
-    fileprivate convenience init(bounds: NSRect, borderWidth: CGFloat, borderInsets: NSEdgeInsets, borderLocation: View.BorderLocation, borderPositions: View.BorderPositions) {
+    fileprivate convenience init(bounds: NSRect, borderWidth: CGFloat, borderInsets: NSEdgeInsets, borderLocation: LayerBackedView.BorderLocation, borderPositions: LayerBackedView.BorderPositions) {
         let adjustsLocation: (CGFloat, CGFloat, CGFloat) -> CGFloat = { inside, center, outside in
             switch borderLocation {
             case .inside: return inside

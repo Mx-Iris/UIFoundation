@@ -37,6 +37,24 @@
       }
     },
     {
+      "identity" : "swift-literal-type-inference",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/p-x9/swift-literal-type-inference.git",
+      "state" : {
+        "revision" : "59480c8b9dbd4fcd414d86abf11ba4d749b7d5ff",
+        "version" : "0.3.0"
+      }
+    },
+    {
+      "identity" : "swift-object-association",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/p-x9/swift-object-association.git",
+      "state" : {
+        "revision" : "93806cfecae1f198c894ed5585b93aff0e2d1f5a",
+        "version" : "0.5.0"
+      }
+    },
+    {
       "identity" : "swift-syntax",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftlang/swift-syntax.git",

@@ -5,7 +5,6 @@ let appkitPlatforms: [Platform] = [.macOS]
 
 let uikitPlatforms: [Platform] = [.iOS, .tvOS, .visionOS, .watchOS, .macCatalyst]
 
-
 let package = Package(
     name: "UIFoundation",
     platforms: [.macOS(.v10_15), .iOS(.v12), .macCatalyst(.v13), .tvOS(.v13)],
@@ -67,6 +66,9 @@ let package = Package(
                 "UIFoundationTypealias",
                 "UIFoundationUtilities",
                 "UIFoundationShared",
+            ],
+            resources: [
+                .process("Resources"),
             ]
         ),
         .target(
