@@ -18,6 +18,7 @@ import UIKit
 #if !os(watchOS)
 public protocol ViewHierarchyComponent {
     func attach(to view: NSUIView)
+    func attach(to viewController: NSUIViewController)
 }
 
 @resultBuilder
@@ -74,6 +75,10 @@ public struct ViewItem<View: NSUIView>: ViewHierarchyComponent {
         view.addSubview(self.view)
     }
 
+    public func attach(to viewController: NSUIViewController) {
+        viewController.view.addSubview(self.view)
+    }
+
     public subscript<Member>(dynamicMember keyPath: ReferenceWritableKeyPath<View, Member>) -> Member {
         set {
             view[keyPath: keyPath] = newValue
@@ -101,6 +106,10 @@ public struct LayoutGuideItem: ViewHierarchyComponent {
     public func attach(to view: NSUIView) {
         view.addLayoutGuide(layoutGuide)
     }
+
+    public func attach(to viewController: NSUIViewController) {
+        viewController.view.addLayoutGuide(layoutGuide)
+    }
 }
 
 @dynamicMemberLookup
@@ -122,6 +131,11 @@ public struct ControllerItem<ViewController: NSUIViewController>: ViewHierarchyC
         view.addSubview(controller.view)
     }
 
+    public func attach(to viewController: NSUIViewController) {
+        viewController.view.addSubview(controller.view)
+        viewController.addChild(controller)
+    }
+
     public subscript<Member>(dynamicMember keyPath: ReferenceWritableKeyPath<ViewController, Member>) -> Member {
         set {
             controller[keyPath: keyPath] = newValue
@@ -139,9 +153,23 @@ public struct ControllerItem<ViewController: NSUIViewController>: ViewHierarchyC
     }
 }
 
+extension NSUILayoutGuide: ViewHierarchyComponent {
+    public func attach(to view: NSUIView) {
+        view.addLayoutGuide(self)
+    }
+
+    public func attach(to viewController: NSUIViewController) {
+        viewController.view.addLayoutGuide(self)
+    }
+}
+
 extension NSUIView: ViewHierarchyComponent {
     public func attach(to view: NSUIView) {
         view.addSubview(self)
+    }
+
+    public func attach(to viewController: NSUIViewController) {
+        viewController.view.addSubview(self)
     }
 
     @discardableResult
@@ -151,39 +179,38 @@ extension NSUIView: ViewHierarchyComponent {
     }
 }
 
-extension NSUILayoutGuide: ViewHierarchyComponent {
-    public func attach(to view: NSUIView) {
-        view.addLayoutGuide(self)
-    }
-}
-
 extension NSUIViewController: ViewHierarchyComponent {
     public func attach(to view: NSUIView) {
         view.addSubview(self.view)
     }
 
+    public func attach(to viewController: NSUIViewController) {
+        viewController.view.addSubview(view)
+        viewController.addChild(self)
+    }
+
     @discardableResult
     public func hierarchy(@ViewHierarchyBuilder _ builder: () -> [ViewHierarchyComponent]) -> Self {
-        builder().forEach { $0.attach(to: self.view) }
+        builder().forEach { $0.attach(to: self) }
         return self
     }
 }
 
-//protocol ViewHierarchyBuildable {
+// protocol ViewHierarchyBuildable {
 //    var __buildRootView: CocoaView { get }
-//}
+// }
 //
-//extension CocoaViewController: ViewHierarchyBuildable {
+// extension CocoaViewController: ViewHierarchyBuildable {
 //    var __buildRootView: CocoaView { view }
-//}
+// }
 //
-//extension CocoaView: ViewHierarchyBuildable {
+// extension CocoaView: ViewHierarchyBuildable {
 //    var __buildRootView: CocoaView { self }
-//}
+// }
 //
-//extension ViewHierarchyBuildable {
+// extension ViewHierarchyBuildable {
 //    public func build(@ViewHierarchyBuilder builder: () -> [ViewHierarchyComponent]) {
 //        builder().forEach { $0.attach(to: __buildRootView) }
 //    }
-//}
+// }
 #endif
