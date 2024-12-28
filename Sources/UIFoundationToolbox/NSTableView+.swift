@@ -24,7 +24,7 @@ extension FrameworkToolbox where Base: NSTableView {
     }
 
     public var hasValidClickedColumn: Bool {
-        isValidRow(base.clickedColumn)
+        isValidColumn(base.clickedColumn)
     }
 
     public var hasValidSelectedRow: Bool {

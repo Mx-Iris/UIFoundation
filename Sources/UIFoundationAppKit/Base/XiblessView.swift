@@ -2,7 +2,7 @@
 
 import AppKit
 
-open class XiblessView: View {
+open class XiblessView: LayerBackedView {
     public override init(frame frameRect: CGRect) {
         super.init(frame: frameRect)
     }
@@ -11,6 +11,7 @@ open class XiblessView: View {
     public required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+    
 }
 
 #endif

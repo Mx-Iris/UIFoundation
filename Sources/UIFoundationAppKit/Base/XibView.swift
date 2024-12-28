@@ -2,7 +2,7 @@
 
 import AppKit
 
-open class XibView: View {
+open class XibView: LayerBackedView {
     
     open class var xibBundle: Bundle { .main }
     

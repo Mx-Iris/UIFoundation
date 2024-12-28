@@ -4,7 +4,7 @@ import AppKit
 import UIFoundationUtilities
 
 @IBDesignable
-open class GradientView: View {
+open class GradientView: LayerBackedView {
 
     public enum Position {
         case topLeft
