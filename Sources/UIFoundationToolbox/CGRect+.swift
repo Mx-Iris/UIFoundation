@@ -80,4 +80,4 @@ extension FrameworkToolbox where Base == CGRect {
     }
 }
 
-extension CGRect: FrameworkToolboxCompatible, FrameworkToolboxDynamicMemberLookup {}
+extension CGRect: @retroactive FrameworkToolboxCompatible, @retroactive FrameworkToolboxDynamicMemberLookup {}
