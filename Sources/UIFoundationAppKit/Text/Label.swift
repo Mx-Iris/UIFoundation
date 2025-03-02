@@ -4,40 +4,9 @@ import UIFoundationToolbox
 import UIFoundationUtilities
 
 @IBDesignable
-open class Label: NSTextField {
-    @ViewInvalidating(.display, .layout)
-    @IBInspectable
-    open dynamic var contentInsets: NSEdgeInsets = .box.zero {
-        didSet {
-            guard let cell = cell as? LabelCell else { return }
-            cell.contentInsets = contentInsets
-        }
-    }
-
-    public convenience init(_ stringValue: String) {
-        self.init(frame: .zero)
-        self.stringValue = stringValue
-    }
-
-    public override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        commonInit()
-    }
-
-    public required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        commonInit()
-    }
-
-    private func commonInit() {
-        isEditable = false
-        drawsBackground = false
-        isBordered = false
-        setup()
-    }
-
+open class Label: InsetsTextField {
     open var syncStringValueToolTip: Bool = true
-    
+
     open override var stringValue: String {
         set {
             super.stringValue = newValue
@@ -49,19 +18,16 @@ open class Label: NSTextField {
             super.stringValue
         }
     }
-    
-    open func setup() {}
-    
-    open override class var cellClass: AnyClass? {
-        set {}
-        get { LabelCell.self }
+
+    open override func setup() {
+        isEditable = false
+        drawsBackground = false
+        isBordered = false
     }
     
-    open override var intrinsicContentSize: NSSize {
-        var intrinsicContentSize = super.intrinsicContentSize
-        intrinsicContentSize.width += contentInsets.left + contentInsets.right
-        intrinsicContentSize.height += contentInsets.top + contentInsets.bottom
-        return intrinsicContentSize
+    open override class var cellClass: AnyClass? {
+        set { }
+        get { LabelCell.self }
     }
 }
 
