@@ -27,7 +27,7 @@ open class InsetsTextFieldCell: NSTextFieldCell {
     }
 
     open override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
-        super.drawInterior(withFrame: rect.box.inset(by: contentInsets), in: controlView)
+        super.drawInterior(withFrame: cellFrame.box.inset(by: contentInsets), in: controlView)
     }
 }
 
