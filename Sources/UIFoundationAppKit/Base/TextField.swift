@@ -23,6 +23,11 @@ open class TextField: NSTextField {
         self.init(frame: .zero)
         self.bezelStyle = bezelStyle
     }
+    
+    public convenience init(_ stringValue: String) {
+        self.init(frame: .zero)
+        self.stringValue = stringValue
+    }
 }
 
 #endif
