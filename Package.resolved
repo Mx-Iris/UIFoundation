@@ -1,4 +1,5 @@
 {
+  "originHash" : "c5ac9d6298313d99cbc0204534d31fb2e7a65251297830951508b0132e360f84",
   "pins" : [
     {
       "identity" : "associatedobject",
@@ -6,7 +7,7 @@
       "location" : "https://github.com/MxIris-Library-Forks/AssociatedObject",
       "state" : {
         "branch" : "main",
-        "revision" : "3f08c4267ac798eaf57d8bbf4d0dfaab2335ba9d"
+        "revision" : "fd8b6161e550577aa9aea4e0eabe0bd2df2362ba"
       }
     },
     {
@@ -15,34 +16,16 @@
       "location" : "https://github.com/Mx-Iris/FrameworkToolbox",
       "state" : {
         "branch" : "main",
-        "revision" : "9ea546d17fb8fca6ff2fd67f262b8b5d8fd8f6e2"
+        "revision" : "a628127bd30a65821c5d6f3c1b165bda6cca978a"
       }
     },
     {
       "identity" : "swift-literal-type-inference",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/p-x9/swift-literal-type-inference.git",
+      "location" : "https://github.com/MxIris-Library-Forks/swift-literal-type-inference.git",
       "state" : {
-        "revision" : "59480c8b9dbd4fcd414d86abf11ba4d749b7d5ff",
-        "version" : "0.3.0"
-      }
-    },
-    {
-      "identity" : "swift-object-association",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/p-x9/swift-object-association.git",
-      "state" : {
-        "revision" : "93806cfecae1f198c894ed5585b93aff0e2d1f5a",
-        "version" : "0.5.0"
-      }
-    },
-    {
-      "identity" : "swift-literal-type-inference",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/p-x9/swift-literal-type-inference.git",
-      "state" : {
-        "revision" : "59480c8b9dbd4fcd414d86abf11ba4d749b7d5ff",
-        "version" : "0.3.0"
+        "branch" : "main",
+        "revision" : "ee038e38d8d540cbef6c457ca1cd464e173dc66f"
       }
     },
     {
@@ -59,10 +42,10 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftlang/swift-syntax.git",
       "state" : {
-        "revision" : "64889f0c732f210a935a0ad7cda38f77f876262d",
-        "version" : "509.1.1"
+        "revision" : "f99ae8aa18f0cf0d53481901f88a0991dc3bd4a2",
+        "version" : "601.0.1"
       }
     }
   ],
-  "version" : 2
+  "version" : 3
 }
