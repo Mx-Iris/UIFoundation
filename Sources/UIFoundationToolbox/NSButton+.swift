@@ -32,7 +32,7 @@ extension FrameworkToolbox where Base == Bool {
     }
 }
 
-extension NSControl.StateValue: ExpressibleByBooleanLiteral {
+extension NSControl.StateValue: @retroactive ExpressibleByBooleanLiteral {
     public init(booleanLiteral value: BooleanLiteralType) {
         self = value ? .on : .off
     }

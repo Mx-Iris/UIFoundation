@@ -8,9 +8,10 @@ extension FrameworkToolbox where Base == NSEdgeInsets {
     public static var zero: NSEdgeInsets { NSEdgeInsetsZero }
 }
 
-extension NSEdgeInsets: FrameworkToolboxCompatible, FrameworkToolboxDynamicMemberLookup {}
+extension NSEdgeInsets: @retroactive FrameworkToolboxCompatible, @retroactive FrameworkToolboxDynamicMemberLookup {}
 
-extension NSEdgeInsets: Hashable {
+extension NSEdgeInsets: @retroactive Equatable {}
+extension NSEdgeInsets: @retroactive Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(left)
         hasher.combine(top)

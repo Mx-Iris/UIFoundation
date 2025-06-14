@@ -3,7 +3,9 @@
 import AppKit
 import FrameworkToolbox
 
-extension NSUserInterfaceItemIdentifier: ExpressibleByStringLiteral, ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral, ExpressibleByStringInterpolation {
+extension NSUserInterfaceItemIdentifier: @retroactive ExpressibleByExtendedGraphemeClusterLiteral {}
+extension NSUserInterfaceItemIdentifier: @retroactive ExpressibleByUnicodeScalarLiteral {}
+extension NSUserInterfaceItemIdentifier: @retroactive ExpressibleByStringLiteral, @retroactive ExpressibleByIntegerLiteral, @retroactive ExpressibleByFloatLiteral, @retroactive ExpressibleByStringInterpolation {
     public init(stringLiteral value: String) {
         self.init(rawValue: value)
     }

@@ -3,6 +3,6 @@
 import AppKit
 
 @IBDesignable
-open class SupplementaryView: View, NSCollectionViewElement {}
+open class SupplementaryView: LayerBackedView, NSCollectionViewElement {}
 
 #endif

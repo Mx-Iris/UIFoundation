@@ -17,7 +17,7 @@ open class CollectionViewItem: NSCollectionViewItem {
     }
 
     open override func loadView() {
-        view = View()
+        view = LayerBackedView()
     }
 
     private func commonInit() {}

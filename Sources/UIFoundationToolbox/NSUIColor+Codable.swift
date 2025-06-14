@@ -6,4 +6,6 @@ import UIKit
 import FoundationToolbox
 import UIFoundationTypealias
 
-extension NSUIColor: SecureCodingCodable {}
+extension NSColor: @retroactive Encodable {}
+extension NSColor: @retroactive Decodable {}
+extension NSUIColor: @retroactive SecureCodingCodable {}
