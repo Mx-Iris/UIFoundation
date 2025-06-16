@@ -1,12 +1,12 @@
 {
-  "originHash" : "b414711c0e047192046131e3fe88bab9584c4b73d5b55b5c8549a42d233dcc28",
+  "originHash" : "30c6d0eb895ee433aa3e8e4b56a55ae78066e5e5fc68d7f3bf62bf4ce6cf572e",
   "pins" : [
     {
       "identity" : "associatedobject",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/MxIris-Library-Forks/AssociatedObject",
+      "location" : "https://github.com/p-x9/AssociatedObject",
       "state" : {
-        "revision" : "964716daa6c86a98801f43a56c520201cddf0d2d",
+        "revision" : "32a7d18f0f82e179e1bb91613b6ae8b0ebcfa931",
         "version" : "0.13.0"
       }
     },
@@ -15,17 +15,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Mx-Iris/FrameworkToolbox",
       "state" : {
-        "revision" : "4284d9c548de9c43ba01e7eb60bd3728c94fbd2e",
-        "version" : "0.1.0"
+        "revision" : "a2c0ad5809b48f27035c0f76a31181b5e831e6d1",
+        "version" : "0.2.0"
       }
     },
     {
       "identity" : "swift-literal-type-inference",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/MxIris-Library-Forks/swift-literal-type-inference.git",
+      "location" : "https://github.com/p-x9/swift-literal-type-inference.git",
       "state" : {
-        "revision" : "705388a7576cf09ee3a76d67cac0f8201144448e",
-        "version" : "0.4.1"
+        "revision" : "7235a8e47b257bbd54da76191b043976509c4b8c",
+        "version" : "0.4.0"
       }
     },
     {
@@ -40,9 +40,9 @@
     {
       "identity" : "swift-syntax",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swift-precompiled/swift-syntax.git",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
       "state" : {
-        "revision" : "fc197a24fb2e77609fbe3d94624e36f84d758099",
+        "revision" : "f99ae8aa18f0cf0d53481901f88a0991dc3bd4a2",
         "version" : "601.0.1"
       }
     }
