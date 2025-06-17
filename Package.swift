@@ -33,7 +33,7 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/Mx-Iris/FrameworkToolbox",
-            from: "0.1.0"
+            exact: "0.1.0"
         ),
         .package(
             url: "https://github.com/MxIris-Library-Forks/AssociatedObject",
