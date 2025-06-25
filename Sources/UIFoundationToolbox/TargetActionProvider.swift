@@ -25,7 +25,7 @@ class ActionTrampoline<T: TargetActionProvider>: NSObject {
         self.action = action
     }
 
-    @objc func performAction(sender: NSObject) {
+    @objc func invoke(_ sender: NSObject) {
         guard let sender = sender as? T else { return }
         action(sender)
     }
@@ -38,10 +38,10 @@ extension FrameworkToolbox where Base: TargetActionProvider {
             if let newValue = newValue {
                 actionTrampoline = ActionTrampoline(action: newValue)
                 base.target = actionTrampoline
-                base.action = #selector(ActionTrampoline<Base>.performAction(sender:))
+                base.action = #selector(ActionTrampoline<Base>.invoke(_:))
             } else {
                 actionTrampoline = nil
-                if base.action == #selector(ActionTrampoline<Base>.performAction(sender:)) {
+                if base.action == #selector(ActionTrampoline<Base>.invoke(_:)) {
                     base.action = nil
                 }
             }
