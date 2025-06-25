@@ -31,22 +31,22 @@ class ActionTrampoline<T: TargetActionProvider>: NSObject {
     }
 }
 
-extension FrameworkToolbox where Base: TargetActionProvider {
+extension FrameworkToolbox where Base: TargetActionProvider, Base: NSObject {
     /// The action handler of the object.
     public var actionBlock: Base.ActionBlock? {
         nonmutating set {
             if let newValue = newValue {
-                actionTrampoline = ActionTrampoline(action: newValue)
-                base.target = actionTrampoline
+                base.actionTrampoline = ActionTrampoline(action: newValue)
+                base.target = base.actionTrampoline
                 base.action = #selector(ActionTrampoline<Base>.performAction(sender:))
             } else {
-                actionTrampoline = nil
+                base.actionTrampoline = nil
                 if base.action == #selector(ActionTrampoline<Base>.performAction(sender:)) {
                     base.action = nil
                 }
             }
         }
-        get { actionTrampoline?.action }
+        get { base.actionTrampoline?.action }
     }
 
     /// Sets the action handler of the object.
@@ -55,10 +55,29 @@ extension FrameworkToolbox where Base: TargetActionProvider {
         actionBlock = action
         return base
     }
-
+    
     var actionTrampoline: ActionTrampoline<Base>? {
-        get { getAssociatedValue("actionTrampoline") }
-        nonmutating set { setAssociatedValue(newValue, key: "actionTrampoline") }
+        get {
+            getAssociatedObject(
+                base,
+                Self.__associated_actionTrampolineKey
+            ) as? ActionTrampoline<Base>
+            ?? nil
+        }
+        set {
+            setAssociatedObject(
+                base,
+                Self.__associated_actionTrampolineKey,
+                newValue,
+                .retain(.nonatomic)
+            )
+        }
+    }
+    
+    @inline(never) static var __associated_actionTrampolineKey: UnsafeRawPointer {
+        let f: @convention(c) () -> Void = {
+        }
+        return unsafeBitCast(f, to: UnsafeRawPointer.self)
     }
 
     /// Performs the `action`.
