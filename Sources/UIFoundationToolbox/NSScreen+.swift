@@ -89,37 +89,6 @@ extension FrameworkToolbox where Base: NSScreen {
         }
         return returnScreen
     }
-
-    /// Disables screen sleep and returns a Boolean value that indicates whether disabling succeeded.
-    @discardableResult
-    public static func disableScreenSleep() -> Bool {
-        guard _screenSleepIsDisabled == false else { return true }
-        _screenSleepIsDisabled = IOPMAssertionCreateWithName(
-            kIOPMAssertionTypeNoDisplaySleep as CFString,
-            IOPMAssertionLevel(kIOPMAssertionLevelOn),
-            "Unknown reason" as CFString,
-            &noSleepAssertionID
-        ) == kIOReturnSuccess
-        return _screenSleepIsDisabled
-    }
-
-    /// Enables screen sleep and returns a Boolean value that indicates whether enabling succeeded.
-    @discardableResult
-    public static func enableScreenSleep() -> Bool {
-        guard _screenSleepIsDisabled == true else { return true }
-        _screenSleepIsDisabled = !(IOPMAssertionRelease(noSleepAssertionID) == kIOReturnSuccess)
-        return _screenSleepIsDisabled == false
-    }
-
-    private static var _screenSleepIsDisabled: Bool {
-        get { getAssociatedValue("screenSleepIsDisabled", initialValue: false) }
-        set { setAssociatedValue(newValue, key: "screenSleepIsDisabled") }
-    }
-
-    private static var noSleepAssertionID: IOPMAssertionID {
-        get { getAssociatedValue("noSleepAssertionID", initialValue: 0) }
-        set { setAssociatedValue(newValue, key: "noSleepAssertionID") }
-    }
 }
 
 extension NSDeviceDescriptionKey: @retroactive FrameworkToolboxCompatible, @retroactive FrameworkToolboxDynamicMemberLookup {}
