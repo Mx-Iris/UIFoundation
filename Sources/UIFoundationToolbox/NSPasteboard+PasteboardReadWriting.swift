@@ -2,7 +2,6 @@
 
 import AppKit
 import FrameworkToolbox
-import FrameworkToolboxMacro
 /// A type that can be read from and written to a pasteboard (`String`, `URL`, `NSColor`, `NSImage` or `NSSound`).
 public protocol PasteboardReadWriting {}
 
