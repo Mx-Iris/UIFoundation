@@ -33,7 +33,7 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/Mx-Iris/FrameworkToolbox",
-            from: "0.2.0"
+            from: "0.3.2"
         ),
         .package(
             url: "https://github.com/p-x9/AssociatedObject",
@@ -99,7 +99,6 @@ let package = Package(
             dependencies: [
                 "UIFoundationTypealias",
                 .product(name: "FrameworkToolbox", package: "FrameworkToolbox"),
-                .product(name: "FrameworkToolboxMacro", package: "FrameworkToolbox"),
                 .product(name: "FoundationToolbox", package: "FrameworkToolbox"),
                 .product(name: "AssociatedObject", package: "AssociatedObject"),
             ]
