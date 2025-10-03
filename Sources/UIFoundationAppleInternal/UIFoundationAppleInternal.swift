@@ -1,1 +1,1 @@
-import Foundation
+@_exported import UIFoundationAppleInternalObjC

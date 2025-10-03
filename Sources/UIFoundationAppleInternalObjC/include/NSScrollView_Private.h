@@ -1,11 +1,8 @@
-//
-//  NSScrollView_Private.h
-//  UIFoundation
-//
-//  Created by JH on 2025/9/21.
-//
+#import <TargetConditionals.h>
 
-#import <Cocoa/Cocoa.h>
+#if TARGET_OS_OSX
+
+#import <AppKit/AppKit.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -58,3 +55,5 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 NS_ASSUME_NONNULL_END
+
+#endif

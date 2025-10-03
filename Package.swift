@@ -1,4 +1,4 @@
-// swift-tools-version: 5.10
+// swift-tools-version: 6.2
 import PackageDescription
 
 let appkitPlatforms: [Platform] = [.macOS]
@@ -15,25 +15,24 @@ let package = Package(
                 "UIFoundation",
             ]
         ),
+
         .library(
             name: "UIFoundationToolbox",
             targets: [
                 "UIFoundationToolbox",
             ]
         ),
+
         .library(
             name: "UIFoundationAppleInternal",
             targets: ["UIFoundationAppleInternal"]
         ),
-        .library(
-            name: "UIFoundationAppleInternalObjC",
-            targets: ["UIFoundationAppleInternalObjC"]
-        ),
+
     ],
     dependencies: [
         .package(
             url: "https://github.com/Mx-Iris/FrameworkToolbox",
-            from: "0.3.2"
+            branch: "main"
         ),
         .package(
             url: "https://github.com/p-x9/AssociatedObject",
@@ -48,8 +47,6 @@ let package = Package(
         .target(
             name: "UIFoundation",
             dependencies: [
-//                .target(name: "UIFoundationAppKit", condition: .when(platforms: appkitPlatforms)),
-//                .target(name: "UIFoundationUIKit", condition: .when(platforms: uikitPlatforms)),
                 "UIFoundationAppKit",
                 "UIFoundationUIKit",
                 "UIFoundationUtilities",
@@ -121,5 +118,6 @@ let package = Package(
                 "UIFoundation",
             ]
         ),
-    ]
+    ],
+    swiftLanguageModes: [.v5],
 )

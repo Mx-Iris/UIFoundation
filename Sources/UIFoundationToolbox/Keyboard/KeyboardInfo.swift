@@ -10,7 +10,7 @@
 // https://github.com/sponsors/ekazaev
 //
 
-#if canImport(UIKit)
+#if os(iOS)
 
 import UIKit
 

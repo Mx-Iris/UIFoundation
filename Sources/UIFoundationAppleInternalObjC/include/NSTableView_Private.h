@@ -1,4 +1,4 @@
-#import <Foundation/Foundation.h>
+#import <TargetConditionals.h>
 
 #if TARGET_OS_OSX
 #import <AppKit/AppKit.h>

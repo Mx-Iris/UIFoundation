@@ -1,11 +1,8 @@
-//
-//  NSImage+Private.h
-//  UIFoundation
-//
-//  Created by JH on 2025/9/21.
-//
+#import <TargetConditionals.h>
 
-#import <Cocoa/Cocoa.h>
+#if TARGET_OS_OSX
+
+#import <AppKit/AppKit.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -15,7 +12,12 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 @interface NSImage (NSSystemSymbols)
++ (nullable instancetype)imageWithPrivateSystemSymbolName:(NSString *)name;
 + (nullable instancetype)imageWithPrivateSystemSymbolName:(NSString *)name accessibilityDescription:(nullable NSString *)description;
++ (nullable instancetype)imageWithPrivateSystemSymbolName:(NSString *)name variableValue:(double)value API_AVAILABLE(macos(13.0));
++ (nullable instancetype)imageWithPrivateSystemSymbolName:(NSString *)name variableValue:(double)value accessibilityDescription:(nullable NSString *)description API_AVAILABLE(macos(13.0));
 @end
 
 NS_ASSUME_NONNULL_END
+
+#endif

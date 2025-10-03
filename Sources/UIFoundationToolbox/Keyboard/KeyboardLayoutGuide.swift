@@ -1,4 +1,5 @@
-#if canImport(UIKit)
+#if os(iOS)
+
 import UIKit
 import FrameworkToolbox
 import FoundationToolbox
