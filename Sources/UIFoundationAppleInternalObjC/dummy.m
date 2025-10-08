@@ -8,3 +8,11 @@
 #import "CALayer_Private.h"
 #import "CABackdropLayer.h"
 #import "CAFilter.h"
+
+
+// NSScene
+#import "NSScene.h"
+#import "NSSceneSession.h"
+#import "NSSceneConfiguration.h"
+#import "NSSceneConnectionOptions.h"
+#import "NSApplicationDelegateScenesPrivate.h"
