@@ -8,7 +8,7 @@ import UIKit
 
 import UIFoundationTypealias
 
-public class MaxSpacer: NSUIView {
+public final class MaxSpacer: NSUIView {
     public init() {
         super.init(frame: .zero)
     }

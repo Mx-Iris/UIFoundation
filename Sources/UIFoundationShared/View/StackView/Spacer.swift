@@ -8,7 +8,7 @@ import UIKit
 
 import UIFoundationTypealias
 
-public class Spacer: NSUIView {
+public final class Spacer: NSUIView {
     public let spacing: CGFloat
 
     var orientationOrAxis: NSUIStackViewOrientationOrAxis = .horizontal
