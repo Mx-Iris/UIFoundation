@@ -1,10 +1,3 @@
-//
-//  TargetActionProvider.swift
-//  UIFoundation
-//
-//  Created by JH on 12/8/24.
-//
-
 import Foundation
 import FoundationToolbox
 import FrameworkToolbox
@@ -55,14 +48,14 @@ extension FrameworkToolbox where Base: TargetActionProvider, Base: NSObject {
         actionBlock = action
         return base
     }
-    
+
     var actionTrampoline: ActionTrampoline<Base>? {
         get {
             getAssociatedObject(
                 base,
                 Self.__associated_actionTrampolineKey
             ) as? ActionTrampoline<Base>
-            ?? nil
+                ?? nil
         }
         set {
             setAssociatedObject(
@@ -73,10 +66,9 @@ extension FrameworkToolbox where Base: TargetActionProvider, Base: NSObject {
             )
         }
     }
-    
+
     @inline(never) static var __associated_actionTrampolineKey: UnsafeRawPointer {
-        let f: @convention(c) () -> Void = {
-        }
+        let f: @convention(c) () -> Void = {}
         return unsafeBitCast(f, to: UnsafeRawPointer.self)
     }
 
