@@ -21,6 +21,10 @@ public protocol ViewHierarchyComponent {
     func attach(to viewController: NSUIViewController)
 }
 
+public protocol ControllerHierarchyComponent {
+    func add(to parent: NSUIViewController)
+}
+
 @resultBuilder
 public enum ViewHierarchyBuilder {
     public static func buildBlock() -> [ViewHierarchyComponent] {
@@ -66,9 +70,15 @@ public struct ViewItem<View: NSUIView>: ViewHierarchyComponent {
     }
 
     @discardableResult
-    public init(_ view: View, @ViewHierarchyBuilder builder: () -> [ViewHierarchyComponent]) {
+    public init(_ view: View, parent: NSUIViewController? = nil, @ViewHierarchyBuilder builder: () -> [ViewHierarchyComponent]) {
         self.view = view
-        builder().forEach { $0.attach(to: view) }
+        for item in builder() {
+            item.attach(to: view)
+
+            if let parent = parent, let controllerItem = item as? ControllerHierarchyComponent {
+                controllerItem.add(to: parent)
+            }
+        }
     }
 
     public func attach(to view: NSUIView) {
@@ -173,8 +183,14 @@ extension NSUIView: ViewHierarchyComponent {
     }
 
     @discardableResult
-    public func hierarchy(@ViewHierarchyBuilder _ builder: () -> [ViewHierarchyComponent]) -> Self {
-        builder().forEach { $0.attach(to: self) }
+    public func hierarchy(parent: NSUIViewController? = nil, @ViewHierarchyBuilder _ builder: () -> [ViewHierarchyComponent]) -> Self {
+        for item in builder() {
+            item.attach(to: self)
+
+            if let parent = parent, let controllerItem = item as? ControllerHierarchyComponent {
+                controllerItem.add(to: parent)
+            }
+        }
         return self
     }
 }
@@ -196,21 +212,40 @@ extension NSUIViewController: ViewHierarchyComponent {
     }
 }
 
-// protocol ViewHierarchyBuildable {
-//    var __buildRootView: CocoaView { get }
-// }
-//
-// extension CocoaViewController: ViewHierarchyBuildable {
-//    var __buildRootView: CocoaView { view }
-// }
-//
-// extension CocoaView: ViewHierarchyBuildable {
-//    var __buildRootView: CocoaView { self }
-// }
-//
-// extension ViewHierarchyBuildable {
-//    public func build(@ViewHierarchyBuilder builder: () -> [ViewHierarchyComponent]) {
-//        builder().forEach { $0.attach(to: __buildRootView) }
-//    }
-// }
+extension NSUIView {
+    fileprivate var parentViewController: NSUIViewController? {
+        var nextResponder: NSUIResponder? = self
+        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+        while let responder = nextResponder {
+            if let vc = responder as? NSUIViewController {
+                return vc
+            }
+            nextResponder = responder.nextResponder
+        }
+        #else
+        while let responder = nextResponder {
+            if let vc = responder as? NSUIViewController {
+                return vc
+            }
+            nextResponder = responder.next
+        }
+        #endif
+        return nil
+    }
+}
+
+extension ControllerItem: ControllerHierarchyComponent {
+    public func add(to parent: NSUIViewController) {
+        parent.addChild(controller)
+        // controller.didMove(toParent: parent)
+    }
+}
+
+extension NSUIViewController: ControllerHierarchyComponent {
+    public func add(to parent: NSUIViewController) {
+        parent.addChild(self)
+        // self.didMove(toParent: parent)
+    }
+}
+
 #endif
