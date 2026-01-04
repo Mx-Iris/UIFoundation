@@ -1,7 +1,6 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
-import UIFoundationUtilities
 
 public protocol ViewReloading: NSView {
     func reloadData()
