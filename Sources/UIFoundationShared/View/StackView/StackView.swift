@@ -48,14 +48,16 @@ extension NSUIStackView {
                 maxSpacer.setContentHuggingPriority(.fittingSize, for: orientationOrAxis.nsLayoutConstraintOrientationOrAxis)
                 maxSpacer.setContentCompressionResistancePriority(.fittingSize, for: orientationOrAxis.nsLayoutConstraintOrientationOrAxis)
             }
-            
+
             if let customSpacing = view._customSpacing {
                 setCustomSpacing(customSpacing, after: view)
             }
-            
+
+            #if canImport(AppKit) && !targetEnvironment(macCatalyst)
             if let visibilityPriority = view._visibilityPriority {
                 setVisibilityPriority(visibilityPriority, for: view)
             }
+            #endif
         }
     }
 }
