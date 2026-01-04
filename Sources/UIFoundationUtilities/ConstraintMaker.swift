@@ -14,8 +14,11 @@ extension NSUIView: ConstraintMaker {}
 public protocol ConstraintMaker: NSUIView {}
 
 extension ConstraintMaker {
-    public func makeConstraints(@ArrayBuilder<NSLayoutConstraint> _ constraintsBuilder: (_ make: Self) -> [NSLayoutConstraint]) {
+    @discardableResult
+    public func makeConstraints(@ArrayBuilder<NSLayoutConstraint> _ constraintsBuilder: (_ make: Self) -> [NSLayoutConstraint]) -> [NSLayoutConstraint] {
         translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate(constraintsBuilder(self))
+        let constraints = constraintsBuilder(self)
+        NSLayoutConstraint.activate(constraints)
+        return constraints
     }
 }

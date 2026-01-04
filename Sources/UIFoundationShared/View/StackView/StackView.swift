@@ -6,6 +6,7 @@ import AppKit
 import UIKit
 #endif
 
+import SwiftStdlibToolbox
 import UIFoundationTypealias
 
 extension NSUIStackView {
@@ -51,18 +52,22 @@ extension NSUIStackView {
             if let customSpacing = view._customSpacing {
                 setCustomSpacing(customSpacing, after: view)
             }
+            
+            if let visibilityPriority = view._visibilityPriority {
+                setVisibilityPriority(visibilityPriority, for: view)
+            }
         }
     }
 }
 
-public class HStackView: NSUIStackView {
-    public convenience init(distribution: NSUIStackViewDistribution = .defaultValue, alignment: NSUIStackViewAlignment = .hStackDefaultValue, spacing: CGFloat = 0, @StackViewBuilder views: () -> [StackViewComponent]) {
+public final class HStackView: NSUIStackView {
+    public convenience init(distribution: NSUIStackViewDistribution = .defaultValue, alignment: NSUIStackViewAlignment = .hStackDefaultValue, spacing: CGFloat = 0, @ArrayBuilder<StackViewComponent> views: () -> [StackViewComponent]) {
         self.init(orientationOrAxis: .horizontal, distribution: distribution, alignment: alignment, spacing: spacing, views: views())
     }
 }
 
-public class VStackView: NSUIStackView {
-    public convenience init(distribution: NSUIStackViewDistribution = .defaultValue, alignment: NSUIStackViewAlignment = .vStackDefaultValue, spacing: CGFloat = 0, @StackViewBuilder views: () -> [StackViewComponent]) {
+public final class VStackView: NSUIStackView {
+    public convenience init(distribution: NSUIStackViewDistribution = .defaultValue, alignment: NSUIStackViewAlignment = .vStackDefaultValue, spacing: CGFloat = 0, @ArrayBuilder<StackViewComponent> views: () -> [StackViewComponent]) {
         self.init(orientationOrAxis: .vertical, distribution: distribution, alignment: alignment, spacing: spacing, views: views())
     }
 }

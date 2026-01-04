@@ -37,9 +37,6 @@ extension StackViewComponent {
 
 extension NSUIView: StackViewComponent {}
 
-private var __associated_gravityKey: UInt8 = 0
-private var __associated_customSpacingKey: UInt8 = 0
-
 extension StackViewComponent {
     #if canImport(AppKit) && !targetEnvironment(macCatalyst)
     @AssociatedObject(.copy(.nonatomic))
@@ -50,6 +47,16 @@ extension StackViewComponent {
         _gravity = gravity
         return self
     }
+    
+    @AssociatedObject(.copy(.nonatomic))
+    var _visibilityPriority: NSStackView.VisibilityPriority?
+    
+    @discardableResult
+    public func visibilityPriority(_ visibilityPriority: NSStackView.VisibilityPriority) -> Self {
+        _visibilityPriority = visibilityPriority
+        return self
+    }
+    
     #endif
 
     @AssociatedObject(.copy(.nonatomic))

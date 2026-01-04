@@ -2,7 +2,7 @@
 
 import AppKit
 
-open class NoEmphasizedTableRowView: NSTableRowView {
+open class NoEmphasizedTableRowView: TableRowView {
     public override var isEmphasized: Bool {
         set {}
         get { false }
