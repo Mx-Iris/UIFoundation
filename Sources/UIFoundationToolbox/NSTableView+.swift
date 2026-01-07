@@ -4,12 +4,11 @@ import AppKit
 import FrameworkToolbox
 
 extension FrameworkToolbox where Base: NSTableView {
-
-    public func makeView<View: NSView>(ofClass cls: View.Type, owner: Any? = nil) -> View {
+    public func makeView<View: NSView>(ofClass cls: View.Type, owner: Any? = nil, viewBuilder: (() -> View) = { .init() }) -> View {
         if let reuseView = base.makeView(withIdentifier: .init(cls), owner: owner) as? View {
             return reuseView
         } else {
-            let view = View()
+            let view = viewBuilder()
             view.identifier = .init(cls)
             return view
         }

@@ -3,15 +3,13 @@ import FoundationToolbox
 import FrameworkToolbox
 import AssociatedObject
 
-/// An object with a target and action.
 public protocol TargetActionProvider: NSObject {
-    /// The action handler of the object.
     typealias ActionBlock = (Self) -> Void
     var target: AnyObject? { get set }
     var action: Selector? { get set }
 }
 
-class ActionTrampoline<T: TargetActionProvider>: NSObject {
+final class ActionTrampoline<T: TargetActionProvider>: NSObject {
     var action: (T) -> Void
 
     init(action: @escaping (T) -> Void) {
@@ -72,7 +70,6 @@ extension FrameworkToolbox where Base: TargetActionProvider, Base: NSObject {
         return unsafeBitCast(f, to: UnsafeRawPointer.self)
     }
 
-    /// Performs the `action`.
     public func performAction() {
         if let actionBlock = actionBlock {
             actionBlock(base)
