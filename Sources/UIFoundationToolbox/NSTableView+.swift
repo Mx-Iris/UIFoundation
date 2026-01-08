@@ -120,13 +120,13 @@ extension FrameworkToolbox where Base: NSTableView {
     }
 
     /// Returns the row indexes currently visible.
-    public func visibleRowIndexes() -> IndexSet {
+    public var visibleRowIndexes: IndexSet {
         IndexSet(base.rows(in: base.visibleRect).values)
     }
 
     /// Returns the row views currently visible.
-    public func visibleRows() -> [NSTableRowView] {
-        visibleRowIndexes().compactMap { base.rowView(atRow: $0, makeIfNecessary: false) }
+    public var visibleRowViews: [NSTableRowView] {
+        visibleRowIndexes.compactMap { base.rowView(atRow: $0, makeIfNecessary: false) }
     }
 
     /// Returns the column indexes currently visible.
@@ -140,15 +140,15 @@ extension FrameworkToolbox where Base: NSTableView {
     }
 
     /// Returns the cell views currently visible.
-    public func visibleCells() -> [NSTableCellView] {
-        visibleRows().flatMap { $0.cellViews }
+    public var visibleCellViews: [NSTableCellView] {
+        visibleRowViews.flatMap { $0.cellViews }
     }
 
     /// Returns the cell views of a column currently visible.
     ///
     /// - Parameter column: The column fot the visible cell views.
     public func visibleCells(for column: NSTableColumn) -> [NSTableCellView] {
-        let rowIndexes = visibleRowIndexes()
+        let rowIndexes = visibleRowIndexes
         var cells = [NSTableCellView]()
         if let columnIndex = base.tableColumns.firstIndex(of: column) {
             for rowIndex in rowIndexes {
