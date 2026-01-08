@@ -1,5 +1,31 @@
 // swift-tools-version: 6.2
 import PackageDescription
+import Foundation
+
+extension Package.Dependency {
+    enum LocalSearchPath {
+        case package(path: String, isRelative: Bool, isEnabled: Bool)
+    }
+
+    static func package(local localSearchPaths: LocalSearchPath..., remote: Package.Dependency) -> Package.Dependency {
+        for local in localSearchPaths {
+            switch local {
+            case .package(let path, let isRelative, let isEnabled):
+                guard isEnabled else { continue }
+                let url = if isRelative, let resolvedURL = URL(string: path, relativeTo: URL(fileURLWithPath: #filePath)) {
+                    resolvedURL
+                } else {
+                    URL(fileURLWithPath: path)
+                }
+
+                if FileManager.default.fileExists(atPath: url.path) {
+                    return .package(path: url.path)
+                }
+            }
+        }
+        return remote
+    }
+}
 
 let appkitPlatforms: [Platform] = [.macOS]
 
@@ -7,7 +33,12 @@ let uikitPlatforms: [Platform] = [.iOS, .tvOS, .visionOS, .watchOS, .macCatalyst
 
 let package = Package(
     name: "UIFoundation",
-    platforms: [.macOS(.v10_15), .iOS(.v13), .macCatalyst(.v13), .tvOS(.v13)],
+    platforms: [
+        // AppKit
+        .macOS(.v10_15),
+        // UIKit
+        .iOS(.v13), .macCatalyst(.v13), .tvOS(.v13), .visionOS(.v1)
+    ],
     products: [
         .library(
             name: "UIFoundation",
@@ -31,8 +62,15 @@ let package = Package(
     ],
     dependencies: [
         .package(
-            url: "https://github.com/Mx-Iris/FrameworkToolbox",
-            branch: "main"
+            local: .package(
+                path: "../FrameworkToolbox",
+                isRelative: true,
+                isEnabled: true
+            ),
+            remote: .package(
+                url: "https://github.com/Mx-Iris/FrameworkToolbox",
+                branch: "main"
+            ),
         ),
         .package(
             url: "https://github.com/p-x9/AssociatedObject",

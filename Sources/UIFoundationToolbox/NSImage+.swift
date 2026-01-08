@@ -101,7 +101,7 @@ extension FrameworkToolbox where Base: NSImage {
         let heightRatio = targetSize.height / originalImage.size.height
 
         // 保持宽高比
-        let scaleFactor = min(widthRatio, heightRatio)
+        let scaleFactor = Swift.min(widthRatio, heightRatio)
         let scaledWidth = originalImage.size.width * scaleFactor
         let scaledHeight = originalImage.size.height * scaleFactor
 
