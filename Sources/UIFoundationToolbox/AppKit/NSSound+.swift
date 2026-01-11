@@ -3,9 +3,9 @@
 import AppKit
 import FrameworkToolbox
 
-extension FrameworkToolbox where Base == NSSound {
+extension FrameworkToolbox<NSSound> {
     /// The name of a sound.
-    internal enum SoundName: String, Hashable, CaseIterable {
+    enum SoundName: String, Hashable, CaseIterable {
         /// Basso
         case basso = "Basso"
         /// Blow

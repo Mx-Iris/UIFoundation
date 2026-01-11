@@ -10,7 +10,7 @@ extension FrameworkToolbox where Base: NSObject {
     }
 
     public static var classIdentifier: NSUserInterfaceItemIdentifier {
-        .init(Base.self)
+        NSUserInterfaceItemIdentifier(Base.self)
     }
 }
 

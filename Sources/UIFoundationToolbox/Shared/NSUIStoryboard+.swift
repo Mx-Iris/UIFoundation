@@ -1,6 +1,6 @@
 import Foundation
 import FrameworkToolbox
 
-extension FrameworkToolbox where Base == NSUIStoryboard {
+extension FrameworkToolbox<NSUIStoryboard> {
     public static let main = NSUIStoryboard(name: "Main", bundle: .main)
 }

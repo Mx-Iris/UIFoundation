@@ -9,7 +9,7 @@ import UIKit
 import FrameworkToolbox
 import UIFoundationTypealias
 
-extension FrameworkToolbox where Base == NSUIFont {
+extension FrameworkToolbox<NSUIFont> {
     public var defaultLineHeight: CGFloat {
         /// Heavily inspired by WebKit
 

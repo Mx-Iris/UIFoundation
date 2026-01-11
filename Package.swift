@@ -8,6 +8,14 @@ extension Package.Dependency {
     }
 
     static func package(local localSearchPaths: LocalSearchPath..., remote: Package.Dependency) -> Package.Dependency {
+        let currentFilePath = #filePath
+        let isClonedDependency = currentFilePath.contains("/checkouts/") ||
+            currentFilePath.contains("/SourcePackages/") ||
+            currentFilePath.contains("/.build/")
+
+        if isClonedDependency {
+            return remote
+        }
         for local in localSearchPaths {
             switch local {
             case .package(let path, let isRelative, let isEnabled):
@@ -65,7 +73,7 @@ let package = Package(
             local: .package(
                 path: "../FrameworkToolbox",
                 isRelative: true,
-                isEnabled: true
+                isEnabled: false
             ),
             remote: .package(
                 url: "https://github.com/Mx-Iris/FrameworkToolbox",

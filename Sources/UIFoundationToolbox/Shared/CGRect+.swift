@@ -8,7 +8,7 @@ import UIKit
 import FrameworkToolbox
 import UIFoundationTypealias
 
-extension FrameworkToolbox where Base == CGRect {
+extension FrameworkToolbox<CGRect> {
     public func inset(by insets: NSUIEdgeInsets) -> CGRect {
         return CGRect(
             x: base.origin.x + insets.left,

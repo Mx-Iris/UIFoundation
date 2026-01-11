@@ -3,7 +3,7 @@
 import Foundation
 import FrameworkToolbox
 
-extension FrameworkToolbox where Base == NSRectEdge {
+extension FrameworkToolbox<NSRectEdge> {
     /// The bottom edge of the rectangle.
     public static var bottom: NSRectEdge { .minY }
 

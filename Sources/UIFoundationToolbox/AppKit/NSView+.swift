@@ -73,7 +73,7 @@ extension NSView {
 //
 // }
 
-public protocol GestureRecognizerConfiguration {
+public protocol GestureRecognizerConfiguration<GestureRecognizer> {
     associatedtype GestureRecognizer: NSGestureRecognizer
     func makeGestureRecognizer() -> GestureRecognizer
 }
