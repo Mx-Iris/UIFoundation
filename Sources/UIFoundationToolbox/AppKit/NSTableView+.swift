@@ -5,6 +5,7 @@ import FrameworkToolbox
 import SwiftStdlibToolbox
 
 extension FrameworkToolbox where Base: NSTableView {
+    @inlinable
     public func makeView<View: NSView>(ofClass cls: View.Type, owner: Any? = nil, viewBuilder: (() -> View) = { .init() }) -> View {
         if let reuseView = base.makeView(withIdentifier: .init(cls), owner: owner) as? View {
             return reuseView
@@ -15,30 +16,37 @@ extension FrameworkToolbox where Base: NSTableView {
         }
     }
 
+    @inlinable
     public func makeViewFromNib<View: NSView>(ofClass cls: View.Type, owner: Any? = nil) -> View? {
         return base.makeView(withIdentifier: .init(cls), owner: owner) as? View
     }
 
+    @inlinable
     public var hasValidClickedRow: Bool {
         isValidRow(base.clickedRow)
     }
 
+    @inlinable
     public var hasValidClickedColumn: Bool {
         isValidColumn(base.clickedColumn)
     }
 
+    @inlinable
     public var hasValidSelectedRow: Bool {
         isValidRow(base.selectedRow)
     }
 
+    @inlinable
     public var hasValidSelectedColumn: Bool {
         isValidColumn(base.selectedColumn)
     }
-
+    
+    @inlinable
     public func isValidRow(_ row: Int) -> Bool {
         row >= 0 && row < base.numberOfRows
     }
 
+    @inlinable
     public func isValidColumn(_ column: Int) -> Bool {
         column >= 0 && column < base.numberOfColumns
     }
@@ -177,6 +185,129 @@ extension FrameworkToolbox where Base: NSTableView {
     public func cellView(at location: CGPoint) -> NSTableCellView? {
         guard let rowView = rowView(at: location) else { return nil }
         return rowView.cellViews.first(where: { $0.frame.contains(location) })
+    }
+    
+    public struct ScrollPosition: OptionSet {
+        public let rawValue: UInt
+
+        @inlinable
+        public init(rawValue: UInt) {
+            self.rawValue = rawValue
+        }
+
+        @inlinable
+        public static var top: ScrollPosition { ScrollPosition(rawValue: 1 << 0) }
+        @inlinable
+        public static var centeredVertically: ScrollPosition { ScrollPosition(rawValue: 1 << 1) }
+        @inlinable
+        public static var bottom: ScrollPosition { ScrollPosition(rawValue: 1 << 2) }
+        
+        @inlinable
+        public static var left: ScrollPosition { ScrollPosition(rawValue: 1 << 3) }
+        @inlinable
+        public static var centeredHorizontally: ScrollPosition { ScrollPosition(rawValue: 1 << 4) }
+        @inlinable
+        public static var right: ScrollPosition { ScrollPosition(rawValue: 1 << 5) }
+        
+        @inlinable
+        public static var leadingEdge: ScrollPosition { ScrollPosition(rawValue: 1 << 6) }
+        @inlinable
+        public static var trailingEdge: ScrollPosition { ScrollPosition(rawValue: 1 << 7) }
+        @inlinable
+        public static var nearestVerticalEdge: ScrollPosition { ScrollPosition(rawValue: 1 << 8) }
+        @inlinable
+        public static var nearestHorizontalEdge: ScrollPosition { ScrollPosition(rawValue: 1 << 9) }
+    }
+
+    public func scrollRowToVisible(_ row: Int, animated: Bool = true, scrollPosition: ScrollPosition) {
+        guard isValidRow(row) else { return }
+
+        if scrollPosition == [] {
+            base.scrollRowToVisible(row)
+            return
+        }
+
+        let rowRect = base.rect(ofRow: row)
+        let visibleRect = base.visibleRect
+        guard let clipView = base.enclosingScrollView?.contentView else { return }
+
+        var finalY = visibleRect.origin.y
+
+        if scrollPosition.contains(.top) || scrollPosition.contains(.leadingEdge) {
+            finalY = rowRect.origin.y
+        } else if scrollPosition.contains(.centeredVertically) {
+            finalY = rowRect.midY - (visibleRect.height / 2.0)
+        } else if scrollPosition.contains(.bottom) || scrollPosition.contains(.trailingEdge) {
+            finalY = rowRect.maxY - visibleRect.height
+        } else if scrollPosition.contains(.nearestHorizontalEdge) {
+            let distToTop = abs(visibleRect.minY - rowRect.minY)
+            let distToBottom = abs(visibleRect.maxY - rowRect.maxY)
+            if distToTop < distToBottom {
+                finalY = rowRect.origin.y
+            } else {
+                finalY = rowRect.maxY - visibleRect.height
+            }
+        }
+
+        let maxScrollY = clipView.documentRect.height - visibleRect.height
+        finalY = max(0, min(finalY, maxScrollY))
+
+        let finalPoint = NSPoint(x: visibleRect.origin.x, y: finalY)
+        scrollToPoint(finalPoint, animated: animated)
+    }
+
+    public func scrollColumnToVisible(_ column: Int, animated: Bool = true, scrollPosition: ScrollPosition) {
+        guard isValidColumn(column) else { return }
+
+        if scrollPosition == [] {
+            base.scrollColumnToVisible(column)
+            return
+        }
+
+        let colRect = base.rect(ofColumn: column)
+        let visibleRect = base.visibleRect
+        guard let clipView = base.enclosingScrollView?.contentView else { return }
+
+        var finalX = visibleRect.origin.x
+
+        if scrollPosition.contains(.left) || scrollPosition.contains(.leadingEdge) {
+            finalX = colRect.origin.x
+        } else if scrollPosition.contains(.centeredHorizontally) {
+            finalX = colRect.midX - (visibleRect.width / 2.0)
+        } else if scrollPosition.contains(.right) || scrollPosition.contains(.trailingEdge) {
+            finalX = colRect.maxX - visibleRect.width
+        } else if scrollPosition.contains(.nearestVerticalEdge) {
+            let distToLeft = abs(visibleRect.minX - colRect.minX)
+            let distToRight = abs(visibleRect.maxX - colRect.maxX)
+            if distToLeft < distToRight {
+                finalX = colRect.origin.x
+            } else {
+                finalX = colRect.maxX - visibleRect.width
+            }
+        }
+
+        let maxScrollX = clipView.documentRect.width - visibleRect.width
+        finalX = max(0, min(finalX, maxScrollX))
+
+        let finalPoint = NSPoint(x: finalX, y: visibleRect.origin.y)
+        scrollToPoint(finalPoint, animated: animated)
+    }
+
+    private func scrollToPoint(_ point: NSPoint, animated: Bool) {
+        guard let scrollView = base.enclosingScrollView else { return }
+
+        if animated {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.25
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                scrollView.contentView.animator().setBoundsOrigin(point)
+            } completionHandler: {
+                scrollView.reflectScrolledClipView(scrollView.contentView)
+            }
+        } else {
+            scrollView.contentView.scroll(to: point)
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+        }
     }
 }
 
