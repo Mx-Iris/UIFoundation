@@ -45,21 +45,13 @@ extension FrameworkToolbox where Base: NSAppearance {
     }
 
     /// A Boolean value that indicates whether the appearance is light.
-    ///
-    /// The following appearances are light: `aqua`, `vibrantLight`, `accessibilityHighContrastAqua` and `accessibilityHighContrastVibrantLight`.
     public var isLight: Bool {
-        isDark == false
+        base.bestMatch(from: [.darkAqua, .aqua]) == .aqua
     }
 
     /// A Boolean value that indicates whether the appearance is dark.
-    ///
-    /// The following appearances are dark: `darkAqua`, `vibrantDark`, `accessibilityHighContrastDarkAqua` and `accessibilityHighContrastVibrantDark`.
     public var isDark: Bool {
-        [NSAppearance.Name.vibrantDark,
-         .darkAqua,
-         .accessibilityHighContrastDarkAqua,
-         .accessibilityHighContrastVibrantDark
-        ].contains(base.name)
+        base.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     }
 }
 
