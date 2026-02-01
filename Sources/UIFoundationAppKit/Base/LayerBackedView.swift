@@ -4,9 +4,6 @@ import AppKit
 import UIFoundationToolbox
 import UIFoundationUtilities
 
-@available(*, deprecated, renamed: "LayerBackedView")
-public typealias View = LayerBackedView
-
 @IBDesignable
 open class LayerBackedView: NSView {
     public struct BorderPositions: OptionSet, Hashable {
