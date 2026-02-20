@@ -250,7 +250,7 @@ extension FrameworkToolbox where Base: NSTableView {
         }
 
         let maxScrollY = clipView.documentRect.height - visibleRect.height
-        finalY = max(0, min(finalY, maxScrollY))
+        finalY = Swift.max(0, Swift.min(finalY, maxScrollY))
 
         let finalPoint = NSPoint(x: visibleRect.origin.x, y: finalY)
         scrollToPoint(finalPoint, animated: animated)
@@ -287,7 +287,7 @@ extension FrameworkToolbox where Base: NSTableView {
         }
 
         let maxScrollX = clipView.documentRect.width - visibleRect.width
-        finalX = max(0, min(finalX, maxScrollX))
+        finalX = Swift.max(0, Swift.min(finalX, maxScrollX))
 
         let finalPoint = NSPoint(x: finalX, y: visibleRect.origin.y)
         scrollToPoint(finalPoint, animated: animated)

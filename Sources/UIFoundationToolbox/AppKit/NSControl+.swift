@@ -38,6 +38,10 @@ extension FrameworkToolbox where Base: NSControl {
             base.actionHandler = actionHandler
         }
     }
+    
+    public func typedCell<Cell: NSCell>() -> Cell? {
+        base.cell as? Cell
+    }
 }
 
 extension NSControl {

@@ -58,12 +58,14 @@ extension FrameworkToolbox where Base: NSButton {
 }
 
 extension FrameworkToolbox where Base == Bool {
+    @inlinable
     public var controlState: NSControl.StateValue {
         base ? .on : .off
     }
 }
 
 extension NSControl.StateValue: @retroactive ExpressibleByBooleanLiteral {
+    @inlinable
     public init(booleanLiteral value: BooleanLiteralType) {
         self = value ? .on : .off
     }

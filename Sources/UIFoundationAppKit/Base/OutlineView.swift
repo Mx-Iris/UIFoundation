@@ -34,6 +34,21 @@ extension OutlineViewProtocol {
         }
         return (scrollView, outlineView)
     }
+    
+    public static func scrollableSingleColumnOutlineView() -> (scrollView: NSScrollView, outlineView: Self) {
+        let scrollView = NSScrollView()
+        let outlineView = Self()
+        scrollView.do {
+            $0.documentView = outlineView
+            $0.hasVerticalScroller = true
+        }
+        outlineView.do {
+            $0.headerView = nil
+            $0.addTableColumn(NSTableColumn(identifier: "\(Self.self)"))
+            $0.autoresizesOutlineColumn = false
+        }
+        return (scrollView, outlineView)
+    }
 }
 
 extension NSOutlineView {
@@ -44,6 +59,22 @@ extension NSOutlineView {
             $0.documentView = outlineView
             $0.hasVerticalScroller = true
         }
+        return (scrollView, outlineView)
+    }
+
+    public class func scrollableSingleColumnOutlineView<ScrollViewType: NSScrollView, OutlineViewType: NSOutlineView>() -> (scrollView: ScrollViewType, outlineView: OutlineViewType) {
+        let scrollView = ScrollViewType()
+        let outlineView = OutlineViewType()
+        scrollView.do {
+            $0.documentView = outlineView
+            $0.hasVerticalScroller = true
+        }
+        outlineView.do {
+            $0.headerView = nil
+            $0.addTableColumn(NSTableColumn(identifier: "\(Self.self)"))
+            $0.autoresizesOutlineColumn = false
+        }
+
         return (scrollView, outlineView)
     }
 }
