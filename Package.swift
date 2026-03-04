@@ -32,7 +32,7 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/Mx-Iris/FrameworkToolbox",
-            branch: "main"
+            branch: "work"
         ),
         .package(
             url: "https://github.com/p-x9/AssociatedObject",
