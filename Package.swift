@@ -77,7 +77,7 @@ let package = Package(
             ),
             remote: .package(
                 url: "https://github.com/Mx-Iris/FrameworkToolbox",
-                branch: "main"
+                from: "0.4.0"
             ),
         ),
         .package(
