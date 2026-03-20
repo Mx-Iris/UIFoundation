@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/p-x9/AssociatedObject",
       "state" : {
-        "revision" : "32a7d18f0f82e179e1bb91613b6ae8b0ebcfa931",
-        "version" : "0.13.0"
+        "revision" : "9454715a21dfb346bf5d467da4e19b70a7f4ba87",
+        "version" : "0.14.0"
       }
     },
     {
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/p-x9/swift-literal-type-inference.git",
       "state" : {
-        "revision" : "7235a8e47b257bbd54da76191b043976509c4b8c",
-        "version" : "0.4.0"
+        "revision" : "898d4a8c5920a3a47d70a43e76d708697e14cd72",
+        "version" : "0.5.0"
       }
     },
     {
