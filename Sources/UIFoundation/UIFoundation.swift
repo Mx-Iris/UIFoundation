@@ -9,3 +9,10 @@
 #if canImport(UIKit)
 @_exported import UIFoundationUIKit
 #endif
+
+
+#if AppleInternal
+
+@_exported import UIFoundationAppleInternal
+
+#endif

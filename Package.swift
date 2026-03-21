@@ -61,12 +61,9 @@ let package = Package(
                 "UIFoundationToolbox",
             ]
         ),
-
-        .library(
-            name: "UIFoundationAppleInternal",
-            targets: ["UIFoundationAppleInternal"]
-        ),
-
+    ],
+    traits: [
+        .trait(name: "AppleInternal"),
     ],
     dependencies: [
         .package(
@@ -99,6 +96,7 @@ let package = Package(
                 "UIFoundationToolbox",
                 "UIFoundationTypealias",
                 "UIFoundationShared",
+                .target(name: "UIFoundationAppleInternal", condition: .when(traits: ["AppleInternal"]))
             ]
         ),
 
