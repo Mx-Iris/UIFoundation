@@ -96,7 +96,8 @@ let package = Package(
                 "UIFoundationToolbox",
                 "UIFoundationTypealias",
                 "UIFoundationShared",
-                .target(name: "UIFoundationAppleInternal", condition: .when(traits: ["AppleInternal"]))
+                .target(name: "UIFoundationAppleInternal", condition: .when(traits: ["AppleInternal"])),
+                .target(name: "UIFoundationAppleInternalObjC", condition: .when(traits: ["AppleInternal"])),
             ]
         ),
 

@@ -14,5 +14,6 @@
 #if AppleInternal
 
 @_exported import UIFoundationAppleInternal
+@_exported import UIFoundationAppleInternalObjC
 
 #endif
