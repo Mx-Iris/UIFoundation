@@ -231,6 +231,10 @@ extension FrameworkToolbox where Base == NSWorkspace {
     /// The tag class for Apple device model codes (e.g., "Mac15,14", "iPhone16,2").
     private static let _deviceModelCodeTagClass = UTTagClass(rawValue: "com.apple.device-model-code")
 
+    /// Color icon of a generic display, used as fallback for unrecognized device models.
+    /// Loaded directly from CoreTypes.bundle to bypass NSWorkspace's dynamic resolution.
+    private static let _fallbackDeviceColorIcon = NSImage(contentsOfFile: "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/com.apple.led-cinema-display-27.icns") ?? NSImage(named: NSImage.computerName)!
+
     /// Resolves the SF Symbol name for a UTType by walking its supertype chain.
     private static func _resolveSymbolName(for type: UTType) -> String? {
         if let name = _deviceSymbolNameMap[type.identifier] {
@@ -243,20 +247,24 @@ extension FrameworkToolbox where Base == NSWorkspace {
         }
         return nil
     }
-    
 
     /// Returns the full-color device icon for the given hardware model identifier.
     ///
     /// Uses `UTType` resolution via `com.apple.device-model-code` tag class to find
     /// the device icon from CoreTypes.bundle, similar to the icon shown in About This Mac.
+    /// Dynamic (undeclared) UTTypes have no dedicated icon and fall back to the
+    /// system computer icon obtained via `GetIconRef('root')`.
     ///
     /// - Parameter modelIdentifier: The hardware model identifier (e.g., "Mac15,14", "iPhone16,2").
-    /// - Returns: The device icon, or a generic computer icon if the model is not recognized.
+    /// - Returns: The device icon, or the current computer icon if the model is not recognized.
     public func deviceIcon(forModelIdentifier modelIdentifier: String) -> NSImage {
-        if let type = UTType(tag: modelIdentifier, tagClass: Self._deviceModelCodeTagClass, conformingTo: nil) {
+        if let type = UTType(tag: modelIdentifier, tagClass: Self._deviceModelCodeTagClass, conformingTo: nil),
+           type.isDeclared {
             return base.icon(for: type)
         }
-        return fallbackIcon
+        // Dynamic (undeclared) types like "VirtualMac2,1" have no icon in CoreTypes.bundle.
+        // Fall back to the generic display icon.
+        return Self._fallbackDeviceColorIcon
     }
 
     /// Returns the SF Symbol name for the given hardware model identifier.
