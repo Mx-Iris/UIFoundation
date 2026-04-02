@@ -35,6 +35,25 @@ extension FrameworkToolbox where Base: NSWindow {
         if let screenSize = base.screen?.frame.size { return (screenSize.height - base.frame.size.height) / 2 }
         return CGFloat(0)
     }
+
+    public func centerInScreen() {
+        guard let screen = base.screen ?? NSScreen.main else { return }
+        let visibleFrame = screen.visibleFrame
+        let x = visibleFrame.origin.x + (visibleFrame.width - base.frame.width) / 2
+        let y = visibleFrame.origin.y + (visibleFrame.height - base.frame.height) / 2
+        base.setFrameOrigin(NSPoint(x: x, y: y))
+    }
+
+    public func restoreFrame(autosaveName: String, defaultSize: NSSize, centerInScreen: Bool = true) {
+        let hasSavedFrame = UserDefaults.standard.string(forKey: "NSWindow Frame \(autosaveName)") != nil
+        base.setFrameAutosaveName(autosaveName)
+        if !hasSavedFrame {
+            base.setContentSize(defaultSize)
+            if centerInScreen {
+                self.centerInScreen()
+            }
+        }
+    }
 }
 
 #endif
