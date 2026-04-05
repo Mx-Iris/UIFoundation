@@ -13,14 +13,8 @@ class MainStoryboardViewController: NSViewController, StoryboardViewController {
 
     class var storyboardIdentifier: String { .init(describing: Self.self) }
 
-    @IBOutlet var customView: View!
-    
     override func viewDidLoad() {
         super.viewDidLoad()
-        customView.borderLocation = .outside
-        customView.borderPositions = .all
-        customView.borderWidth = 2
-        customView.borderColor = .red
     }
 
     override var representedObject: Any? {

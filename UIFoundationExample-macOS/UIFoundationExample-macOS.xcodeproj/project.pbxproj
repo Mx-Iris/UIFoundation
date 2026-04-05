@@ -15,6 +15,7 @@
 		E943A7DF2AF770A200526917 /* MainSplitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E943A7DE2AF770A200526917 /* MainSplitViewController.swift */; };
 		E943A7E12AF7731F00526917 /* MainWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E943A7E02AF7731F00526917 /* MainWindowController.swift */; };
 		E943A7E32AF7739300526917 /* SidebarTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E943A7E22AF7739300526917 /* SidebarTableViewController.swift */; };
+		E943A7F02B0A000000526917 /* TextFinderDemoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E943A7EF2B0A000000526917 /* TextFinderDemoViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +28,7 @@
 		E943A7DE2AF770A200526917 /* MainSplitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainSplitViewController.swift; sourceTree = "<group>"; };
 		E943A7E02AF7731F00526917 /* MainWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowController.swift; sourceTree = "<group>"; };
 		E943A7E22AF7739300526917 /* SidebarTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarTableViewController.swift; sourceTree = "<group>"; };
+		E943A7EF2B0A000000526917 /* TextFinderDemoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextFinderDemoViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -66,6 +68,7 @@
 				E943A7DE2AF770A200526917 /* MainSplitViewController.swift */,
 				E943A7E22AF7739300526917 /* SidebarTableViewController.swift */,
 				E943A7AE2AF76E0E00526917 /* MainStoryboardViewController.swift */,
+				E943A7EF2B0A000000526917 /* TextFinderDemoViewController.swift */,
 				E943A7B02AF76E0F00526917 /* Assets.xcassets */,
 				E943A7B22AF76E0F00526917 /* Main.storyboard */,
 				E943A7B52AF76E0F00526917 /* UIFoundationExample_macOS.entitlements */,
@@ -158,6 +161,7 @@
 				E943A7E12AF7731F00526917 /* MainWindowController.swift in Sources */,
 				E943A7DF2AF770A200526917 /* MainSplitViewController.swift in Sources */,
 				E943A7E32AF7739300526917 /* SidebarTableViewController.swift in Sources */,
+				E943A7F02B0A000000526917 /* TextFinderDemoViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
