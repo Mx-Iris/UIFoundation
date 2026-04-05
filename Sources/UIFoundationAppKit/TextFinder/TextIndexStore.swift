@@ -10,7 +10,7 @@ class TextIndexStore {
         let column: Int
         let globalIndex: Int
         let string: String
-        let item: AnyObject?
+        let item: Any?
     }
 
     /// Boundary separator length between tokens.
@@ -45,7 +45,7 @@ class TextIndexStore {
 
     /// Append a single token for the given row, column, string, and optional item.
     /// Automatically computes the globalIndex based on current totalLength.
-    func appendToken(row: Int, column: Int, string: String, item: AnyObject? = nil) {
+    func appendToken(row: Int, column: Int, string: String, item: Any? = nil) {
         let token = Token(
             row: row,
             column: column,

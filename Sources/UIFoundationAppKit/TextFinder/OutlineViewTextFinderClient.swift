@@ -28,10 +28,10 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
     var currentSelectedLocation: Int = 0
 
     /// Tracks items whose subtrees have already been indexed (for onDemand mode).
-    var indexedCollapsedItems: Set<ObjectIdentifier> = []
+    var indexedCollapsedItems: Set<AnyHashable> = []
 
     /// Queue of collapsed items not yet indexed (for onDemand mode).
-    var pendingCollapsedItems: [AnyObject] = []
+    var pendingCollapsedItems: [Any] = []
 
     // MARK: - Notifications
 
@@ -114,15 +114,13 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
                 row: row,
                 column: columnIndex,
                 string: cellString,
-                item: item as AnyObject?
+                item: item
             )
         }
 
         // Track collapsed items with children for potential on-demand indexing
         if let item, outlineView.isExpandable(item), !outlineView.isItemExpanded(item) {
-            if let itemObject = item as? AnyObject {
-                pendingCollapsedItems.append(itemObject)
-            }
+            pendingCollapsedItems.append(item)
         }
     }
 
@@ -140,9 +138,10 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
         guard let nextItem = pendingCollapsedItems.first else { return false }
         pendingCollapsedItems.removeFirst()
 
-        let itemIdentifier = ObjectIdentifier(nextItem)
-        guard !indexedCollapsedItems.contains(itemIdentifier) else { return false }
-        indexedCollapsedItems.insert(itemIdentifier)
+        if let itemIdentifier = hashableIdentifier(for: nextItem) {
+            guard !indexedCollapsedItems.contains(itemIdentifier) else { return false }
+            indexedCollapsedItems.insert(itemIdentifier)
+        }
 
         guard let children = dataSource.textFinderClient(self, childItemsOfItem: nextItem) else { return false }
         let previousTokenCount = indexStore.tokens.count
@@ -162,15 +161,13 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
                     row: effectiveRow,
                     column: columnIndex,
                     string: cellString,
-                    item: child as AnyObject?
+                    item: child
                 )
             }
 
             // Recursively queue child's children if it has any
             if let grandchildren = dataSource.textFinderClient(self, childItemsOfItem: child), !grandchildren.isEmpty {
-                if let childObject = child as? AnyObject {
-                    pendingCollapsedItems.append(childObject)
-                }
+                pendingCollapsedItems.append(child)
             }
         }
     }
@@ -193,6 +190,20 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
             return textField.stringValue
         }
         return ""
+    }
+
+    // MARK: - Item Identity
+
+    /// Create a hashable identifier for an item.
+    /// Reference types use ObjectIdentifier; Hashable value types use AnyHashable.
+    private func hashableIdentifier(for item: Any) -> AnyHashable? {
+        if let object = item as? AnyObject {
+            return ObjectIdentifier(object)
+        }
+        if let hashable = item as? AnyHashable {
+            return hashable
+        }
+        return nil
     }
 
     // MARK: - On-Demand Indexing
