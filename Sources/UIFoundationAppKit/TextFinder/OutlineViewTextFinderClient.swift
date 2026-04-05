@@ -344,12 +344,4 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
     }
 }
 
-// MARK: - CGRect pixel alignment helper
-
-private extension CGRect {
-    var pixelAligned: CGRect {
-        NSIntegralRectWithOptions(self, .alignAllEdgesNearest)
-    }
-}
-
 #endif

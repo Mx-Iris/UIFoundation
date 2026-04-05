@@ -58,4 +58,12 @@ class TextIndexStore {
     }
 }
 
+// MARK: - CGRect pixel alignment helper
+
+extension CGRect {
+    var pixelAligned: CGRect {
+        NSIntegralRectWithOptions(self, .alignAllEdgesNearest)
+    }
+}
+
 #endif
