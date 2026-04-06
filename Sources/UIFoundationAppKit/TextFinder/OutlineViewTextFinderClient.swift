@@ -199,8 +199,8 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
     /// Create a hashable identifier for an item.
     /// Reference types use ObjectIdentifier; Hashable value types use AnyHashable.
     private func hashableIdentifier(for item: Any) -> AnyHashable? {
-        if let object = item as? AnyObject {
-            return ObjectIdentifier(object)
+        if type(of: item) is AnyClass {
+            return ObjectIdentifier(item as AnyObject)
         }
         if let hashable = item as? AnyHashable {
             return hashable
