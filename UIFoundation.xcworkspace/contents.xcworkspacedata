@@ -5,9 +5,9 @@
       location = "group:">
    </FileRef>
    <FileRef
-      location = "group:UIFoundationExample-iOS/UIFoundationExample-iOS.xcodeproj">
+      location = "group:UIFoundationExample-macOS/UIFoundationExample-macOS.xcodeproj">
    </FileRef>
    <FileRef
-      location = "group:UIFoundationExample-macOS/UIFoundationExample-macOS.xcodeproj">
+      location = "group:UIFoundationExample-iOS/UIFoundationExample-iOS.xcodeproj">
    </FileRef>
 </Workspace>
