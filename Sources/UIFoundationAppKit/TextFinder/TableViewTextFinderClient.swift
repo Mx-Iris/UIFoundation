@@ -107,7 +107,7 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
     }
 
     public var firstSelectedRange: NSRange {
-        var location = currentSelectedLocation + TextIndexStore.separatorLength
+        var location = currentSelectedLocation
         if location >= indexStore.totalLength {
             location = 0
         }

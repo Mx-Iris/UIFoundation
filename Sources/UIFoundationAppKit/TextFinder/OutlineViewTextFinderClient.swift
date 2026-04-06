@@ -240,7 +240,7 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
     }
 
     public var firstSelectedRange: NSRange {
-        var location = currentSelectedLocation + TextIndexStore.separatorLength
+        var location = currentSelectedLocation
         if location >= indexStore.totalLength {
             // Wrap around — try expanding the index first (on-demand)
             if searchScope == .onDemand && !pendingCollapsedItems.isEmpty {

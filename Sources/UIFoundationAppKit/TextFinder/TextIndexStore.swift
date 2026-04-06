@@ -14,8 +14,9 @@ class TextIndexStore {
     }
 
     /// Boundary separator length between tokens.
-    /// Prevents matches from spanning across cells.
-    static let separatorLength: Int = 1
+    /// Set to 0 because `endsWithSearchBoundary = true` in the client
+    /// already prevents matches from spanning across cells.
+    static let separatorLength: Int = 0
 
     private(set) var tokens: [Token] = []
     private(set) var totalLength: Int = 0
