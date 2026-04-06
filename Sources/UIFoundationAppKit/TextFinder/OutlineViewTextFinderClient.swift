@@ -9,7 +9,9 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
 
     public weak var outlineView: NSOutlineView?
 
-    public weak var dataSource: OutlineViewTextFinderDataSource?
+    public weak var dataSource: OutlineViewTextFinderDataSource? {
+        didSet { rebuildIndex() }
+    }
 
     public let textFinder = NSTextFinder()
 

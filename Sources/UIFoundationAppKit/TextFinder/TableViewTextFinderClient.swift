@@ -9,7 +9,9 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
 
     public weak var tableView: NSTableView?
 
-    public weak var dataSource: TableViewTextFinderDataSource?
+    public weak var dataSource: TableViewTextFinderDataSource? {
+        didSet { rebuildIndex() }
+    }
 
     public let textFinder = NSTextFinder()
 
