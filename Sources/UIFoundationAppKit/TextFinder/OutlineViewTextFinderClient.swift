@@ -27,7 +27,10 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
 
     // MARK: - State
 
-    var currentSelectedLocation: Int = 0
+    /// The range of the currently selected match. NSTextFinder reads this via
+    /// `firstSelectedRange` and starts Find Next searches from `NSMaxRange(currentMatchRange)`.
+    /// Updated in `scrollRangeToVisible(_:)` whenever NSTextFinder navigates to a match.
+    var currentMatchRange: NSRange = NSRange(location: 0, length: 0)
 
     /// Tracks items whose subtrees have already been indexed (for onDemand mode).
     var indexedCollapsedItems: Set<AnyHashable> = []
@@ -94,6 +97,7 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
         indexStore.removeAll()
         indexedCollapsedItems.removeAll()
         pendingCollapsedItems.removeAll()
+        currentMatchRange = NSRange(location: 0, length: 0)
         guard let outlineView, let dataSource else { return }
         let numberOfColumns = dataSource.numberOfSearchableColumns(in: self)
         let numberOfRows = outlineView.numberOfRows
@@ -231,7 +235,6 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
         let range = NSRange(location: token.globalIndex, length: token.string.utf16.count)
         outRange.pointee = range
         outFlag.pointee = true
-        currentSelectedLocation = NSMaxRange(range)
         return token.string
     }
 
@@ -240,24 +243,32 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
     }
 
     public var firstSelectedRange: NSRange {
-        var location = currentSelectedLocation
-        if location >= indexStore.totalLength {
-            // Wrap around — try expanding the index first (on-demand)
+        // If the saved match range is out of bounds (e.g. the index shrunk on
+        // rebuild), fall back to the start of the document.
+        guard currentMatchRange.location <= indexStore.totalLength,
+              NSMaxRange(currentMatchRange) <= indexStore.totalLength else {
+            // On-demand scope: try expanding first in case the position is
+            // inside a yet-to-be-indexed subtree.
             if searchScope == .onDemand && !pendingCollapsedItems.isEmpty {
                 expandIndexOnDemand()
-                // Re-check after expansion
-                if location < indexStore.totalLength {
-                    return NSRange(location: location, length: 0)
+                if currentMatchRange.location <= indexStore.totalLength,
+                   NSMaxRange(currentMatchRange) <= indexStore.totalLength {
+                    return currentMatchRange
                 }
             }
-            location = 0
+            return NSRange(location: 0, length: 0)
         }
-        return NSRange(location: location, length: 0)
+        return currentMatchRange
     }
 
     // MARK: - NSTextFinderClient — Scrolling & Content View
 
     public func scrollRangeToVisible(_ range: NSRange) {
+        // Remember the match so `firstSelectedRange` reflects NSTextFinder's
+        // current position — this is what makes Find Next advance past the
+        // current match instead of rematching it.
+        currentMatchRange = range
+
         guard let outlineView else { return }
         let token = indexStore.token(at: range.location)
         // Expand parent chain if needed
@@ -303,6 +314,9 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
             row = token.row
         }
         guard row >= 0 else { return nil }
+        if let providedTextField = dataSource?.textFinderClient(self, textFieldForRow: row, column: token.column) {
+            return providedTextField
+        }
         guard let cellView = outlineView.view(atColumn: token.column, row: row, makeIfNecessary: false) as? NSTableCellView else {
             return nil
         }

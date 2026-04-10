@@ -27,6 +27,21 @@ public protocol OutlineViewTextFinderDataSource: AnyObject {
     /// Used for on-demand and full-tree indexing of collapsed nodes.
     /// Return `nil` if the item has no children.
     func textFinderClient(_ client: OutlineViewTextFinderClient, childItemsOfItem item: Any?) -> [Any]?
+
+    /// Return the `NSTextField` that should be used for highlight rect computation
+    /// and `contentView(at:)` callbacks for the given row/column.
+    ///
+    /// Implement this when your cell view is not an `NSTableCellView` or does not
+    /// assign its text field to `NSTableCellView.textField`. Return `nil` to fall
+    /// back to the default lookup (`cellView.textField`).
+    func textFinderClient(_ client: OutlineViewTextFinderClient, textFieldForRow row: Int, column: Int) -> NSTextField?
+}
+
+@available(macOS 12.0, *)
+public extension OutlineViewTextFinderDataSource {
+    func textFinderClient(_ client: OutlineViewTextFinderClient, textFieldForRow row: Int, column: Int) -> NSTextField? {
+        nil
+    }
 }
 
 #endif

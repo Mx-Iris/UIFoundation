@@ -25,7 +25,10 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
 
     // MARK: - State
 
-    var currentSelectedLocation: Int = 0
+    /// The range of the currently selected match. NSTextFinder reads this via
+    /// `firstSelectedRange` and starts Find Next searches from `NSMaxRange(currentMatchRange)`.
+    /// Updated in `scrollRangeToVisible(_:)` whenever NSTextFinder navigates to a match.
+    var currentMatchRange: NSRange = NSRange(location: 0, length: 0)
 
     // MARK: - Initialization
 
@@ -55,6 +58,7 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
 
     func rebuildIndex() {
         indexStore.removeAll()
+        currentMatchRange = NSRange(location: 0, length: 0)
         guard let tableView, let dataSource else { return }
         let numberOfColumns = dataSource.numberOfSearchableColumns(in: self)
         let numberOfRows = tableView.numberOfRows
@@ -98,7 +102,6 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
         let range = NSRange(location: token.globalIndex, length: token.string.utf16.count)
         outRange.pointee = range
         outFlag.pointee = true
-        currentSelectedLocation = NSMaxRange(range)
         return token.string
     }
 
@@ -107,16 +110,20 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
     }
 
     public var firstSelectedRange: NSRange {
-        var location = currentSelectedLocation
-        if location >= indexStore.totalLength {
-            location = 0
+        guard currentMatchRange.location <= indexStore.totalLength,
+              NSMaxRange(currentMatchRange) <= indexStore.totalLength else {
+            return NSRange(location: 0, length: 0)
         }
-        return NSRange(location: location, length: 0)
+        return currentMatchRange
     }
 
     // MARK: - NSTextFinderClient — Scrolling & Content View
 
     public func scrollRangeToVisible(_ range: NSRange) {
+        // Remember the match so `firstSelectedRange` reflects NSTextFinder's
+        // current position — this is what makes Find Next advance past the
+        // current match instead of rematching it.
+        currentMatchRange = range
         guard let tableView else { return }
         let token = indexStore.token(at: range.location)
         tableView.scrollRowToVisible(token.row)
@@ -131,6 +138,9 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
     /// Get the NSTextField for a given token's cell.
     func resolveTextField(for token: TextIndexStore.Token) -> NSTextField? {
         guard let tableView else { return nil }
+        if let providedTextField = dataSource?.textFinderClient(self, textFieldForRow: token.row, column: token.column) {
+            return providedTextField
+        }
         guard let cellView = tableView.view(atColumn: token.column, row: token.row, makeIfNecessary: false) as? NSTableCellView else {
             return nil
         }
