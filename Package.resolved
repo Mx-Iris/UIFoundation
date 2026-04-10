@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Mx-Iris/FrameworkToolbox",
       "state" : {
-        "revision" : "bfd7acae2fffd47b6dcd1836a212536abd4ccb38",
-        "version" : "0.5.0"
+        "revision" : "342b9846c6333700be6f0603b1b827cc90df87c5",
+        "version" : "0.5.1"
       }
     },
     {
