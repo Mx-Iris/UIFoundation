@@ -38,6 +38,14 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
     /// Queue of collapsed items not yet indexed (for onDemand mode).
     var pendingCollapsedItems: [Any] = []
 
+    // MARK: - Background Indexing
+
+    private let indexingQueue = DispatchQueue(label: "com.uifoundation.textfinder.outline.indexing", qos: .userInitiated)
+
+    /// Monotonically increasing counter used to cancel stale background work.
+    /// Only written on the main thread; read from the background queue to detect cancellation.
+    private var indexingGeneration: UInt = 0
+
     // MARK: - Notifications
 
     private var expandObserver: NSObjectProtocol?
@@ -89,26 +97,108 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
     // MARK: - Index Management
 
     public func invalidateIndex() {
-        textFinder.noteClientStringWillChange()
         rebuildIndex()
     }
 
     func rebuildIndex() {
+        // Bump generation so any in-flight background work is discarded.
+        indexingGeneration &+= 1
+        let generation = indexingGeneration
+
+        // Clear immediately so NSTextFinder sees an empty string while
+        // the background index is being built.
+        textFinder.noteClientStringWillChange()
         indexStore.removeAll()
         indexedCollapsedItems.removeAll()
         pendingCollapsedItems.removeAll()
         currentMatchRange = NSRange(location: 0, length: 0)
+
         guard let outlineView, let dataSource else { return }
         let numberOfColumns = dataSource.numberOfSearchableColumns(in: self)
         let numberOfRows = outlineView.numberOfRows
+        guard numberOfRows > 0 else { return }
 
-        for rowIndex in 0 ..< numberOfRows {
-            let item = outlineView.item(atRow: rowIndex)
-            indexRow(rowIndex, item: item, numberOfColumns: numberOfColumns)
+        // Collect items and expand state on the main thread (requires UI access).
+        struct RowSnapshot {
+            let row: Int
+            let item: Any?
+            let isCollapsedExpandable: Bool
         }
 
-        if searchScope == .all {
-            indexAllCollapsedSubtrees(numberOfColumns: numberOfColumns)
+        var rowSnapshots: [RowSnapshot] = []
+        rowSnapshots.reserveCapacity(numberOfRows)
+        for rowIndex in 0 ..< numberOfRows {
+            let item = outlineView.item(atRow: rowIndex)
+            let isCollapsedExpandable: Bool
+            if let item, outlineView.isExpandable(item), !outlineView.isItemExpanded(item) {
+                isCollapsedExpandable = true
+            } else {
+                isCollapsedExpandable = false
+            }
+            rowSnapshots.append(RowSnapshot(row: rowIndex, item: item, isCollapsedExpandable: isCollapsedExpandable))
+        }
+
+        let capturedSearchScope = searchScope
+
+        indexingQueue.async { [weak self, weak dataSource] in
+            guard let self, let dataSource else { return }
+
+            struct TokenData {
+                let row: Int
+                let column: Int
+                let string: String
+                let item: Any?
+            }
+
+            var tokenData: [TokenData] = []
+            tokenData.reserveCapacity(numberOfRows * numberOfColumns)
+            var collapsedItems: [Any] = []
+
+            for snapshot in rowSnapshots {
+                guard self.indexingGeneration == generation else { return }
+                for columnIndex in 0 ..< numberOfColumns {
+                    let string: String
+                    if let item = snapshot.item,
+                       let provided = dataSource.textFinderClient(self, stringForItem: item, column: columnIndex) {
+                        string = provided
+                    } else {
+                        string = ""
+                    }
+                    tokenData.append(TokenData(row: snapshot.row, column: columnIndex, string: string, item: snapshot.item))
+                }
+                if snapshot.isCollapsedExpandable, let item = snapshot.item {
+                    collapsedItems.append(item)
+                }
+            }
+
+            guard self.indexingGeneration == generation else { return }
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.indexingGeneration == generation else { return }
+                self.textFinder.noteClientStringWillChange()
+                self.indexStore.removeAll()
+                for token in tokenData {
+                    self.indexStore.appendToken(
+                        row: token.row,
+                        column: token.column,
+                        string: token.string,
+                        item: token.item
+                    )
+                }
+                self.pendingCollapsedItems = collapsedItems
+
+                if capturedSearchScope == .all {
+                    self.indexAllCollapsedSubtrees(numberOfColumns: numberOfColumns)
+                }
+
+                // If the find bar is visible, re-trigger search so the user
+                // sees results immediately instead of a stale "Not Found".
+                if self.indexStore.totalLength > 0,
+                   let findBarContainer = self.textFinder.findBarContainer,
+                   findBarContainer.isFindBarVisible {
+                    self.textFinder.performAction(.nextMatch)
+                }
+            }
         }
     }
 

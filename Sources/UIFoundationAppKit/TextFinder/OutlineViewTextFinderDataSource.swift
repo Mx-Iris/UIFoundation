@@ -17,10 +17,16 @@ public enum OutlineViewSearchScope {
 @available(macOS 12.0, *)
 public protocol OutlineViewTextFinderDataSource: AnyObject {
     /// Return the number of columns that should participate in text search.
+    /// Called on the main thread.
     func numberOfSearchableColumns(in client: OutlineViewTextFinderClient) -> Int
 
     /// Return the searchable text for a given item and column.
-    /// Return `nil` to fall back to extracting text from the cell's textField.
+    /// Return `nil` to fall back to an empty string for the cell.
+    ///
+    /// - Important: This method may be called on a **background thread** during
+    ///   index building. Implementations must not access UI objects (e.g.
+    ///   `NSOutlineView`, cell views). Use pre-cached data or column index
+    ///   constants instead of querying the outline view for column identifiers.
     func textFinderClient(_ client: OutlineViewTextFinderClient, stringForItem item: Any, column: Int) -> String?
 
     /// Return the child items for the given parent item (nil = root).

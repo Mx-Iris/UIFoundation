@@ -30,6 +30,14 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
     /// Updated in `scrollRangeToVisible(_:)` whenever NSTextFinder navigates to a match.
     var currentMatchRange: NSRange = NSRange(location: 0, length: 0)
 
+    // MARK: - Background Indexing
+
+    private let indexingQueue = DispatchQueue(label: "com.uifoundation.textfinder.table.indexing", qos: .userInitiated)
+
+    /// Monotonically increasing counter used to cancel stale background work.
+    /// Only written on the main thread; read from the background queue to detect cancellation.
+    private var indexingGeneration: UInt = 0
+
     // MARK: - Initialization
 
     public init(tableView: NSTableView) {
@@ -52,20 +60,60 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
 
     /// Rebuild the entire index from scratch. Call after data changes.
     public func invalidateIndex() {
-        textFinder.noteClientStringWillChange()
         rebuildIndex()
     }
 
     func rebuildIndex() {
+        // Bump generation so any in-flight background work is discarded.
+        indexingGeneration &+= 1
+        let generation = indexingGeneration
+
+        // Clear immediately so NSTextFinder sees an empty string while
+        // the background index is being built.
+        textFinder.noteClientStringWillChange()
         indexStore.removeAll()
         currentMatchRange = NSRange(location: 0, length: 0)
+
         guard let tableView, let dataSource else { return }
         let numberOfColumns = dataSource.numberOfSearchableColumns(in: self)
         let numberOfRows = tableView.numberOfRows
-        for rowIndex in 0 ..< numberOfRows {
-            for columnIndex in 0 ..< numberOfColumns {
-                let cellString = resolveString(forRow: rowIndex, column: columnIndex)
-                indexStore.appendToken(row: rowIndex, column: columnIndex, string: cellString)
+        guard numberOfRows > 0, numberOfColumns > 0 else { return }
+
+        indexingQueue.async { [weak self, weak dataSource] in
+            guard let self, let dataSource else { return }
+
+            var tokenStrings: [(row: Int, column: Int, string: String)] = []
+            tokenStrings.reserveCapacity(numberOfRows * numberOfColumns)
+
+            for rowIndex in 0 ..< numberOfRows {
+                // Check cancellation periodically
+                guard self.indexingGeneration == generation else { return }
+                for columnIndex in 0 ..< numberOfColumns {
+                    let string = dataSource.textFinderClient(self, stringForRow: rowIndex, column: columnIndex) ?? ""
+                    tokenStrings.append((rowIndex, columnIndex, string))
+                }
+            }
+
+            guard self.indexingGeneration == generation else { return }
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.indexingGeneration == generation else { return }
+                self.textFinder.noteClientStringWillChange()
+                self.indexStore.removeAll()
+                for tokenString in tokenStrings {
+                    self.indexStore.appendToken(
+                        row: tokenString.row,
+                        column: tokenString.column,
+                        string: tokenString.string
+                    )
+                }
+                // If the find bar is visible, re-trigger search so the user
+                // sees results immediately instead of a stale "Not Found".
+                if self.indexStore.totalLength > 0,
+                   let findBarContainer = self.textFinder.findBarContainer,
+                   findBarContainer.isFindBarVisible {
+                    self.textFinder.performAction(.nextMatch)
+                }
             }
         }
     }
