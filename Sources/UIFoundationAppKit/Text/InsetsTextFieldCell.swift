@@ -25,10 +25,6 @@ open class InsetsTextFieldCell: NSTextFieldCell {
     open override func select(withFrame rect: NSRect, in controlView: NSView, editor textObj: NSText, delegate: Any?, start selStart: Int, length selLength: Int) {
         super.select(withFrame: rect.box.inset(by: contentInsets), in: controlView, editor: textObj, delegate: delegate, start: selStart, length: selLength)
     }
-
-    open override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
-        super.drawInterior(withFrame: cellFrame.box.inset(by: contentInsets), in: controlView)
-    }
 }
 
 #endif

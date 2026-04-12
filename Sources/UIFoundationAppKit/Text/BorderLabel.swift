@@ -1,37 +1,33 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 import AppKit
-import UIFoundationUtilities
 
 @IBDesignable
 open class RoundedBorderLabel: Label {
-    @ViewInvalidating(.display)
     @IBInspectable
-    open dynamic var borderColor: NSColor? = nil
+    open dynamic var borderColor: NSColor? = nil {
+        didSet { layer?.borderColor = borderColor?.cgColor }
+    }
 
-    @ViewInvalidating(.display)
     @IBInspectable
-    open dynamic var borderWidth: CGFloat = 0
+    open dynamic var borderWidth: CGFloat = 0 {
+        didSet { layer?.borderWidth = borderWidth }
+    }
 
-
-//    open override func updateLayer() {
-//        super.updateLayer()
-//
-//        layer?.cornerRadius = bounds.height / 2
-//        layer?.backgroundColor = layerBackgroundColor.cgColor
-//        layer?.borderWidth = borderWidth
-//        layer?.borderColor = borderColor.cgColor
-//    }
-    
     open override func setup() {
         super.setup()
         wantsLayer = true
     }
-    
-    open override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
+
+    // By NOT overriding draw(_:), NSTextField's `_textFieldOverridesDrawingMethods`
+    // flag stays FALSE, allowing wantsUpdateLayer to return YES and this
+    // updateLayer() to actually be called.
+    open override func updateLayer() {
+        super.updateLayer()
         layer?.cornerRadius = bounds.height / 2
-        layer?.borderWidth = borderWidth
+        // Apply initial values (covers the case where didSet fired before
+        // the layer existed, e.g., during init?(coder:) decoding from IB).
         layer?.borderColor = borderColor?.cgColor
+        layer?.borderWidth = borderWidth
     }
 }
 #endif
