@@ -9,3 +9,4 @@ DerivedData/
 .swiftpm
 xcshareddata
 project.xcworkspace
+.omc
