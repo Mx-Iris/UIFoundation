@@ -76,15 +76,6 @@ open class LayerBackedView: NSView {
         }
     }
 
-    
-//    @ViewInvalidating(.display)
-//    @IBInspectable
-//    open dynamic var borderCornerRadius: CGFloat = 0 {
-//        didSet {
-//            createBorderLayerIfNeeded()
-//        }
-//    }
-    
     @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var cornerRadius: CGFloat = 0
@@ -92,7 +83,6 @@ open class LayerBackedView: NSView {
     @ViewInvalidating(.display)
     @IBInspectable
     open dynamic var backgroundColor: NSColor? = nil
-    
 
     @ViewInvalidating(.display)
     @IBInspectable
@@ -281,6 +271,34 @@ extension NSBezierPath {
 
 extension NSEdgeInsets {
     package static let zero = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+}
+
+public protocol ViewProtocol: NSView {}
+
+extension NSView: ViewProtocol {}
+
+extension ViewProtocol {
+    public static func scrollableDocumentView() -> (scrollView: NSScrollView, documentView: Self) {
+        let scrollView = NSScrollView()
+        let documentView = Self()
+        scrollView.do {
+            $0.documentView = documentView
+            $0.hasVerticalScroller = true
+        }
+        return (scrollView, documentView)
+    }
+}
+
+extension NSView {
+    public class func scrollableDocumentView<ScrollView: NSScrollView, DocumentView: NSView>() -> (scrollView: ScrollView, view: DocumentView) {
+        let scrollView = ScrollView()
+        let documentView = DocumentView()
+        scrollView.do {
+            $0.documentView = documentView
+            $0.hasVerticalScroller = true
+        }
+        return (scrollView, documentView)
+    }
 }
 
 #endif
