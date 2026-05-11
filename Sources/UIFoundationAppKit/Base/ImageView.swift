@@ -17,21 +17,19 @@ open class ImageView: NSImageView {
 
     private func commonInit() {
         wantsLayer = true
-        layerContentsRedrawPolicy = .onSetNeedsDisplay
         setup()
     }
 
     open func setup() {}
 
-    @ViewInvalidating(.display)
+    @ViewInvalidating(.layout)
     @IBInspectable
     open var isRounded: Bool = false
-
-    open override var wantsUpdateLayer: Bool { true }
     
-    open override func updateLayer() {
-        super.updateLayer()
+    open override func layout() {
+        super.layout()
         
+        layer?.masksToBounds = isRounded
         layer?.cornerRadius = isRounded ? max(bounds.midX, bounds.midY) : 0
     }
 }
