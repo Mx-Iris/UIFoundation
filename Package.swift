@@ -41,6 +41,7 @@ let uikitPlatforms: [Platform] = [.iOS, .tvOS, .visionOS, .watchOS, .macCatalyst
 
 let package = Package(
     name: "UIFoundation",
+    defaultLocalization: "en",
     platforms: [
         // AppKit
         .macOS(.v10_15),
@@ -64,6 +65,7 @@ let package = Package(
     ],
     traits: [
         .trait(name: "AppleInternal"),
+        .trait(name: "FilterUI"),
     ],
     dependencies: [
         .package(
@@ -80,6 +82,17 @@ let package = Package(
         .package(
             url: "https://github.com/p-x9/AssociatedObject",
             from: "0.13.0"
+        ),
+        .package(
+            local: .package(
+                path: "../fuzzy-search",
+                isRelative: true,
+                isEnabled: false
+            ),
+            remote: .package(
+                url: "https://github.com/MxIris-Library-Forks/fuzzy-search",
+                from: "0.1.0"
+            ),
         ),
     ],
     targets: [
@@ -108,10 +121,16 @@ let package = Package(
                 "UIFoundationTypealias",
                 "UIFoundationUtilities",
                 "UIFoundationShared",
+                .product(name: "FuzzySearch", package: "fuzzy-search", condition: .when(traits: ["FilterUI"])),
             ],
             resources: [
                 .process("Resources"),
-            ]
+                .process("Filter/Resources/Colors.xcassets"),
+                .process("Filter/Resources/Symbols.xcassets"),
+                .process("Filter/Resources/MoreSymbols.xcassets"),
+                .process("Filter/Resources/Localization"),
+                .process("Filter/Resources/Documentation.docc"),
+            ],
         ),
         .target(
             name: "UIFoundationUIKit",
@@ -150,6 +169,8 @@ let package = Package(
             name: "UIFoundationAppleInternal",
             dependencies: [
                 "UIFoundationAppleInternalObjC",
+                "UIFoundationAppKit",
+                .product(name: "FuzzySearch", package: "fuzzy-search", condition: .when(traits: ["FilterUI"])),
             ]
         ),
 
