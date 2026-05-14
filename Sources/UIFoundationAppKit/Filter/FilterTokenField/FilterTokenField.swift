@@ -242,38 +242,4 @@ extension CGKeyCode {
     static let `return`: Self = 36
 }
 
-// MARK: -
-
-import SwiftUI
-
-struct FilterTokenField_Previews: PreviewProvider {
-    static var previews: some View {
-        VStack {
-            NSViewPreview { FilterTokenField() }
-
-            NSViewPreview<FilterTokenField> { f in
-                f.placeholderString = "Custom Placeholder"
-            }
-
-            NSViewPreview<FilterTokenField> { f in
-                // f.stringValue = "Lorem Ipsum"
-                f.objectValue = "Lorem Ipsum"
-            }
-
-            NSViewPreview<FilterTokenField> { f in
-                f.objectValue = [
-                    FilterTokenValue(objectValue: "hi", comparisonType: .contains),
-                    FilterTokenValue(objectValue: "there", comparisonType: .doesNotContain),
-                    FilterTokenValue(objectValue: "token", comparisonType: .beginsWith),
-                    FilterTokenValue(objectValue: "field", comparisonType: .endsWith),
-                ]
-            }
-
-            // TODO: filter buttons & progress
-        }
-        .frame(maxWidth: 300)
-        .padding()
-    }
-}
-
 #endif
