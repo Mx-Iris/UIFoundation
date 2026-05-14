@@ -3,10 +3,12 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 100;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E94046812FB61EB0008552BF /* UIFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = E94046802FB61EB0008552BF /* UIFoundation */; };
+		E94046832FB61EB0008552BF /* UIFoundationToolbox in Frameworks */ = {isa = PBXBuildFile; productRef = E94046822FB61EB0008552BF /* UIFoundationToolbox */; };
 		E943A7AD2AF76E0E00526917 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E943A7AC2AF76E0E00526917 /* AppDelegate.swift */; };
 		E943A7AF2AF76E0E00526917 /* MainStoryboardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E943A7AE2AF76E0E00526917 /* MainStoryboardViewController.swift */; };
 		E943A7B12AF76E0F00526917 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E943A7B02AF76E0F00526917 /* Assets.xcassets */; };
@@ -34,11 +36,11 @@
 /* Begin PBXFrameworksBuildPhase section */
 		E943A7A62AF76E0E00526917 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				E943A7DD2AF76F1100526917 /* UIFoundation in Frameworks */,
+				E94046812FB61EB0008552BF /* UIFoundation in Frameworks */,
+				E94046832FB61EB0008552BF /* UIFoundationToolbox in Frameworks */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -96,11 +98,11 @@
 			);
 			buildRules = (
 			);
-			dependencies = (
-			);
 			name = "UIFoundationExample-macOS";
 			packageProductDependencies = (
 				E943A7DC2AF76F1100526917 /* UIFoundation */,
+				E94046802FB61EB0008552BF /* UIFoundation */,
+				E94046822FB61EB0008552BF /* UIFoundationToolbox */,
 			);
 			productName = "UIFoundationExample-macOS";
 			productReference = E943A7A92AF76E0E00526917 /* UIFoundationExample-macOS.app */;
@@ -114,7 +116,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1500;
-				LastUpgradeCheck = 1500;
+				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					E943A7A82AF76E0E00526917 = {
 						CreatedOnToolsVersion = 15.0;
@@ -122,7 +124,6 @@
 				};
 			};
 			buildConfigurationList = E943A7A42AF76E0E00526917 /* Build configuration list for PBXProject "UIFoundationExample-macOS" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -130,6 +131,10 @@
 				Base,
 			);
 			mainGroup = E943A7A02AF76E0E00526917;
+			packageReferences = (
+				E940467F2FB61EB0008552BF /* XCLocalSwiftPackageReference "../../UIFoundation" */,
+			);
+			preferredProjectObjectVersion = 56;
 			productRefGroup = E943A7AA2AF76E0E00526917 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -142,19 +147,16 @@
 /* Begin PBXResourcesBuildPhase section */
 		E943A7A72AF76E0E00526917 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				E943A7B12AF76E0F00526917 /* Assets.xcassets in Resources */,
 				E943A7B42AF76E0F00526917 /* Main.storyboard in Resources */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		E943A7A52AF76E0E00526917 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				E943A7AF2AF76E0E00526917 /* MainStoryboardViewController.swift in Sources */,
 				E943A7AD2AF76E0E00526917 /* AppDelegate.swift in Sources */,
@@ -163,7 +165,6 @@
 				E943A7E32AF7739300526917 /* SidebarTableViewController.swift in Sources */,
 				E943A7F02B0A000000526917 /* TextFinderDemoViewController.swift in Sources */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
@@ -179,7 +180,7 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
-		E943A7B62AF76E0F00526917 /* Debug */ = {
+		E943A7B62AF76E0F00526917 /* Debug configuration for PBXProject "UIFoundationExample-macOS" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -213,7 +214,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = D5Q73692VW;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -237,12 +240,13 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
 		};
-		E943A7B72AF76E0F00526917 /* Release */ = {
+		E943A7B72AF76E0F00526917 /* Release configuration for PBXProject "UIFoundationExample-macOS" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -276,7 +280,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = D5Q73692VW;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -293,11 +299,12 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
 		};
-		E943A7B92AF76E0F00526917 /* Debug */ = {
+		E943A7B92AF76E0F00526917 /* Debug configuration for PBXNativeTarget "UIFoundationExample-macOS" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -306,7 +313,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = D5Q73692VW;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -325,7 +332,7 @@
 			};
 			name = Debug;
 		};
-		E943A7BA2AF76E0F00526917 /* Release */ = {
+		E943A7BA2AF76E0F00526917 /* Release configuration for PBXNativeTarget "UIFoundationExample-macOS" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -334,7 +341,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = D5Q73692VW;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -359,24 +366,42 @@
 		E943A7A42AF76E0E00526917 /* Build configuration list for PBXProject "UIFoundationExample-macOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				E943A7B62AF76E0F00526917 /* Debug */,
-				E943A7B72AF76E0F00526917 /* Release */,
+				E943A7B62AF76E0F00526917 /* Debug configuration for PBXProject "UIFoundationExample-macOS" */,
+				E943A7B72AF76E0F00526917 /* Release configuration for PBXProject "UIFoundationExample-macOS" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		E943A7B82AF76E0F00526917 /* Build configuration list for PBXNativeTarget "UIFoundationExample-macOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				E943A7B92AF76E0F00526917 /* Debug */,
-				E943A7BA2AF76E0F00526917 /* Release */,
+				E943A7B92AF76E0F00526917 /* Debug configuration for PBXNativeTarget "UIFoundationExample-macOS" */,
+				E943A7BA2AF76E0F00526917 /* Release configuration for PBXNativeTarget "UIFoundationExample-macOS" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		E940467F2FB61EB0008552BF /* XCLocalSwiftPackageReference "../../UIFoundation" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../UIFoundation;
+			traits = (
+				AppleInternal,
+				FilterUI,
+				IDEIcons,
+			);
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		E94046802FB61EB0008552BF /* UIFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UIFoundation;
+		};
+		E94046822FB61EB0008552BF /* UIFoundationToolbox */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UIFoundationToolbox;
+		};
 		E943A7DC2AF76F1100526917 /* UIFoundation */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = UIFoundation;

@@ -3,10 +3,12 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 100;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E94046862FB61EC2008552BF /* UIFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = E94046852FB61EC2008552BF /* UIFoundation */; };
+		E94046882FB61EC2008552BF /* UIFoundationToolbox in Frameworks */ = {isa = PBXBuildFile; productRef = E94046872FB61EC2008552BF /* UIFoundationToolbox */; };
 		E943A7C82AF76E4700526917 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E943A7C72AF76E4700526917 /* AppDelegate.swift */; };
 		E943A7CA2AF76E4700526917 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E943A7C92AF76E4700526917 /* SceneDelegate.swift */; };
 		E943A7CC2AF76E4700526917 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E943A7CB2AF76E4700526917 /* ViewController.swift */; };
@@ -29,10 +31,10 @@
 /* Begin PBXFrameworksBuildPhase section */
 		E943A7C12AF76E4700526917 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
+				E94046862FB61EC2008552BF /* UIFoundation in Frameworks */,
+				E94046882FB61EC2008552BF /* UIFoundationToolbox in Frameworks */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -80,8 +82,6 @@
 			);
 			buildRules = (
 			);
-			dependencies = (
-			);
 			name = "UIFoundationExample-iOS";
 			productName = "UIFoundationExample-iOS";
 			productReference = E943A7C42AF76E4700526917 /* UIFoundationExample-iOS.app */;
@@ -95,7 +95,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1500;
-				LastUpgradeCheck = 1500;
+				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					E943A7C32AF76E4700526917 = {
 						CreatedOnToolsVersion = 15.0;
@@ -103,7 +103,6 @@
 				};
 			};
 			buildConfigurationList = E943A7BF2AF76E4700526917 /* Build configuration list for PBXProject "UIFoundationExample-iOS" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -111,6 +110,10 @@
 				Base,
 			);
 			mainGroup = E943A7BB2AF76E4700526917;
+			packageReferences = (
+				E94046842FB61EC2008552BF /* XCLocalSwiftPackageReference "../../UIFoundation" */,
+			);
+			preferredProjectObjectVersion = 56;
 			productRefGroup = E943A7C52AF76E4700526917 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -123,26 +126,22 @@
 /* Begin PBXResourcesBuildPhase section */
 		E943A7C22AF76E4700526917 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				E943A7D42AF76E4800526917 /* LaunchScreen.storyboard in Resources */,
 				E943A7D12AF76E4800526917 /* Assets.xcassets in Resources */,
 				E943A7CF2AF76E4700526917 /* Main.storyboard in Resources */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		E943A7C02AF76E4700526917 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				E943A7CC2AF76E4700526917 /* ViewController.swift in Sources */,
 				E943A7C82AF76E4700526917 /* AppDelegate.swift in Sources */,
 				E943A7CA2AF76E4700526917 /* SceneDelegate.swift in Sources */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
@@ -166,7 +165,7 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
-		E943A7D62AF76E4800526917 /* Debug */ = {
+		E943A7D62AF76E4800526917 /* Debug configuration for PBXProject "UIFoundationExample-iOS" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -201,6 +200,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = D5Q73692VW;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -224,12 +224,13 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
 		};
-		E943A7D72AF76E4800526917 /* Release */ = {
+		E943A7D72AF76E4800526917 /* Release configuration for PBXProject "UIFoundationExample-iOS" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -264,6 +265,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = D5Q73692VW;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -280,19 +282,19 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
-		E943A7D92AF76E4800526917 /* Debug */ = {
+		E943A7D92AF76E4800526917 /* Debug configuration for PBXNativeTarget "UIFoundationExample-iOS" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = D5Q73692VW;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "UIFoundationExample-iOS/Info.plist";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -314,14 +316,13 @@
 			};
 			name = Debug;
 		};
-		E943A7DA2AF76E4800526917 /* Release */ = {
+		E943A7DA2AF76E4800526917 /* Release configuration for PBXNativeTarget "UIFoundationExample-iOS" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = D5Q73692VW;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "UIFoundationExample-iOS/Info.plist";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -349,22 +350,43 @@
 		E943A7BF2AF76E4700526917 /* Build configuration list for PBXProject "UIFoundationExample-iOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				E943A7D62AF76E4800526917 /* Debug */,
-				E943A7D72AF76E4800526917 /* Release */,
+				E943A7D62AF76E4800526917 /* Debug configuration for PBXProject "UIFoundationExample-iOS" */,
+				E943A7D72AF76E4800526917 /* Release configuration for PBXProject "UIFoundationExample-iOS" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		E943A7D82AF76E4800526917 /* Build configuration list for PBXNativeTarget "UIFoundationExample-iOS" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				E943A7D92AF76E4800526917 /* Debug */,
-				E943A7DA2AF76E4800526917 /* Release */,
+				E943A7D92AF76E4800526917 /* Debug configuration for PBXNativeTarget "UIFoundationExample-iOS" */,
+				E943A7DA2AF76E4800526917 /* Release configuration for PBXNativeTarget "UIFoundationExample-iOS" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		E94046842FB61EC2008552BF /* XCLocalSwiftPackageReference "../../UIFoundation" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../UIFoundation;
+			traits = (
+				AppleInternal,
+				FilterUI,
+				IDEIcons,
+			);
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E94046852FB61EC2008552BF /* UIFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UIFoundation;
+		};
+		E94046872FB61EC2008552BF /* UIFoundationToolbox */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UIFoundationToolbox;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E943A7BC2AF76E4700526917 /* Project object */;
 }

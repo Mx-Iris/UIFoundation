@@ -8,6 +8,9 @@
 import Cocoa
 import UIFoundation
 
+final class C: Control {}
+
+
 @main
 class AppDelegate: NSObject, NSApplicationDelegate {
 
