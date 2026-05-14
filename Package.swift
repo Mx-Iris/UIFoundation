@@ -66,6 +66,7 @@ let package = Package(
     traits: [
         .trait(name: "AppleInternal"),
         .trait(name: "FilterUI"),
+        .trait(name: "IDEIcons"),
     ],
     dependencies: [
         .package(
