@@ -20,15 +20,6 @@
       }
     },
     {
-      "identity" : "fuzzy-search",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/MxIris-Library-Forks/fuzzy-search",
-      "state" : {
-        "revision" : "1a88d6807a174ebb90e2a04e2071944e006847ef",
-        "version" : "0.1.0"
-      }
-    },
-    {
       "identity" : "swift-literal-type-inference",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/p-x9/swift-literal-type-inference.git",
