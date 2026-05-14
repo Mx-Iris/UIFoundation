@@ -39,6 +39,10 @@ let appkitPlatforms: [Platform] = [.macOS]
 
 let uikitPlatforms: [Platform] = [.iOS, .tvOS, .visionOS, .watchOS, .macCatalyst]
 
+let swiftSettings: [SwiftSetting] = [
+//    .internalImportsByDefault
+]
+
 let package = Package(
     name: "UIFoundation",
     defaultLocalization: "en",
@@ -84,17 +88,6 @@ let package = Package(
             url: "https://github.com/p-x9/AssociatedObject",
             from: "0.13.0"
         ),
-        .package(
-            local: .package(
-                path: "../fuzzy-search",
-                isRelative: true,
-                isEnabled: false
-            ),
-            remote: .package(
-                url: "https://github.com/MxIris-Library-Forks/fuzzy-search",
-                from: "0.1.0"
-            ),
-        ),
     ],
     targets: [
         .target(
@@ -112,7 +105,8 @@ let package = Package(
                 "UIFoundationShared",
                 .target(name: "UIFoundationAppleInternal", condition: .when(traits: ["AppleInternal"])),
                 .target(name: "UIFoundationAppleInternalObjC", condition: .when(traits: ["AppleInternal"])),
-            ]
+            ],
+            swiftSettings: swiftSettings,
         ),
 
         .target(
@@ -122,7 +116,6 @@ let package = Package(
                 "UIFoundationTypealias",
                 "UIFoundationUtilities",
                 "UIFoundationShared",
-                .product(name: "FuzzySearch", package: "fuzzy-search", condition: .when(traits: ["FilterUI"])),
             ],
             resources: [
                 .process("Resources"),
@@ -132,6 +125,7 @@ let package = Package(
                 .process("Filter/Resources/Localization"),
                 .process("Filter/Resources/Documentation.docc"),
             ],
+            swiftSettings: swiftSettings,
         ),
         .target(
             name: "UIFoundationUIKit",
@@ -140,21 +134,24 @@ let package = Package(
                 "UIFoundationTypealias",
                 "UIFoundationUtilities",
                 "UIFoundationShared",
-            ]
+            ],
+            swiftSettings: swiftSettings,
         ),
         .target(
             name: "UIFoundationShared",
             dependencies: [
                 "UIFoundationToolbox",
                 "UIFoundationTypealias",
-            ]
+            ],
+            swiftSettings: swiftSettings,
         ),
         .target(
             name: "UIFoundationUtilities",
             dependencies: [
                 "UIFoundationToolbox",
                 "UIFoundationTypealias",
-            ]
+            ],
+            swiftSettings: swiftSettings,
         ),
         .target(
             name: "UIFoundationToolbox",
@@ -163,7 +160,8 @@ let package = Package(
                 .product(name: "FrameworkToolbox", package: "FrameworkToolbox"),
                 .product(name: "FoundationToolbox", package: "FrameworkToolbox"),
                 .product(name: "AssociatedObject", package: "AssociatedObject"),
-            ]
+            ],
+            swiftSettings: swiftSettings,
         ),
 
         .target(
@@ -171,11 +169,16 @@ let package = Package(
             dependencies: [
                 "UIFoundationAppleInternalObjC",
                 "UIFoundationAppKit",
-                .product(name: "FuzzySearch", package: "fuzzy-search", condition: .when(traits: ["FilterUI"])),
-            ]
+                "UIFoundationCarbonInternal",
+            ],
+            swiftSettings: swiftSettings,
         ),
-
+        
         .target(
+            name: "UIFoundationCarbonInternal"
+        ),
+        
+            .target(
             name: "UIFoundationAppleInternalObjC"
         ),
 
@@ -188,3 +191,12 @@ let package = Package(
     ],
     swiftLanguageModes: [.v5],
 )
+
+extension SwiftSetting {
+    static let existentialAny: Self = .enableUpcomingFeature("ExistentialAny") // SE-0335, Swift 5.6,  SwiftPM 5.8+
+    static let internalImportsByDefault: Self = .enableUpcomingFeature("InternalImportsByDefault") // SE-0409, Swift 6.0,  SwiftPM 6.0+
+    static let memberImportVisibility: Self = .enableUpcomingFeature("MemberImportVisibility") // SE-0444, Swift 6.1,  SwiftPM 6.1+
+    static let inferIsolatedConformances: Self = .enableUpcomingFeature("InferIsolatedConformances") // SE-0470, Swift 6.2,  SwiftPM 6.2+
+    static let nonisolatedNonsendingByDefault: Self = .enableUpcomingFeature("NonisolatedNonsendingByDefault") // SE-0461, Swift 6.2,  SwiftPM 6.2+
+    static let immutableWeakCaptures: Self = .enableUpcomingFeature("ImmutableWeakCaptures") // SE-0481, Swift 6.2,  SwiftPM 6.2+
+}

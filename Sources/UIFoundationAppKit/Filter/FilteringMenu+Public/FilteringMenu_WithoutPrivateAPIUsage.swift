@@ -1,10 +1,9 @@
 #if FilterUI
 
 import AppKit
-import FuzzySearch
 
-extension NSMenuItem: @retroactive FuzzySearchable {
-    public var fuzzyStringToMatch: String { title }
+extension NSMenuItem: FuzzySearchable {
+    package var fuzzyStringToMatch: String { title }
 }
 
 /// A filtering menu.

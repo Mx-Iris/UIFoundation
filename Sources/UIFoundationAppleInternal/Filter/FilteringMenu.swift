@@ -2,9 +2,9 @@
 
 import AppKit
 import Carbon
-import FuzzySearch
 import UIFoundationAppKit
 import UIFoundationAppleInternalObjC
+private import UIFoundationCarbonInternal
 import ObjectiveC
 
 // TODO: support filtering with custom fonts (e.g. monospaced)

@@ -49,7 +49,6 @@ UIFoundationAppleInternal    (separate product)
 |---------|-------|
 | `FrameworkToolbox` (Mx-Iris) | Provides the `.box` namespace pattern for conflict-free extensions |
 | `AssociatedObject` (p-x9) | `@AssociatedObject` macro for runtime-associated properties |
-| `FuzzySearch` (MxIris-Library-Forks) | Fuzzy string matching used by `FilteringMenu` (both public and private API variants) |
 
 ### Local/Remote Dependency Switching
 
@@ -132,7 +131,7 @@ Property wrappers using `_enclosingInstance` subscript: on **get**, calls `loadV
 
 ### Filter UI (ported from `filter-ui`)
 
-Filter UI ships as an **opt-in SPM trait** called `FilterUI` (default: disabled). When the trait is off the Filter sources are excluded via `#if FilterUI`, the `FuzzySearch` product is not linked, and no Filter symbols are exported. To enable it:
+Filter UI ships as an **opt-in SPM trait** called `FilterUI` (default: disabled). When the trait is off the Filter sources are excluded via `#if FilterUI` and no Filter symbols are exported. To enable it:
 
 ```swift
 .package(url: "…/UIFoundation", traits: ["FilterUI"])         // SPM dependency
@@ -142,7 +141,6 @@ swift build --traits FilterUI                                 // CLI
 Wiring in `Package.swift`:
 - `traits: [.trait(name: "AppleInternal"), .trait(name: "FilterUI")]`
 - SPM 6.2 automatically exposes each trait name as a Swift compilation condition, so `#if FilterUI` works without any `swiftSettings` `.define` plumbing.
-- The `FuzzySearch` product uses `condition: .when(traits: ["FilterUI"])` on both `UIFoundationAppKit` and `UIFoundationAppleInternal`, so it disappears entirely when disabled.
 - Every Filter source file (`Sources/UIFoundationAppKit/Filter/**/*.swift`, `Sources/UIFoundationAppleInternal/Filter/**/*.swift`) is wrapped in `#if FilterUI … #endif`.
 - xcassets / Localization stay in the resource list (SPM has no per-resource trait condition); they just get bundled even when the trait is off, which is harmless.
 
@@ -152,6 +150,7 @@ Wiring in `Package.swift`:
 - `FilterSearchField` / `FilterSearchFieldCell` — search field with progress, filter buttons, vibrancy-aware rendering
 - `FilterTokenField` / `FilterTokenFieldCell` — token-based filter field with comparison types
 - `FilteringMenu_WithoutPrivateAPIUsage` — public-API variant of the filterable menu (under `FilteringMenu+Public/`)
+- `FuzzySearch.swift` — in-tree fuzzy string matcher (`FuzzySearchable` / `FuzzySearchResult` / `Collection.fuzzyMatch`) used by both `FilteringMenu` variants; ported and trimmed from the `fuzzy-search` package (MIT), so there is no external fuzzy-search dependency
 - SwiftUI bridges: `FilterField`, `FilterToggle`, `filterFieldStyle(_:)`
 - Resources (xcassets / Localization / Documentation.docc) live in `UIFoundationAppKit/Filter/Resources/`; `Package.swift` adds a `.process("Filter/Resources")` entry on top of the existing `Resources/`
 
