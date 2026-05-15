@@ -169,12 +169,9 @@ extension TextFinderDemoViewController: NSOutlineViewDelegate {
         guard let fileNode = item as? FileNode, let tableColumn else { return nil }
 
         let cellIdentifier = tableColumn.identifier
-        let cellView: NSTableCellView
-
-        if let existingView = outlineView.makeView(withIdentifier: cellIdentifier, owner: self) as? NSTableCellView {
-            cellView = existingView
-        } else {
-            cellView = NSTableCellView()
+        
+        let cellView: NSTableCellView = outlineView.box.makeView(identifier: cellIdentifier) {
+            let cellView = NSTableCellView()
             cellView.identifier = cellIdentifier
 
             let textField = NSTextField(labelWithString: "")
@@ -187,6 +184,7 @@ extension TextFinderDemoViewController: NSOutlineViewDelegate {
                 textField.trailingAnchor.constraint(equalTo: cellView.trailingAnchor, constant: -4),
                 textField.centerYAnchor.constraint(equalTo: cellView.centerYAnchor),
             ])
+            return cellView
         }
 
         if tableColumn.identifier.rawValue == "NameColumn" {
