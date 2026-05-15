@@ -60,20 +60,12 @@ public struct AdaptiveColor {
 
 @inline(__always)
 private func rgb(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat, _ alpha: CGFloat = 1) -> NSUIColor {
-    #if canImport(AppKit) && !targetEnvironment(macCatalyst)
-    return NSColor(srgbRed: red, green: green, blue: blue, alpha: alpha)
-    #else
-    return UIColor(red: red, green: green, blue: blue, alpha: alpha)
-    #endif
+    return NSUIColor(red: red, green: green, blue: blue, alpha: alpha)
 }
 
 @inline(__always)
 private func grayscale(_ white: CGFloat, _ alpha: CGFloat = 1) -> NSUIColor {
-    #if canImport(AppKit) && !targetEnvironment(macCatalyst)
-    return NSColor(white: white, alpha: alpha)
-    #else
-    return UIColor(white: white, alpha: alpha)
-    #endif
+    return NSUIColor(white: white, alpha: alpha)
 }
 
 extension IDEIconColor {
