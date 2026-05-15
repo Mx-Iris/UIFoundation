@@ -5,22 +5,34 @@ import FrameworkToolbox
 import SwiftStdlibToolbox
 
 extension FrameworkToolbox where Base: NSTableView {
-    @inlinable
-    public func makeView<View: NSView>(ofClass cls: View.Type, owner: Any? = nil, viewBuilder: (() -> View) = { .init() }) -> View {
-        if let reuseView = base.makeView(withIdentifier: .init(cls), owner: owner) as? View {
-            return reuseView
-        } else {
-            let view = viewBuilder()
-            view.identifier = .init(cls)
-            return view
+    public func makeView<View: NSView>(ofClass cls: View.Type = View.self, identifier: NSUserInterfaceItemIdentifier? = nil, owner: Any? = nil, viewBuilder: (() -> View) = { .init() }) -> View {
+        let id = identifier ?? NSUserInterfaceItemIdentifier(String(describing: cls))
+        if let pooledView = base.makeView(withIdentifier: id, owner: owner) {
+            if let reuseView = pooledView as? View {
+                return reuseView
+            }
+            assertionFailure("Reuse identifier '\(id.rawValue)' is already bound to \(type(of: pooledView)), expected \(View.self).")
         }
+        let view = viewBuilder()
+        view.identifier = id
+        return view
     }
 
     @inlinable
-    public func makeViewFromNib<View: NSView>(ofClass cls: View.Type, owner: Any? = nil) -> View? {
+    public func makeViewFromNib<View: NSView>(ofClass cls: View.Type = View.self, owner: Any? = nil) -> View? {
         return base.makeView(withIdentifier: .init(cls), owner: owner) as? View
     }
 
+    @inlinable
+    public func view<View: NSView>(ofClass cls: View.Type = View.self, atColumn column: Int, row: Int, makeIfNecessary: Bool) -> View? {
+        return base.view(atColumn: column, row: row, makeIfNecessary: makeIfNecessary) as? View
+    }
+    
+    @inlinable
+    public func rowView<RowView: NSTableRowView>(ofClass cls: RowView.Type = RowView.self, atRow row: Int, makeIfNecessary: Bool) -> RowView? {
+        return base.rowView(atRow: row, makeIfNecessary: makeIfNecessary) as? RowView
+    }
+    
     @inlinable
     public var hasValidClickedRow: Bool {
         isValidRow(base.clickedRow)
