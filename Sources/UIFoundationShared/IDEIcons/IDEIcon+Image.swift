@@ -23,7 +23,6 @@ private let deviceScale: CGFloat = 2.0
 @MainActor private var deviceScale: CGFloat { UIScreen.main.scale }
 #endif
 
-@available(macOS 11.0, iOS 13.0, tvOS 13.0, *)
 extension NSUIImage {
     /// Returns an image object depicting an IDE icon.
     public convenience init(_ icon: IDEIcon) {
@@ -31,7 +30,12 @@ extension NSUIImage {
         self.init(size: icon.unscaledBounds.size, flipped: false) { bounds in
             var icon = icon
             guard let context = NSGraphicsContext.current?.cgContext else { return false }
-            let isDark = NSAppearance.currentDrawing().bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            
+            let isDark = if #available(macOS 11.0, *) {
+                NSAppearance.currentDrawing().bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            } else {
+                NSAppearance.current.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            }
             icon.colorScheme = isDark ? .dark : .light
             icon.drawBackground(context: context, bounds: bounds)
             icon.drawInterior(context: context, bounds: bounds)
@@ -44,21 +48,13 @@ extension NSUIImage {
     }
 }
 
-#if canImport(UIKit)
-@available(iOS 13.0, tvOS 13.0, *)
 private var imageCache = [IDEIcon: NSUIImage]()
-#endif
 
-@available(macOS 11.0, iOS 13.0, tvOS 13.0, *)
 extension IDEIcon {
     var _image: NSUIImage {
-        #if canImport(UIKit)
         if let cachedImage = imageCache[self] { return cachedImage }
-        #endif
         let image = NSUIImage(self)
-        #if canImport(UIKit)
         imageCache[self] = image
-        #endif
         return image
     }
 }
@@ -71,7 +67,6 @@ public enum IDEIconSize {
     public static let large: CGFloat = 32.0
 }
 
-@available(macOS 11.0, iOS 13.0, tvOS 13.0, *)
 extension IDEIcon {
     // The resulting icon image.
     #if canImport(AppKit) && !targetEnvironment(macCatalyst)
@@ -248,12 +243,12 @@ extension IDEIcon {
 
             #if canImport(AppKit) && !targetEnvironment(macCatalyst)
             let resolvedColor = NSColor(cgColor: textColor) ?? .clear
+            guard #available(macOS 11.0, *) else { return }
             var configuration = NSImage.SymbolConfiguration(pointSize: pointSize, weight: style.symbolFontWeight, scale: .small)
             if #available(macOS 12.0, *) {
                 configuration = configuration.applying(NSImage.SymbolConfiguration(paletteColors: [resolvedColor]))
             }
-            guard let symbolImage = NSImage(systemSymbolName: systemName, accessibilityDescription: nil)?
-                .withSymbolConfiguration(configuration) else { return }
+            guard let symbolImage = NSImage(systemSymbolName: systemName, accessibilityDescription: nil)?.withSymbolConfiguration(configuration) else { return }
 
             symbolImage.draw(
                 in: symbolImage.size.centered(in: symbolFrame.insetBy(1)).offsetBy(dx: 0, dy: yOffsetAdjustment).integral,

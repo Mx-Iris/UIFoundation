@@ -22,7 +22,7 @@ public enum IDEIconColorScheme: Hashable, CaseIterable, Sendable {
 }
 
 /// The blueprint for an IDE icon.
-@available(macOS 11.0, iOS 13.0, tvOS 13.0, *)
+
 public struct IDEIcon: Hashable {
     /// The icon's content.
     public var content: IDEIconContent
@@ -50,12 +50,13 @@ public struct IDEIcon: Hashable {
     }
 
     /// Creates a new blueprint for an IDE icon.
+    @available(macOS 11.0, *)
     public init(systemImage: String, color: IDEIconColor? = nil, colorScheme: IDEIconColorScheme? = nil, style: IDEIconStyle? = nil, size: CGFloat? = nil) {
         self.init(.systemImage(systemImage), color: color, colorScheme: colorScheme, style: style, size: size)
     }
 
     /// Creates a new blueprint for an IDE icon.
-    public init(_ content: IDEIconContent, color: IDEIconColor? = nil, colorScheme: IDEIconColorScheme? = nil, style: IDEIconStyle? = nil, size: CGFloat? = nil) {
+    private init(_ content: IDEIconContent, color: IDEIconColor? = nil, colorScheme: IDEIconColorScheme? = nil, style: IDEIconStyle? = nil, size: CGFloat? = nil) {
         self.content = content
         self.color = color ?? .purple
         self.colorScheme = colorScheme ?? .dark

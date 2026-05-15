@@ -7,7 +7,6 @@ import Foundation
 import CoreGraphics
 import UIFoundationTypealias
 
-@available(macOS 11.0, iOS 13.0, tvOS 13.0, *)
 extension IDEIcon {
     var fontWeight: NSUIFont.Weight {
         switch content {
