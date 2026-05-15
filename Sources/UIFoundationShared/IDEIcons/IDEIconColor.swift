@@ -177,16 +177,16 @@ extension IDEIconColor {
     public var simpleColor: NSUIColor {
         switch self {
         case .monochrome: return grayscale(0.85)
-        case .blue: return rgb(0, 0.478, 1)
-        case .brown: return rgb(0.635, 0.518, 0.369)
-        case .gray: return rgb(0.557, 0.557, 0.576)
-        case .green: return rgb(0.204, 0.78, 0.349)
-        case .orange: return rgb(1, 0.584, 0)
-        case .pink: return rgb(1, 0.176, 0.333)
-        case .purple: return rgb(0.686, 0.322, 0.871)
-        case .red: return rgb(1, 0.231, 0.188)
-        case .teal: return rgb(0.353, 0.784, 0.98)
-        case .yellow: return rgb(1, 0.584, 0)
+        case .blue: return .systemBlue
+        case .brown: return .systemBrown
+        case .gray: return .systemGray
+        case .green: return .systemGreen
+        case .orange: return .systemOrange
+        case .pink: return .systemPink
+        case .purple: return .systemPurple
+        case .red: return .systemRed
+        case .teal: return .systemTeal
+        case .yellow: return .systemYellow
         }
     }
 }
