@@ -50,7 +50,7 @@ let package = Package(
         // AppKit
         .macOS(.v10_15),
         // UIKit
-        .iOS(.v13), .macCatalyst(.v13), .tvOS(.v13), .visionOS(.v1)
+        .iOS(.v13), .macCatalyst(.v13), .tvOS(.v13), .visionOS(.v1), .watchOS(.v6),
     ],
     products: [
         .library(
