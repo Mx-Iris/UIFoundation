@@ -16,7 +16,7 @@ import UIKit
 #endif
 
 /// Specifies the color of an IDE icon.
-public enum IDEIconColor: String, CaseIterable, Sendable {
+public enum IDEIconColor: String, Sendable {
     case monochrome
     case blue
     case brown
@@ -28,6 +28,9 @@ public enum IDEIconColor: String, CaseIterable, Sendable {
     case red
     case teal
     case yellow
+    case indigo
+    case mint
+    case cyan
 }
 
 /// A pair of light / dark colors selected by ``IDEIconColorScheme``.
@@ -66,6 +69,21 @@ private func rgb(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat, _ alpha: CGF
 @inline(__always)
 private func grayscale(_ white: CGFloat, _ alpha: CGFloat = 1) -> NSUIColor {
     return NSUIColor(white: white, alpha: alpha)
+}
+
+@inline(__always)
+private func dynamicColor(light: NSUIColor, dark: NSUIColor) -> NSUIColor {
+    #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+    return NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+    }
+    #elseif canImport(UIKit)
+    return UIColor { traits in
+        traits.userInterfaceStyle == .dark ? dark : light
+    }
+    #else
+    return light
+    #endif
 }
 
 extension IDEIconColor {
@@ -114,6 +132,18 @@ extension IDEIconColor {
         case .yellow: return AdaptiveColor(
                 light: rgb(0.952, 0.85, 0.501),
                 dark: rgb(0.384, 0.298, 0.043)
+            )
+        case .indigo: return AdaptiveColor(
+                light: rgb(0.498, 0.494, 0.925),
+                dark: rgb(0.106, 0.103, 0.376)
+            )
+        case .mint: return AdaptiveColor(
+                light: rgb(0.227, 0.821, 0.789),
+                dark: rgb(0.018, 0.281, 0.268)
+            )
+        case .cyan: return AdaptiveColor(
+                light: rgb(0.380, 0.751, 0.952),
+                dark: rgb(0.043, 0.243, 0.345)
             )
         }
     }
@@ -164,6 +194,18 @@ extension IDEIconColor {
                 light: rgb(0.749, 0.658, 0.349),
                 dark: rgb(0.929, 0.752, 0.215)
             )
+        case .indigo: return AdaptiveColor(
+                light: rgb(0.298, 0.290, 0.785),
+                dark: rgb(0.408, 0.400, 0.901)
+            )
+        case .mint: return AdaptiveColor(
+                light: rgb(0.013, 0.621, 0.595),
+                dark: rgb(0.122, 0.781, 0.745)
+            )
+        case .cyan: return AdaptiveColor(
+                light: rgb(0.118, 0.601, 0.860),
+                dark: rgb(0.211, 0.701, 0.918)
+            )
         }
     }
 
@@ -187,6 +229,23 @@ extension IDEIconColor {
         case .red: return .systemRed
         case .teal: return .systemTeal
         case .yellow: return .systemYellow
+        case .indigo: return .systemIndigo
+        case .mint:
+            if #available(macOS 12.0, iOS 15.0, tvOS 15.0, *) {
+                return .systemMint
+            }
+            return dynamicColor(
+                light: rgb(0.000, 0.784, 0.702),
+                dark: rgb(0.000, 0.855, 0.765)
+            )
+        case .cyan:
+            if #available(macOS 12.0, iOS 15.0, tvOS 15.0, *) {
+                return .systemCyan
+            }
+            return dynamicColor(
+                light: rgb(0.000, 0.753, 0.910),
+                dark: rgb(0.235, 0.827, 0.996)
+            )
         }
     }
 }
