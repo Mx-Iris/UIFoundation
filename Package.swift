@@ -97,8 +97,10 @@ let package = Package(
         .target(
             name: "UIFoundation",
             dependencies: [
-                "UIFoundationAppKit",
-                "UIFoundationUIKit",
+//                "UIFoundationAppKit",
+//                "UIFoundationUIKit",
+                .target(name: "UIFoundationAppKit", condition: .when(platforms: appkitPlatforms)),
+                .target(name: "UIFoundationUIKit", condition: .when(platforms: uikitPlatforms)),
                 "UIFoundationUtilities",
                 "UIFoundationToolbox",
                 "UIFoundationTypealias",
