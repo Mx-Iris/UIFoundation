@@ -138,11 +138,11 @@ extension NSUIView {
 
 extension NSUILayoutPriority {
     #if canImport(AppKit) && !targetEnvironment(macCatalyst)
-    static let fittingSize: Self = .fittingSizeCompression
+    public static let fittingSize: Self = .fittingSizeCompression
     #endif
 
     #if canImport(UIKit)
-    static let fittingSize: Self = .fittingSizeLevel
+    public static let fittingSize: Self = .fittingSizeLevel
     #endif
 }
 
