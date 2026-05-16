@@ -71,6 +71,8 @@ let package = Package(
         .trait(name: "AppleInternal"),
         .trait(name: "FilterUI"),
         .trait(name: "IDEIcons"),
+        .trait(name: "NSAttributedStringBuilder"),
+        .trait(name: "QuickActionBar"),
     ],
     dependencies: [
         .package(

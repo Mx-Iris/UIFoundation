@@ -1,0 +1,19 @@
+#if NSAttributedStringBuilder
+
+import Foundation
+
+public typealias AText = NSAttributedString.AttrText
+
+extension NSAttributedString {
+    public struct AttrText: Component {
+        public let string: String
+        public let attributes: Attributes
+
+        public init(_ string: String, attributes: Attributes = [:]) {
+            self.string = string
+            self.attributes = attributes
+        }
+    }
+}
+
+#endif

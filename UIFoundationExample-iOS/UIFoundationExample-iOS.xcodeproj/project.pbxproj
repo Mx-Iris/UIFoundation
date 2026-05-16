@@ -373,6 +373,7 @@
 				AppleInternal,
 				FilterUI,
 				IDEIcons,
+				NSAttributedStringBuilder,
 			);
 		};
 /* End XCLocalSwiftPackageReference section */

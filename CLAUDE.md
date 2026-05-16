@@ -129,6 +129,35 @@ Property wrappers using `_enclosingInstance` subscript: on **get**, calls `loadV
 
 `TableViewProtocol` / `OutlineViewProtocol` provide `scrollableTableView()` / `scrollableSingleColumnOutlineView()` static factories returning `(NSScrollView, Self)` tuples.
 
+### NSAttributedStringBuilder (ported from `ethanhuang13/NSAttributedStringBuilder`)
+
+SwiftUI-style `@resultBuilder` for composing `NSAttributedString`. Ships as part of `UIFoundationShared` behind an **opt-in SPM trait** called `NSAttributedStringBuilder` (default: disabled), mirroring the `FilterUI` / `IDEIcons` pattern:
+
+```swift
+.package(url: "…/UIFoundation", traits: ["NSAttributedStringBuilder"])   // SPM dependency
+swift build --traits NSAttributedStringBuilder                          // CLI
+swift test  --traits NSAttributedStringBuilder                          // CLI
+```
+
+```swift
+let attributed = NSAttributedString {
+    AText("Hello world")
+        .font(.systemFont(ofSize: 24))
+        .foregroundColor(.red)
+    LineBreak()
+    AText("with Swift")
+        .font(.systemFont(ofSize: 20))
+        .foregroundColor(.orange)
+}
+```
+
+Wiring:
+- `traits: [.trait(name: "AppleInternal"), .trait(name: "FilterUI"), .trait(name: "IDEIcons"), .trait(name: "NSAttributedStringBuilder")]` in `Package.swift`
+- Every source file under `Sources/UIFoundationShared/NSAttributedStringBuilder/**/*.swift` is wrapped in `#if NSAttributedStringBuilder … #endif`
+- Tests under `Tests/UIFoundationTests/NSAttributedStringBuilder/**/*.swift` use **Swift Testing** (`@Suite` / `@Test` / `#expect`) and are gated on the same trait
+
+Components: `AText`, `ATextGroup` (nested-grouping with `@AttrTextGroupBuilder`), `Link`, `ImageAttachment` (non-watchOS), `Empty`, `Space`, `LineBreak`. The original `Font` / `Color` / `Image` / `Size` / `Rect` typealiases were dropped in favor of `NSUIFont` / `NSUIColor` / `NSUIImage` (from `UIFoundationTypealias`) and plain `CGSize` / `CGRect`, so the API doesn't collide with SwiftUI's `Font` / `Color` / `Image`. `Attributes` (`= [NSAttributedString.Key: Any]`) is preserved. The `Ligature.all` case and `vertical()` / `textBlocks(_:)` / `textLists(_:)` / `tighteningFactorForTruncation(_:)` / `headerLevel(_:)` modifiers are gated on `#if canImport(AppKit) && !targetEnvironment(macCatalyst)`. `ImageAttachment` is wrapped in `#if !os(watchOS)`.
+
 ### Filter UI (ported from `filter-ui`)
 
 Filter UI ships as an **opt-in SPM trait** called `FilterUI` (default: disabled). When the trait is off the Filter sources are excluded via `#if FilterUI` and no Filter symbols are exported. To enable it:
@@ -161,6 +190,42 @@ The package now declares `defaultLocalization: "en"` because Filter ships en/da 
 Note: SwiftUI `Button` is shadowed by `UIFoundationAppKit.Button` (an `NSButton` subclass), so SwiftUI views inside this module must use `SwiftUI.Button` / `SwiftUI.Image` explicitly (see `FilterToggle`).
 
 **xcassets caveat:** the Filter resources rely on `Bundle.module.image(forResource:)` and `NSColor(named:bundle:)`, which require `actool`-compiled `Assets.car`. `swift build` / `swift test` from the command line do **not** invoke `actool` and copy the `.xcassets` folders verbatim, so resource lookups return `nil` in that mode. To exercise the Filter resource path (or run `FilterResourcesTests`), use the Xcode toolchain: `xcodebuild -scheme UIFoundation-Package -destination "platform=macOS" test -only-testing:UIFoundationTests/FilterResourcesTests` (temporarily move `UIFoundation.xcworkspace` aside first because that workspace only exposes the Example schemes). Consuming this package from an Xcode app target works as expected because Xcode handles `actool` itself.
+
+### Quick Action Bar (ported from `dagronf/DSFQuickActionBar`)
+
+Spotlight-style floating action bar for macOS. Ships as an **opt-in SPM trait** called `QuickActionBar` (default: disabled), mirroring the `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder` pattern:
+
+```swift
+.package(url: "…/UIFoundation", traits: ["QuickActionBar"])     // SPM dependency
+swift build --traits QuickActionBar                             // CLI
+swift test  --traits QuickActionBar                             // CLI
+```
+
+```swift
+let bar = QuickActionBar()
+bar.contentSource = self
+bar.present(placeholderText: "Search…")
+```
+
+Wiring:
+- `traits: [.trait(name: "AppleInternal"), .trait(name: "FilterUI"), .trait(name: "IDEIcons"), .trait(name: "NSAttributedStringBuilder"), .trait(name: "QuickActionBar")]` in `Package.swift`
+- Every source file under `Sources/UIFoundationAppKit/QuickActionBar/**/*.swift` is wrapped in `#if QuickActionBar … #endif`
+- macOS-only; the file-level `#if` block additionally requires `import AppKit`, so the trait compiles to nothing on UIKit / Catalyst / tvOS / visionOS / watchOS even if accidentally enabled there
+
+Public API surface:
+- `QuickActionBar` — the controller (was `DSFQuickActionBar`)
+- `QuickActionBarContentSource` — delegate protocol (was `DSFQuickActionBarContentSource`); `canSelectItem` / `didSelectItem` / `quickActionBarDidCancel` have default no-op implementations
+- `QuickActionBar.SearchTask` — async-capable search task with `complete(with:)` / `cancel()`
+- `QuickActionBar.RequiredClickCount` — `.single` / `.double`
+
+The SwiftUI `NSViewRepresentable` bridge from upstream was intentionally **not ported** — only the AppKit controller is provided.
+
+Differences from upstream `DSFQuickActionBar`:
+- `DSF` prefix stripped from every type and filename. All internal helper types are nested under the `QuickActionBar` namespace (`QuickActionBar.TextField`, `QuickActionBar.EphemeralWindow`, `QuickActionBar.Debounce`, `QuickActionBar.SingleShotTimer`, `QuickActionBar.FlippedClipView`, `QuickActionBar.FlippedContainerView`, `QuickActionBar.PrimaryRoundedView`, `QuickActionBar.DelayedIndeterminiteRadialProgressIndicator`, `QuickActionBar.TransparentBackgroundScroller`) so they do not pollute `UIFoundationAppKit`'s module-internal scope.
+- `CreateARGB32` / `scaleImageProportionally` / `usingEffectiveAppearance(ofWindow:)` are exposed as static methods on `QuickActionBar` (`QuickActionBar.createARGB32Image(width:height:drawBlock:)`, `QuickActionBar.scaleImageProportionally(_:to:)`, `QuickActionBar.usingEffectiveAppearance(of:_:)`).
+- `DSFAppearanceManager` dependency removed; reads accent / dark / increase-contrast / reduce-transparency directly from `NSColor.controlAccentColor`, `effectiveAppearance.bestMatch(from:)`, and `NSWorkspace.shared.accessibilityDisplay*`. `UsingEffectiveAppearance(ofWindow:)` is replaced by an in-tree `usingEffectiveAppearance(of:_:)` that uses `NSAppearance.performAsCurrentDrawingAppearance(_:)` on macOS 11+ with an `NSAppearance.current` fallback for 10.15.
+- `PrivacyInfo.xcprivacy` is not bundled (UIFoundation has no privacy manifest of its own).
+- Original MIT license and per-file copyright are preserved, plus a top-level entry in `THIRD_PARTY_LICENSES.md` at the repo root.
 
 ## Code Style Notes
 
