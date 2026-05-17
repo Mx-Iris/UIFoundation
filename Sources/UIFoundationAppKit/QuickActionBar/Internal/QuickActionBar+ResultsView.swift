@@ -1,4 +1,4 @@
-#if QuickActionBar
+#if QuickActionBar && os(macOS)
 
 import AppKit
 

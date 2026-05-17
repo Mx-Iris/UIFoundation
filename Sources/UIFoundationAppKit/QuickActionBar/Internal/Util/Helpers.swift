@@ -7,7 +7,7 @@
 //  `NSImage` extensions from upstream DSFQuickActionBar.
 //
 
-#if QuickActionBar
+#if QuickActionBar && os(macOS)
 
 import AppKit
 import Foundation

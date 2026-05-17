@@ -11,7 +11,7 @@
 //  MIT License — Copyright (c) 2016 Viktoras Laukevičius
 //
 
-#if FilterUI
+#if FilterUI && os(macOS)
 
 import Foundation
 

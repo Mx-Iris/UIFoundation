@@ -1,4 +1,4 @@
-#if FilterUI
+#if FilterUI && canImport(Carbon)
 
 import AppKit
 import Carbon

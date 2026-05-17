@@ -1,3 +1,4 @@
+#if TARGET_OS_OSX
 #import <TargetConditionals.h>
 
 #if TARGET_OS_OSX
@@ -33,4 +34,5 @@ API_AVAILABLE(macos(26.0)) NS_SWIFT_UI_ACTOR
 
 NS_ASSUME_NONNULL_END
 
+#endif
 #endif

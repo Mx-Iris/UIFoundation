@@ -1,3 +1,4 @@
+#if TARGET_OS_OSX
 @import Carbon;
 @import Foundation;
 
@@ -8,3 +9,4 @@ extern OSStatus HIViewSetDrawingEnabled(HIViewRef inView, Boolean inEnabled);
 extern OSStatus HIViewSetNeedsDisplay(HIViewRef inView, Boolean inNeedsDisplay);
 
 NS_ASSUME_NONNULL_END
+#endif

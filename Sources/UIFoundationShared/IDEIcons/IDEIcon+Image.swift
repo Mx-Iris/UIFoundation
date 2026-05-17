@@ -20,7 +20,7 @@ private let deviceScale: CGFloat = 1.0
 #elseif os(visionOS)
 private let deviceScale: CGFloat = 2.0
 #elseif canImport(UIKit)
-@MainActor private var deviceScale: CGFloat { UIScreen.main.scale }
+private let deviceScale: CGFloat = UIScreen.main.scale 
 #endif
 
 extension NSUIImage {

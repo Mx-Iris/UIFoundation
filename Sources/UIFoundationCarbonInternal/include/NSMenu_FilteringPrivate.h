@@ -1,3 +1,4 @@
+#if TARGET_OS_OSX
 @import Cocoa;
 @import Carbon;
 @import Foundation;
@@ -12,3 +13,4 @@ typedef OSStatus (^CarbonEventHandler)(NSMenu *menu, EventHandlerCallRef handler
 @end
 
 NS_ASSUME_NONNULL_END
+#endif

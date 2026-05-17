@@ -28,7 +28,7 @@ extension FrameworkToolbox<NSUIFont> {
         var lineSpacing = round(ascent) + round(descent) + round(lineGap)
 
         // Hack Hiragino line metrics to allow room for marked text underlines.
-        if descent < 3, lineGap >= 3, base.familyName?.hasPrefix("Hiragino") == true {
+        if descent < 3, lineGap >= 3, nsuiFamilyName?.hasPrefix("Hiragino") == true {
             lineGap -= 3 - descent
             descent = 3
         }
@@ -45,7 +45,7 @@ extension FrameworkToolbox<NSUIFont> {
     }
 
     private func shouldUseAdjustment(_ font: NSUIFont) -> Bool {
-        guard let familyName = font.familyName else {
+        guard let familyName = font.box.nsuiFamilyName else {
             return false
         }
 
@@ -53,5 +53,9 @@ extension FrameworkToolbox<NSUIFont> {
             || familyName.caseInsensitiveCompare("Helvetica") == .orderedSame
             || familyName.caseInsensitiveCompare("Courier") == .orderedSame // macOS only
             || familyName.caseInsensitiveCompare(".Helvetica NeueUI") == .orderedSame
+    }
+    
+    var nsuiFamilyName: String? {
+        base.familyName
     }
 }

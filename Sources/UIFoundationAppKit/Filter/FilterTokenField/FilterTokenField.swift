@@ -1,4 +1,4 @@
-#if FilterUI
+#if FilterUI && os(macOS)
 
 import AppKit
 import Combine

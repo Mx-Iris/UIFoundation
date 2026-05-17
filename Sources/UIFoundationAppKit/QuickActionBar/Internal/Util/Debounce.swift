@@ -8,7 +8,7 @@
 //  MIT License — Copyright (c) 2022 Darren Ford
 //
 
-#if QuickActionBar
+#if QuickActionBar && os(macOS)
 
 import Dispatch
 import Foundation
