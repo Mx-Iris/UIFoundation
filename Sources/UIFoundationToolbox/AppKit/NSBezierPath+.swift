@@ -14,10 +14,13 @@ extension FrameworkToolbox where Base: NSBezierPath {
                 switch type {
                 case .moveTo: path.move(to: points[0])
                 case .lineTo: path.addLine(to: points[0])
-                case .curveTo,
-                     .cubicCurveTo: path.addCurve(to: points[2], control1: points[0], control2: points[1])
+                case .curveTo: path.addCurve(to: points[2], control1: points[0], control2: points[1])
                 case .closePath: path.closeSubpath()
-                case .quadraticCurveTo: path.addQuadCurve(to: points[1], control: points[0])
+                case .cubicCurveTo, .quadraticCurveTo:
+                    // Unreachable: these element types were introduced in macOS 14, where the
+                    // `if #available(macOS 14.0, *)` branch above already delegates to the system
+                    // `cgPath`. On macOS < 14 `NSBezierPath` can only produce moveTo/lineTo/curveTo/closePath.
+                    fatalError("Unreachable: cubicCurveTo / quadraticCurveTo are macOS 14+ only and handled by the system cgPath branch")
                 @unknown default:
                     break
                 }
