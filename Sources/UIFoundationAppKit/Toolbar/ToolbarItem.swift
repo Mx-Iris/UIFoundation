@@ -57,13 +57,13 @@ open class ToolbarItem: NSObject {
     ///
     /// This value is read once when the parent `NSToolbar` is created. Changing it after
     /// the toolbar exists does not synchronize automatically.
+    @AvailableMutating
     @available(macOS 13.0, *)
-    @AvailableMutating()
     open var isCentered: Bool = false
 
     /// Sets the Boolean value indicating whether the item displays in the center of the toolbar.
-    @available(macOS 13.0, *)
     @discardableResult
+    @available(macOS 13.0, *)
     open func isCentered(_ isCentered: Bool) -> Self {
         self.isCentered = isCentered
         return self
