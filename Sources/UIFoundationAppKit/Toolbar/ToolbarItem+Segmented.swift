@@ -114,15 +114,15 @@ extension NSToolbar {
         public init(_ identifier: NSToolbarItem.Identifier? = nil, selectionMode: SelectionMode = .selectOne, labels: [String], action: ((NSToolbar.SegmentedControl) -> Void)? = nil) {
             self.segmentedControl = NSSegmentedControl(labels: labels, trackingMode: NSSegmentedControl.SwitchTracking(rawValue: selectionMode.rawValue) ?? .selectOne, target: nil, action: nil)
             super.init(identifier)
-            commonInit()
             self.actionBlock = action
+            commonInit()
         }
 
         public init(_ identifier: NSToolbarItem.Identifier? = nil, selectionMode: SelectionMode = .selectOne, images: [NSImage], action: ((NSToolbar.SegmentedControl) -> Void)? = nil) {
             self.segmentedControl = NSSegmentedControl(images: images, trackingMode: NSSegmentedControl.SwitchTracking(rawValue: selectionMode.rawValue) ?? .selectOne, target: nil, action: nil)
             super.init(identifier)
-            commonInit()
             self.actionBlock = action
+            commonInit()
         }
 
         private func commonInit() {
@@ -130,6 +130,7 @@ extension NSToolbar {
             segmentedControl.setContentHuggingPriority(.defaultHigh, for: .horizontal)
             segmentedControl.segmentDistribution = .fillEqually
             _item.view = segmentedControl
+            installAction()
         }
 
         private final class SegmentedNSToolbarItemGroup: NSToolbarItemGroup {
