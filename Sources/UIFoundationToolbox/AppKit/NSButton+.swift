@@ -13,16 +13,12 @@ extension NSButton {
         alternateTitleFont: NSFont = .systemFont(ofSize: 14),
         image: NSImage? = nil,
         alternateImage: NSImage? = nil,
-        buttonType: NSButton.ButtonType = .momentaryLight,
-        bezelStyle: NSButton.BezelStyle = .rounded
     ) {
         self.init(frame: .zero)
         self.attributedTitle = NSAttributedString(string: title, attributes: [.font: titleFont, .foregroundColor: titleColor])
         self.attributedAlternateTitle = NSAttributedString(string: alternateTitle, attributes: [.font: alternateTitleFont, .foregroundColor: alternateTitleColor])
         self.image = image
         self.alternateImage = alternateImage
-        setButtonType(buttonType)
-        self.bezelStyle = bezelStyle
     }
 }
 
@@ -36,16 +32,12 @@ extension FrameworkToolbox where Base: NSButton {
         alternateTitleFont: NSFont = .systemFont(ofSize: 14),
         image: NSImage? = nil,
         alternateImage: NSImage? = nil,
-        buttonType: NSButton.ButtonType = .momentaryLight,
-        bezelStyle: NSButton.BezelStyle = .rounded
     ) -> Base {
         let base = Base()
         base.attributedTitle = NSAttributedString(string: title, attributes: [.font: titleFont, .foregroundColor: titleColor])
         base.attributedAlternateTitle = NSAttributedString(string: alternateTitle, attributes: [.font: alternateTitleFont, .foregroundColor: alternateTitleColor])
         base.image = image
         base.alternateImage = alternateImage
-        base.setButtonType(buttonType)
-        base.bezelStyle = bezelStyle
         return base
     }
 }
@@ -110,6 +102,7 @@ extension FrameworkToolbox where Base: NSButton {
     /// away from `.destructive` also clears the flag. The flag requires
     /// macOS 11; on macOS 10.15 a `.destructive` button is reported as
     /// `.normal`.
+    @inlinable
     public var role: Role {
         get {
             switch base.keyEquivalent {
