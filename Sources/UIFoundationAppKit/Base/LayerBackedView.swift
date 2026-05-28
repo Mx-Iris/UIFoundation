@@ -279,18 +279,12 @@ extension NSView: ViewProtocol {}
 
 extension ViewProtocol {
     public static func scrollableDocumentView() -> (scrollView: NSScrollView, documentView: Self) {
-        let scrollView = NSScrollView()
-        let documentView = Self()
-        scrollView.do {
-            $0.documentView = documentView
-            $0.hasVerticalScroller = true
-        }
-        return (scrollView, documentView)
+        NSView.scrollableDocumentView()
     }
 }
 
 extension NSView {
-    public class func scrollableDocumentView<ScrollView: NSScrollView, DocumentView: NSView>() -> (scrollView: ScrollView, view: DocumentView) {
+    public class func scrollableDocumentView<ScrollView: NSScrollView, DocumentView: NSView>() -> (scrollView: ScrollView, documentView: DocumentView) {
         let scrollView = ScrollView()
         let documentView = DocumentView()
         scrollView.do {

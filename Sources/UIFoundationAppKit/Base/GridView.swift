@@ -26,13 +26,7 @@ extension NSGridView: GridViewProtocol {}
 
 extension GridViewProtocol {
     public static func scrollableGridView() -> (scrollView: NSScrollView, gridView: Self) {
-        let scrollView = NSScrollView()
-        let gridView = Self()
-        scrollView.do {
-            $0.documentView = gridView
-            $0.hasVerticalScroller = true
-        }
-        return (scrollView, gridView)
+        NSGridView.scrollableGridView()
     }
 }
 

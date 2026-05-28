@@ -6,12 +6,6 @@ open class TableView: NSTableView {
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         commonInit()
-        headerView = nil
-        backgroundColor = .clear
-        intercellSpacing = .zero
-        if #available(macOS 11.0, *) {
-            style = .inset
-        }
     }
 
     public required init?(coder: NSCoder) {
@@ -20,6 +14,12 @@ open class TableView: NSTableView {
     }
 
     private func commonInit() {
+        headerView = nil
+        backgroundColor = .clear
+        intercellSpacing = .zero
+        if #available(macOS 11.0, *) {
+            style = .inset
+        }
         setup()
     }
 
@@ -41,13 +41,7 @@ extension NSTableView: TableViewProtocol {}
 
 extension TableViewProtocol {
     public static func scrollableTableView() -> (NSScrollView, Self) {
-        let scrollView = NSScrollView()
-        let tableView = Self()
-        scrollView.do {
-            $0.documentView = tableView
-            $0.hasVerticalScroller = true
-        }
-        return (scrollView, tableView)
+        NSTableView.scrollableTableView()
     }
 }
 
@@ -60,6 +54,22 @@ extension NSTableView {
             $0.hasVerticalScroller = true
         }
         return (scrollView, tableView)
+    }
+    
+    public class func scrollableSingleColumnTableView<ScrollViewType: NSScrollView, TableViewType: NSTableView>() -> (scrollView: ScrollViewType, tableView: TableViewType) {
+        let scrollView = ScrollViewType()
+        let documentView = TableViewType()
+        
+        scrollView.do {
+            $0.documentView = documentView
+            $0.hasVerticalScroller = true
+        }
+        documentView.do {
+            $0.headerView = nil
+            $0.addTableColumn(NSTableColumn(identifier: "\(Self.self)"))
+        }
+
+        return (scrollView, documentView)
     }
 }
 
