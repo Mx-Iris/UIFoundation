@@ -30,4 +30,22 @@ open class TextField: NSTextField {
     }
 }
 
+open class SearchField: NSSearchField {
+    public override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        commonInit()
+    }
+
+    public required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        commonInit()
+    }
+
+    private func commonInit() {
+        setup()
+    }
+    
+    open func setup() {}
+}
+
 #endif
