@@ -72,10 +72,53 @@ NSView
       └── XiblessView     (init?(coder:) marked @available(*, unavailable))
 ```
 
-- `LayerBackedView` uses `wantsUpdateLayer = true` + `updateLayer()` for rendering (not `draw(_:)`). It provides built-in `cornerRadius`, `shadowRadius`, `borderWidth` etc. via `@ViewInvalidating(.display)`.
+- `LayerBackedView` uses `wantsUpdateLayer = true` + `updateLayer()` for rendering (not `draw(_:)`). It conforms to `LayerBackgroundProviding` and inherits `cornerRadius` / `backgroundColor` / `border*` / `shadow*` / `shadowPath` from there.
 - `setup()` — subclass override point for initialization, called from both `init(frame:)` and `init?(coder:)`.
 - `firstLayout()` — called exactly once on first `layout()`, using a `lazy var _firstLayout: Void` trick. Use for size-dependent setup.
 - Controllers: `XiblessViewController<View: NSUIView>` takes a generic `contentView` via `@autoclosure` factory, assigned in `loadView()`.
+
+### `LayerBackgroundRenderer` & `LayerBackgroundProviding`
+
+`LayerBackedView` is implemented as a thin shell over a reusable rendering helper so the same `cornerRadius` / `backgroundColor` / `border*` / `shadow*` pipeline can be dropped onto any `NSView` subclass that cannot inherit from `LayerBackedView` (typically `NSTableCellView`, `NSCollectionViewItem.view`, etc.).
+
+Three pieces live under `Sources/UIFoundationAppKit/Base/`:
+
+1. **`LayerBackgroundRenderer`** (`LayerBackgroundRenderer.swift`) — opaque rendering object. Holds all configuration properties + `BorderPositions` / `BorderLocation` types + the `CAShapeLayer` border sublayer. Drives the layer in `updateLayer()` / `layout()`, and triggers `owner.needsDisplay = true` on every property change. Internally weak-references its host via `attach(to:)`, which also flips `wantsLayer = true` and `layerContentsRedrawPolicy = .onSetNeedsDisplay`.
+2. **`LayerBackgroundProviding`** (`LayerBackgroundProviding.swift`) — `@MainActor` marker protocol constrained to `NSView`. Has no requirements. The protocol extension provides:
+   - `backgroundRenderer` as a `@AssociatedObject(.retain(.nonatomic))`-backed property (from the `AssociatedObject` macro package) — lazily initialised on first access, completely hidden from conformers.
+   - All forwarding properties (`cornerRadius`, `backgroundColor`, `border*`, `shadow*`, `shadowPath`) plumbing into the renderer.
+   - `attachToSelf()` — bind the renderer to the conforming view (call once after `super.init`).
+   - `updateLayerBackground()` / `layoutLayerBackground()` — hooks to call from the conformer's `updateLayer()` / `layout()` overrides.
+3. **`LayerBackedView`** — conforms to `LayerBackgroundProviding` and wires `attachToSelf()` / `updateLayerBackground()` / `layoutLayerBackground()` automatically. Subclasses still override `setup()` / `firstLayout()` only.
+
+**Composition example (`NSTableCellView`):**
+
+```swift
+final class MyCell: NSTableCellView, LayerBackgroundProviding {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        attachToSelf()                // enables layer backing, installs renderer
+        cornerRadius = 10             // protocol forwarding properties
+        backgroundColor = .controlBackgroundColor
+        borderPositions = .all
+        borderColor = .separatorColor
+        borderWidth = 1
+    }
+    required init?(coder: NSCoder) { super.init(coder: coder); attachToSelf() }
+
+    override var wantsUpdateLayer: Bool { true }
+    override func updateLayer() { super.updateLayer(); updateLayerBackground() }
+    override func layout()      { super.layout();      layoutLayerBackground() }
+}
+```
+
+A working demo lives at `UIFoundationExample-macOS/UIFoundationExample-macOS/AppDelegate.swift` (`LayerBackgroundDemoViewController` / `LayerBackgroundCell`).
+
+**Caveats / trade-offs:**
+
+- Because protocol extensions cannot use `@IBInspectable`, the forwarding properties are **not editable in Interface Builder**. `@IBDesignable` still works on `LayerBackedView` itself, but the panel won't show `cornerRadius`, `borderColor`, etc. (Project policy is code-only views, so this is intentional.)
+- `NSView.shadow` is a stored property on `NSView`; protocol-extension dispatch is shadowed by the class-hierarchy lookup. If you want `view.shadow = nsShadow` to fan out to `shadowColor` / `shadowOffset` / `shadowRadius`, override `shadow` explicitly on the conformer (mirroring `LayerBackgroundRenderer.shadow`).
+- Conformers that already define their own `backgroundColor` (e.g. `NSTextField`, `NSTableView`) will collide with the protocol default. Don't conform those classes — they were never the target of this pipeline.
 
 ### `.box` Namespace Extensions
 

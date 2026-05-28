@@ -120,6 +120,7 @@ let package = Package(
                 "UIFoundationTypealias",
                 "UIFoundationUtilities",
                 "UIFoundationShared",
+                .product(name: "AssociatedObject", package: "AssociatedObject"),
             ],
             resources: [
                 .process("Resources"),
