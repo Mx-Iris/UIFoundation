@@ -17,7 +17,7 @@ open class LayerBackedView: NSView {
         public static let right = Self(rawValue: 1 << 1)
         public static let top = Self(rawValue: 1 << 2)
         public static let bottom = Self(rawValue: 1 << 3)
-        public static var all: BorderPositions = [.top, .left, .right, .bottom]
+        public static var all: BorderPositions { [.top, .left, .right, .bottom] }
     }
 
     public enum BorderLocation {
@@ -103,6 +103,22 @@ open class LayerBackedView: NSView {
     @ViewInvalidating(.display)
     open var shadowPath: NSBezierPath? = nil
 
+    open override var shadow: NSShadow? {
+        get {
+            guard shadowColor != nil else { return nil }
+            let result = NSShadow()
+            result.shadowColor = shadowColor
+            result.shadowOffset = shadowOffset
+            result.shadowBlurRadius = shadowRadius
+            return result
+        }
+        set {
+            shadowColor = newValue?.shadowColor
+            shadowOffset = newValue?.shadowOffset ?? .zero
+            shadowRadius = newValue?.shadowBlurRadius ?? 0
+        }
+    }
+
     open func setup() {}
 
     open func firstLayout() {}
@@ -171,100 +187,64 @@ open class LayerBackedView: NSView {
 }
 
 extension NSBezierPath {
-    fileprivate convenience init(bounds: NSRect, borderWidth: CGFloat, borderInsets: NSEdgeInsets, borderLocation: LayerBackedView.BorderLocation, borderPositions: LayerBackedView.BorderPositions) {
-        let adjustsLocation: (CGFloat, CGFloat, CGFloat) -> CGFloat = { inside, center, outside in
-            switch borderLocation {
-            case .inside: return inside
-            case .center: return center
-            case .outside: return outside
-            }
-        }
-
-        let lineOffset = adjustsLocation(borderWidth / 2.0, 0, -borderWidth / 2.0)
-        let lineCapOffset = adjustsLocation(0, borderWidth / 2.0, borderWidth)
-        let verticalInset = borderInsets.top - borderInsets.bottom
-
-        let shouldShowTopBorder = borderPositions.contains(.top)
-        let shouldShowLeftBorder = borderPositions.contains(.left)
-        let shouldShowBottomBorder = borderPositions.contains(.bottom)
-        let shouldShowRightBorder = borderPositions.contains(.right)
-
-        let points: [String: [NSPoint]] = [
-            "toppath": [
-                NSPoint(
-                    x: (shouldShowLeftBorder ? (-lineCapOffset + verticalInset) : 0) + borderInsets.left,
-                    y: bounds.height - (lineOffset + verticalInset)
-                ),
-                NSPoint(
-                    x: bounds.width + (shouldShowRightBorder ? (lineCapOffset - verticalInset) : 0) - borderInsets.right,
-                    y: bounds.height - (lineOffset + verticalInset)
-                ),
-            ],
-            "leftpath": [
-                NSPoint(
-                    x: lineOffset + verticalInset,
-                    y: (shouldShowBottomBorder ? lineCapOffset - verticalInset : 0) + borderInsets.bottom
-                ),
-                NSPoint(
-                    x: lineOffset + verticalInset,
-                    y: bounds.height - (shouldShowTopBorder ? -lineCapOffset + verticalInset : 0) - borderInsets.top
-                ),
-            ],
-            "bottompath": [
-                NSPoint(
-                    x: bounds.width + (shouldShowRightBorder ? (lineCapOffset - verticalInset) : 0) - borderInsets.right,
-                    y: lineOffset + verticalInset
-                ),
-                NSPoint(
-                    x: (shouldShowLeftBorder ? (-lineCapOffset + verticalInset) : 0) + borderInsets.left,
-                    y: lineOffset + verticalInset
-                ),
-            ],
-            "rightpath": [
-                NSPoint(
-                    x: bounds.width - lineOffset - verticalInset,
-                    y: bounds.height - (shouldShowTopBorder ? -lineCapOffset + verticalInset : 0) - borderInsets.top
-                ),
-                NSPoint(
-                    x: bounds.width - lineOffset - verticalInset,
-                    y: (shouldShowBottomBorder ? lineCapOffset - verticalInset : 0) + borderInsets.bottom
-                ),
-            ],
-        ]
-
+    fileprivate convenience init(
+        bounds: NSRect,
+        borderWidth: CGFloat,
+        borderInsets: NSEdgeInsets,
+        borderLocation: LayerBackedView.BorderLocation,
+        borderPositions: LayerBackedView.BorderPositions
+    ) {
         self.init()
 
-        let topPath = NSBezierPath()
-        let leftPath = NSBezierPath()
-        let bottomPath = NSBezierPath()
-        let rightPath = NSBezierPath()
-
-        topPath.move(to: points["toppath"]![0])
-        topPath.line(to: points["toppath"]![1])
-
-        leftPath.move(to: points["leftpath"]![0])
-        leftPath.line(to: points["leftpath"]![1])
-
-        bottomPath.move(to: points["bottompath"]![0])
-        bottomPath.line(to: points["bottompath"]![1])
-
-        rightPath.move(to: points["rightpath"]![0])
-        rightPath.line(to: points["rightpath"]![1])
-
-        if shouldShowTopBorder, !topPath.isEmpty {
-            append(topPath)
+        let lineOffset: CGFloat
+        let lineCapOffset: CGFloat
+        switch borderLocation {
+        case .inside:
+            lineOffset = borderWidth / 2
+            lineCapOffset = 0
+        case .center:
+            lineOffset = 0
+            lineCapOffset = borderWidth / 2
+        case .outside:
+            lineOffset = -borderWidth / 2
+            lineCapOffset = borderWidth
         }
 
-        if shouldShowLeftBorder, !leftPath.isEmpty {
-            append(leftPath)
+        let verticalInset = borderInsets.top - borderInsets.bottom
+
+        let showsTop = borderPositions.contains(.top)
+        let showsLeft = borderPositions.contains(.left)
+        let showsBottom = borderPositions.contains(.bottom)
+        let showsRight = borderPositions.contains(.right)
+
+        let leftEdgeX = lineOffset + verticalInset
+        let rightEdgeX = bounds.width - lineOffset - verticalInset
+        let topEdgeY = bounds.height - lineOffset - verticalInset
+        let bottomEdgeY = lineOffset + verticalInset
+
+        let horizontalStartX = (showsLeft ? -lineCapOffset + verticalInset : 0) + borderInsets.left
+        let horizontalEndX = bounds.width + (showsRight ? lineCapOffset - verticalInset : 0) - borderInsets.right
+        let verticalStartY = (showsBottom ? lineCapOffset - verticalInset : 0) + borderInsets.bottom
+        let verticalEndY = bounds.height - (showsTop ? -lineCapOffset + verticalInset : 0) - borderInsets.top
+
+        if showsTop {
+            move(to: NSPoint(x: horizontalStartX, y: topEdgeY))
+            line(to: NSPoint(x: horizontalEndX, y: topEdgeY))
         }
 
-        if shouldShowBottomBorder, !bottomPath.isEmpty {
-            append(bottomPath)
+        if showsLeft {
+            move(to: NSPoint(x: leftEdgeX, y: verticalStartY))
+            line(to: NSPoint(x: leftEdgeX, y: verticalEndY))
         }
 
-        if shouldShowRightBorder, !rightPath.isEmpty {
-            append(rightPath)
+        if showsBottom {
+            move(to: NSPoint(x: horizontalEndX, y: bottomEdgeY))
+            line(to: NSPoint(x: horizontalStartX, y: bottomEdgeY))
+        }
+
+        if showsRight {
+            move(to: NSPoint(x: rightEdgeX, y: verticalEndY))
+            line(to: NSPoint(x: rightEdgeX, y: verticalStartY))
         }
     }
 }
