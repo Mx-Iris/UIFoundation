@@ -43,7 +43,7 @@ extension StackViewComponent {
     }
 
     @discardableResult
-    func size(width: CGFloat? = nil, height: CGFloat? = nil, widthPriority: NSUILayoutPriority? = nil, heightPriority: NSUILayoutPriority? = nil) -> Self {
+    public func size(width: CGFloat? = nil, height: CGFloat? = nil, widthPriority: NSUILayoutPriority? = nil, heightPriority: NSUILayoutPriority? = nil) -> Self {
         translatesAutoresizingMaskIntoConstraints = false
         if let width {
             widthAnchor.constraint(equalToConstant: width).do {
@@ -65,7 +65,7 @@ extension StackViewComponent {
     }
 
     @discardableResult
-    func minSize(width: CGFloat? = nil, height: CGFloat? = nil, widthPriority: NSUILayoutPriority? = nil, heightPriority: NSUILayoutPriority? = nil) -> Self {
+    public func minSize(width: CGFloat? = nil, height: CGFloat? = nil, widthPriority: NSUILayoutPriority? = nil, heightPriority: NSUILayoutPriority? = nil) -> Self {
         translatesAutoresizingMaskIntoConstraints = false
         if let width {
             widthAnchor.constraint(greaterThanOrEqualToConstant: width).do {
@@ -87,7 +87,7 @@ extension StackViewComponent {
     }
 
     @discardableResult
-    func maxSize(width: CGFloat? = nil, height: CGFloat? = nil, widthPriority: NSUILayoutPriority? = nil, heightPriority: NSUILayoutPriority? = nil) -> Self {
+    public func maxSize(width: CGFloat? = nil, height: CGFloat? = nil, widthPriority: NSUILayoutPriority? = nil, heightPriority: NSUILayoutPriority? = nil) -> Self {
         translatesAutoresizingMaskIntoConstraints = false
         if let width {
             widthAnchor.constraint(lessThanOrEqualToConstant: width).do {
