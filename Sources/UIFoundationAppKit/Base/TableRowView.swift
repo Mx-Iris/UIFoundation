@@ -2,13 +2,6 @@
 
 import AppKit
 
-open class NoEmphasizedTableRowView: TableRowView {
-    public override var isEmphasized: Bool {
-        set {}
-        get { false }
-    }
-}
-
 open class TableRowView: NSTableRowView {
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -19,12 +12,19 @@ open class TableRowView: NSTableRowView {
         super.init(coder: coder)
         commonInit()
     }
-    
+
     private func commonInit() {
         setup()
     }
-    
+
     open func setup() {}
+}
+
+open class NoEmphasizedTableRowView: TableRowView {
+    public override var isEmphasized: Bool {
+        set {}
+        get { false }
+    }
 }
 
 #endif
