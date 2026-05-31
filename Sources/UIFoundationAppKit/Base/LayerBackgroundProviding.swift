@@ -32,14 +32,20 @@ import AssociatedObject
 /// protocol extensions. Override it explicitly on the conformer if you want
 /// to fan an `NSShadow` out to the renderer.
 @MainActor
-public protocol LayerBackgroundProviding: NSView {}
+public protocol LayerBackgroundProviding: NSView {
+    var isLayerBackingEnabled: Bool { get }
+}
 
 extension LayerBackgroundProviding {
     @AssociatedObject(.retain(.nonatomic))
     private var backgroundRenderer: LayerBackgroundRenderer = .init()
 
-    public func attachToSelf() {
-        backgroundRenderer.attach(to: self)
+    public var isLayerBackingEnabled: Bool { true }
+
+    public func attachToSelfIfNeeded() {
+        if isLayerBackingEnabled {
+            backgroundRenderer.attach(to: self)
+        }
     }
 
     public var borderPositions: LayerBackgroundRenderer.BorderPositions {
@@ -103,13 +109,17 @@ extension LayerBackgroundProviding {
     }
 
     /// Hook for the conformer's `updateLayer()` override.
-    public func updateLayerBackground() {
-        backgroundRenderer.updateLayer()
+    public func updateLayerBackgroundIfNeeded() {
+        if isLayerBackingEnabled {
+            backgroundRenderer.updateLayer()
+        }
     }
 
     /// Hook for the conformer's `layout()` override.
-    public func layoutLayerBackground() {
-        backgroundRenderer.layout()
+    public func layoutLayerBackgroundIfNeeded() {
+        if isLayerBackingEnabled {
+            backgroundRenderer.layout()
+        }
     }
 }
 

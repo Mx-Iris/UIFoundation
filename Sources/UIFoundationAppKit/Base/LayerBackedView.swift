@@ -5,6 +5,8 @@ import UIFoundationToolbox
 
 @IBDesignable
 open class LayerBackedView: NSView, LayerBackgroundProviding {
+    open var isLayerBackingEnabled: Bool { true }
+
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         commonInit()
@@ -15,31 +17,34 @@ open class LayerBackedView: NSView, LayerBackgroundProviding {
         commonInit()
     }
 
+    private func commonInit() {
+        attachToSelfIfNeeded()
+        setup()
+    }
+
     open func setup() {}
 
     open func firstLayout() {}
 
-    private lazy var _firstLayout: Void = {
+    private lazy var _firstLayout: () -> Void = {
         firstLayout()
+        return {}
     }()
 
-    private func commonInit() {
-        attachToSelf()
-        setup()
+    open override func layout() {
+        super.layout()
+        
+        _firstLayout()
+        layoutLayerBackgroundIfNeeded()
     }
 
     open override func updateLayer() {
         super.updateLayer()
-        updateLayerBackground()
+        
+        updateLayerBackgroundIfNeeded()
     }
 
-    open override var wantsUpdateLayer: Bool { true }
-
-    open override func layout() {
-        super.layout()
-        _ = _firstLayout
-        layoutLayerBackground()
-    }
+    open override var wantsUpdateLayer: Bool { isLayerBackingEnabled }
 }
 
 public protocol ViewProtocol: NSView {}

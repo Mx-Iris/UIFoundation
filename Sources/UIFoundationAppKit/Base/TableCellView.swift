@@ -25,17 +25,43 @@ open class TableCellView: NSTableCellView {
 
     open func firstLayout() {}
 
-    private lazy var _firstLayout: Void = {
+    private lazy var _firstLayout: () -> Void = {
         firstLayout()
+        return {}
     }()
 
     open override func layout() {
         super.layout()
-        _ = _firstLayout
+        
+        _firstLayout()
     }
 }
 
-open class ImageTextTableCellView: TableCellView {
+open class LayerBackedTableCellView: TableCellView, LayerBackgroundProviding {
+    open var isLayerBackingEnabled: Bool { false }
+
+    open override func setup() {
+        super.setup()
+
+        attachToSelfIfNeeded()
+    }
+
+    open override var wantsUpdateLayer: Bool { isLayerBackingEnabled }
+
+    open override func layout() {
+        super.layout()
+
+        layoutLayerBackgroundIfNeeded()
+    }
+
+    open override func updateLayer() {
+        super.updateLayer()
+
+        updateLayerBackgroundIfNeeded()
+    }
+}
+
+open class ImageTextTableCellView: LayerBackedTableCellView {
     public let _imageView = ImageView()
     public let _textField = Label()
 
@@ -64,7 +90,7 @@ open class ImageTextTableCellView: TableCellView {
     }
 }
 
-open class TextTableCellView: TableCellView {
+open class TextTableCellView: LayerBackedTableCellView {
     public let _textField = Label()
 
     open override func setup() {
@@ -85,7 +111,7 @@ open class TextTableCellView: TableCellView {
     }
 }
 
-open class DisclosureHeaderCellView: TableCellView {
+open class DisclosureHeaderCellView: LayerBackedTableCellView {
     private let titleLabel = Label()
 
     private let disclosureButton = DisclosureButton()
