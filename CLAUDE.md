@@ -60,7 +60,7 @@ UIFoundationAppleInternal    (separate product)
 
 `UIFoundationTypealias` defines `NSUIView`, `NSUIColor`, `NSUIFont`, etc. All cross-platform code uses these aliases instead of `#if canImport` branching. Platform guard: `#if canImport(AppKit) && !targetEnvironment(macCatalyst)`.
 
-**Caveat**: `NSUIStackViewAlignment` maps to `NSLayoutConstraint.Attribute` on AppKit (not `NSStackView.Alignment`), which has different semantics than UIKit's `UIStackView.Alignment`. The StackView code uses `.hStackDefaultValue`/`.vStackDefaultValue` to bridge this difference.
+**Caveat**: Stack-view alignment intentionally does **not** use a `NSUI*` typealias — the two platforms' native types (`NSLayoutConstraint.Attribute` vs `UIStackView.Alignment`) have mismatched semantics (most notably, AppKit has no `.fill`). Instead, `UIFoundationShared` ships a unified `StackViewAlignment` enum which both `HStackView` / `VStackView` consume; it maps internally to each platform's native value, and emulates `.fill` on AppKit by setting `NSStackView.alignment = .notAnAttribute` and pinning each arranged subview's cross-axis edges (respecting `edgeInsets`). Defaults (`hStackDefaultValue` / `vStackDefaultValue`) are kept platform-specific to preserve historical behavior: `.center` on AppKit, `.fill` on UIKit.
 
 ### View Base Class Hierarchy
 
@@ -148,7 +148,7 @@ Multi-invalidation is implemented via nested `Invalidations.Tuple<I1, I2>` types
 ### `@resultBuilder` DSLs
 
 - **`@ViewHierarchyBuilder`** — Declarative view hierarchy construction. Core types: `ViewItem<View>` (supports `@dynamicMemberLookup` for property config), `ControllerItem<VC>` (handles `addChild`), `LayoutGuideItem`.
-- **`HStackView` / `VStackView`** — Use `@ArrayBuilder<StackViewComponent>` (from FrameworkToolbox), not a custom builder. `Spacer(spacing:)` and `MaxSpacer()` are special views recognized internally. macOS-only modifiers: `.gravity(_:)`, `.visibilityPriority(_:)` stored via `@AssociatedObject`.
+- **`HStackView` / `VStackView`** — Use `@ArrayBuilder<StackViewComponent>` (from FrameworkToolbox), not a custom builder. `Spacer(spacing:)` and `MaxSpacer()` are special views recognized internally. Alignment uses the cross-platform `StackViewAlignment` enum (see typealias caveat above). Per-view modifiers: `.fill()` pins this view's cross-axis edges to the stack (works on both AppKit and UIKit); `.customSpacing(_:)` (cross-platform); `.gravity(_:)` / `.visibilityPriority(_:)` (macOS-only). All stored via `@AssociatedObject` and consumed during stack assembly.
 
 ### `Then` Protocol
 

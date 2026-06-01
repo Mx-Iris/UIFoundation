@@ -142,7 +142,7 @@ open class DisclosureHeaderCellView: LayerBackedTableCellView {
         }
     }
 
-    private lazy var contentStackView = HStackView(distribution: .fill, alignment: .centerY, spacing: 8) {
+    private lazy var contentStackView = HStackView(distribution: .fill, alignment: .center, spacing: 8) {
         titleLabel
         disclosureButton
     }

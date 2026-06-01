@@ -11,6 +11,7 @@ import UIFoundationTypealias
 extension NSUIStackView {
     /// The spacing and sizing distribution of stacked views along the primary axis. Defaults to GravityAreas.
     @discardableResult
+    @inlinable
     public func distribution(_ dist: NSUIStackViewDistribution) -> Self {
         distribution = dist
         return self
@@ -18,13 +19,21 @@ extension NSUIStackView {
 
     /// The view alignment within the stack view.
     @discardableResult
-    public func alignment(_ alignment: NSUIStackViewAlignment) -> Self {
-        self.alignment = alignment
+    @inlinable
+    public func alignment(_ alignment: StackViewAlignment) -> Self {
+        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+        self.alignment = alignment.attribute(for: orientation)
+        #endif
+
+        #if canImport(UIKit)
+        self.alignment = alignment.uiStackAlignment(for: axis)
+        #endif
         return self
     }
 
     /// The minimum spacing, in points, between adjacent views in the stack view.
     @discardableResult
+    @inlinable
     public func spacing(_ spacing: CGFloat) -> Self {
         self.spacing = spacing
         return self
@@ -34,6 +43,7 @@ extension NSUIStackView {
 
     /// Indicate that the stack view removes hidden views from its view hierarchy.
     @discardableResult
+    @inlinable
     public func detachesHiddenViews(_ detaches: Bool = true) -> Self {
         detachesHiddenViews = detaches
         return self
@@ -41,6 +51,7 @@ extension NSUIStackView {
 
     /// Set the edge insets for the stack view
     @discardableResult
+    @inlinable
     public func stackPadding(_ edgeInset: CGFloat) -> Self {
         edgeInsets = NSUIEdgeInsets(edgeInset: edgeInset)
         return self
@@ -48,6 +59,7 @@ extension NSUIStackView {
 
     /// Set the edge insets for the stack view
     @discardableResult
+    @inlinable
     public func stackPadding(_ edgeInsets: NSUIEdgeInsets) -> Self {
         self.edgeInsets = edgeInsets
         return self
@@ -55,6 +67,7 @@ extension NSUIStackView {
 
     /// Sets the Auto Layout priority for the stack view to minimize its size, for a specified user interface axis.
     @discardableResult
+    @inlinable
     public func hugging(h: Float? = nil, v: Float? = nil) -> Self {
         if let h = NSUILayoutPriority.valueOrNil(h) {
             setHuggingPriority(h, for: .horizontal)
@@ -66,6 +79,7 @@ extension NSUIStackView {
     }
 
     @discardableResult
+    @inlinable
     public func clippingResistance(h: Float? = nil, v: Float? = nil) -> Self {
         if let h = NSLayoutConstraint.Priority.valueOrNil(h) {
             setClippingResistancePriority(h, for: .horizontal)
@@ -80,6 +94,7 @@ extension NSUIStackView {
 
     /// The geometric padding, in points, inside the stack view, surrounding its views.
     @discardableResult
+    @inlinable
     public func edgeInsets(_ edgeInsets: NSEdgeInsets) -> Self {
         self.edgeInsets = edgeInsets
         return self
@@ -87,12 +102,14 @@ extension NSUIStackView {
 
     /// The geometric padding, in points, inside the stack view, surrounding its views.
     @discardableResult
-    @inlinable public func edgeInsets(top: CGFloat = 0, left: CGFloat = 0, bottom: CGFloat = 0, right: CGFloat = 0) -> Self {
+    @inlinable
+    public func edgeInsets(top: CGFloat = 0, left: CGFloat = 0, bottom: CGFloat = 0, right: CGFloat = 0) -> Self {
         return edgeInsets(NSEdgeInsets(top: top, left: left, bottom: bottom, right: right))
     }
 
     /// The geometric padding, in points, inside the stack view, surrounding its views.
     @discardableResult
+    @inlinable
     public func edgeInsets(_ value: CGFloat) -> Self {
         return edgeInsets(NSEdgeInsets(top: value, left: value, bottom: value, right: value))
     }
@@ -102,6 +119,7 @@ extension NSUIStackView {
 extension NSUIView {
     /// Set the hugging priorites for the stack
     @discardableResult
+    @inlinable
     public func contentHugging(h: NSUILayoutPriority? = nil, v: NSUILayoutPriority? = nil) -> Self {
         if let h {
             setContentHuggingPriority(h, for: .horizontal)
@@ -113,6 +131,7 @@ extension NSUIView {
     }
 
     @discardableResult
+    @inlinable
     public func contentCompressionResistance(h: NSUILayoutPriority? = nil, v: NSUILayoutPriority? = nil) -> Self {
         if let h {
             setContentCompressionResistancePriority(h, for: .horizontal)
@@ -125,12 +144,14 @@ extension NSUIView {
     }
 
     @discardableResult
+    @inlinable
     public func contentCompressionResistance(h: Float? = nil, v: Float? = nil) -> Self {
         return contentCompressionResistance(h: .valueOrNil(h), v: .valueOrNil(v))
     }
 
     /// Set the hugging priorites for the stack
     @discardableResult
+    @inlinable
     public func contentHugging(h: Float? = nil, v: Float? = nil) -> Self {
         return contentHugging(h: .valueOrNil(h), v: .valueOrNil(v))
     }
@@ -147,6 +168,7 @@ extension NSUILayoutPriority {
 }
 
 extension NSUIStackViewOrientationOrAxis {
+    @inlinable
     var nsLayoutConstraintOrientationOrAxis: NSUILayoutConstraintOrientationOrAxis {
         switch self {
         case .horizontal:
@@ -169,24 +191,3 @@ extension NSUIStackViewDistribution {
     #endif
 }
 
-extension NSUIStackViewAlignment {
-    #if canImport(AppKit) && !targetEnvironment(macCatalyst)
-    public static let hStackCenter: Self = .centerY
-    public static let vStackCenter: Self = .centerX
-    #endif
-
-    #if canImport(UIKit)
-    public static let hStackCenter: Self = .center
-    public static let vStackCenter: Self = .center
-    #endif
-
-    #if canImport(AppKit) && !targetEnvironment(macCatalyst)
-    public static let hStackDefaultValue: Self = hStackCenter
-    public static let vStackDefaultValue: Self = vStackCenter
-    #endif
-
-    #if canImport(UIKit)
-    public static let hStackDefaultValue: Self = .fill
-    public static let vStackDefaultValue: Self = .fill
-    #endif
-}
