@@ -50,6 +50,61 @@ extension FrameworkToolbox where Base: NSUIView {
         layer.anchorPoint = anchorPoint
     }
 
+    /// The view's safe area layout guide if available on the current platform/OS version,
+    /// otherwise `nil`.
+    ///
+    /// - On UIKit (iOS 13+, tvOS 13+, visionOS 1+, Mac Catalyst 13+) this always returns the guide.
+    /// - On AppKit it returns the guide only on macOS 11+; on macOS 10.15 it returns `nil`.
+    public var safeAreaLayoutGuideIfAvailable: NSUILayoutGuide? {
+        #if os(macOS)
+        if #available(macOS 11.0, *) {
+            return base.safeAreaLayoutGuide
+        }
+        return nil
+        #else
+        return base.safeAreaLayoutGuide
+        #endif
+    }
+
+    /// Pins the four edges of the view to the corresponding edges of `other`.
+    ///
+    /// When `respectingSafeArea` is true, the constraints target `other.safeAreaLayoutGuide`
+    /// where it is available (see ``safeAreaLayoutGuideIfAvailable``) and fall back to the
+    /// view's raw edges otherwise.
+    ///
+    /// Also flips ``NSUIView/translatesAutoresizingMaskIntoConstraints`` to `false` and
+    /// activates the resulting constraints.
+    @discardableResult
+    public func pinEdges(to other: NSUIView, respectingSafeArea: Bool = true) -> [NSLayoutConstraint] {
+        base.translatesAutoresizingMaskIntoConstraints = false
+
+        let targetTopAnchor: NSLayoutYAxisAnchor
+        let targetLeadingAnchor: NSLayoutXAxisAnchor
+        let targetTrailingAnchor: NSLayoutXAxisAnchor
+        let targetBottomAnchor: NSLayoutYAxisAnchor
+
+        if respectingSafeArea, let safeAreaGuide = other.box.safeAreaLayoutGuideIfAvailable {
+            targetTopAnchor = safeAreaGuide.topAnchor
+            targetLeadingAnchor = safeAreaGuide.leadingAnchor
+            targetTrailingAnchor = safeAreaGuide.trailingAnchor
+            targetBottomAnchor = safeAreaGuide.bottomAnchor
+        } else {
+            targetTopAnchor = other.topAnchor
+            targetLeadingAnchor = other.leadingAnchor
+            targetTrailingAnchor = other.trailingAnchor
+            targetBottomAnchor = other.bottomAnchor
+        }
+
+        let constraints = [
+            base.topAnchor.constraint(equalTo: targetTopAnchor),
+            base.leadingAnchor.constraint(equalTo: targetLeadingAnchor),
+            base.trailingAnchor.constraint(equalTo: targetTrailingAnchor),
+            base.bottomAnchor.constraint(equalTo: targetBottomAnchor),
+        ]
+        NSLayoutConstraint.activate(constraints)
+        return constraints
+    }
+
     /// Removes all constrants from the view.
     public func removeAllConstraints() {
         var _superview = base.superview
