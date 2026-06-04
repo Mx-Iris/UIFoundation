@@ -8,6 +8,8 @@ open class VisualEffectScrollViewController<View: NSView>: NSViewController {
     public let visualEffectView = NSVisualEffectView()
 
     public let scrollView = NSScrollView()
+    
+    public var isVisualEffectEnabled: Bool { true }
 
     public init(viewGenerator: @autoclosure () -> View) {
         self.contentView = viewGenerator()
@@ -27,13 +29,36 @@ open class VisualEffectScrollViewController<View: NSView>: NSViewController {
     open func commonInit() {}
 
     open override func loadView() {
-        view = visualEffectView
-        visualEffectView.addSubview(scrollView)
+        
+        if isVisualEffectEnabled {
+            view = visualEffectView
+            visualEffectView.addSubview(scrollView)
+        } else {
+            view = NSView()
+            view.addSubview(scrollView)
+        }
+        
         scrollView.makeConstraints { make in
-            make.topAnchor.constraint(equalTo: visualEffectView.topAnchor)
-            make.leftAnchor.constraint(equalTo: visualEffectView.leftAnchor)
-            make.rightAnchor.constraint(equalTo: visualEffectView.rightAnchor)
-            make.bottomAnchor.constraint(equalTo: visualEffectView.bottomAnchor)
+            if #available(macOS 11.0, *) {
+                make.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor)
+            } else {
+                make.topAnchor.constraint(equalTo: view.topAnchor)
+            }
+            if #available(macOS 11.0, *) {
+                make.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor)
+            } else {
+                make.leadingAnchor.constraint(equalTo: view.leadingAnchor)
+            }
+            if #available(macOS 11.0, *) {
+                make.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor)
+            } else {
+                make.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+            }
+            if #available(macOS 11.0, *) {
+                make.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+            } else {
+                make.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            }
         }
 
         scrollView.documentView = contentView
