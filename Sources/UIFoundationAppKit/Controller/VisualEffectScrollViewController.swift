@@ -9,7 +9,7 @@ open class VisualEffectScrollViewController<View: NSView>: NSViewController {
 
     public let scrollView = NSScrollView()
     
-    public var isVisualEffectEnabled: Bool { true }
+    open var isVisualEffectEnabled: Bool { true }
 
     public init(viewGenerator: @autoclosure () -> View) {
         self.contentView = viewGenerator()
