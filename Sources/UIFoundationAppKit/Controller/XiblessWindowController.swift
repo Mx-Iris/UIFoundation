@@ -5,7 +5,11 @@ import AppKit
 open class XiblessWindowController<Window: NSWindow>: NSWindowController {
     public lazy var contentWindow: Window = windowGenerator() {
         didSet {
-            window = contentWindow
+            // Mirror `XiblessViewController`: only react after the window is loaded.
+            // While unloaded, `loadWindow()` will pick up the new value through the
+            // lazy var when it eventually runs.
+            guard isWindowLoaded else { return }
+            contentWindowDidChange(oldValue)
         }
     }
 
@@ -24,6 +28,13 @@ open class XiblessWindowController<Window: NSWindow>: NSWindowController {
     open override var windowNibName: NSNib.Name? { "" }
 
     open override func loadWindow() {
+        window = contentWindow
+    }
+
+    /// Called from `contentWindow`'s `didSet` only after the window is loaded.
+    /// Subclasses override this to rewire setup tied to the new window; the
+    /// default swaps the controller's `window` reference.
+    open func contentWindowDidChange(_ oldContentWindow: Window) {
         window = contentWindow
     }
 }

@@ -20,7 +20,7 @@ open class CollectionViewItem: NSCollectionViewItem {
         view = LayerBackedView()
     }
 
-    private func commonInit() {}
+    open func commonInit() {}
 
     open func setHighlightImage(_ image: NSImage?, forState highlightState: HighlightState) {
         if let image {
