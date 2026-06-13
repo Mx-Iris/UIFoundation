@@ -8,8 +8,11 @@ import UIKit
 
 import UIFoundationTypealias
 
+// MARK: - Deprecated NSUIStackView configuration (moved to the `.box` namespace)
+
 extension NSUIStackView {
     /// The spacing and sizing distribution of stacked views along the primary axis. Defaults to GravityAreas.
+    @available(*, deprecated, message: "Use `.box.distribution(_:)` instead.")
     @discardableResult
     @inlinable
     public func distribution(_ dist: NSUIStackViewDistribution) -> Self {
@@ -18,6 +21,7 @@ extension NSUIStackView {
     }
 
     /// The view alignment within the stack view.
+    @available(*, deprecated, message: "Use `.box.alignment(_:)` instead.")
     @discardableResult
     @inlinable
     public func alignment(_ alignment: StackViewAlignment) -> Self {
@@ -32,6 +36,7 @@ extension NSUIStackView {
     }
 
     /// The minimum spacing, in points, between adjacent views in the stack view.
+    @available(*, deprecated, message: "Use `.box.spacing(_:)` instead.")
     @discardableResult
     @inlinable
     public func spacing(_ spacing: CGFloat) -> Self {
@@ -42,6 +47,7 @@ extension NSUIStackView {
     #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
     /// Indicate that the stack view removes hidden views from its view hierarchy.
+    @available(*, deprecated, message: "Use `.box.detachesHiddenViews(_:)` instead.")
     @discardableResult
     @inlinable
     public func detachesHiddenViews(_ detaches: Bool = true) -> Self {
@@ -50,6 +56,7 @@ extension NSUIStackView {
     }
 
     /// Set the edge insets for the stack view
+    @available(*, deprecated, message: "Use `.box.stackPadding(_:)` instead.")
     @discardableResult
     @inlinable
     public func stackPadding(_ edgeInset: CGFloat) -> Self {
@@ -58,6 +65,7 @@ extension NSUIStackView {
     }
 
     /// Set the edge insets for the stack view
+    @available(*, deprecated, message: "Use `.box.stackPadding(_:)` instead.")
     @discardableResult
     @inlinable
     public func stackPadding(_ edgeInsets: NSUIEdgeInsets) -> Self {
@@ -66,6 +74,7 @@ extension NSUIStackView {
     }
 
     /// Sets the Auto Layout priority for the stack view to minimize its size, for a specified user interface axis.
+    @available(*, deprecated, message: "Use `.box.hugging(h:v:)` instead.")
     @discardableResult
     @inlinable
     public func hugging(h: Float? = nil, v: Float? = nil) -> Self {
@@ -78,6 +87,7 @@ extension NSUIStackView {
         return self
     }
 
+    @available(*, deprecated, message: "Use `.box.clippingResistance(h:v:)` instead.")
     @discardableResult
     @inlinable
     public func clippingResistance(h: Float? = nil, v: Float? = nil) -> Self {
@@ -93,6 +103,7 @@ extension NSUIStackView {
     // MARK: - Edge insets
 
     /// The geometric padding, in points, inside the stack view, surrounding its views.
+    @available(*, deprecated, message: "Use `.box.edgeInsets(_:)` instead.")
     @discardableResult
     @inlinable
     public func edgeInsets(_ edgeInsets: NSEdgeInsets) -> Self {
@@ -101,6 +112,7 @@ extension NSUIStackView {
     }
 
     /// The geometric padding, in points, inside the stack view, surrounding its views.
+    @available(*, deprecated, message: "Use `.box.edgeInsets(top:left:bottom:right:)` instead.")
     @discardableResult
     @inlinable
     public func edgeInsets(top: CGFloat = 0, left: CGFloat = 0, bottom: CGFloat = 0, right: CGFloat = 0) -> Self {
@@ -108,6 +120,7 @@ extension NSUIStackView {
     }
 
     /// The geometric padding, in points, inside the stack view, surrounding its views.
+    @available(*, deprecated, message: "Use `.box.edgeInsets(_:)` instead.")
     @discardableResult
     @inlinable
     public func edgeInsets(_ value: CGFloat) -> Self {
@@ -116,8 +129,11 @@ extension NSUIStackView {
     #endif
 }
 
+// MARK: - Deprecated content-priority helpers (moved to the `.box` namespace)
+
 extension NSUIView {
     /// Set the hugging priorites for the stack
+    @available(*, deprecated, message: "Use `.box.contentHugging(h:v:)` instead.")
     @discardableResult
     @inlinable
     public func contentHugging(h: NSUILayoutPriority? = nil, v: NSUILayoutPriority? = nil) -> Self {
@@ -130,6 +146,7 @@ extension NSUIView {
         return self
     }
 
+    @available(*, deprecated, message: "Use `.box.contentCompressionResistance(h:v:)` instead.")
     @discardableResult
     @inlinable
     public func contentCompressionResistance(h: NSUILayoutPriority? = nil, v: NSUILayoutPriority? = nil) -> Self {
@@ -143,6 +160,7 @@ extension NSUIView {
         return self
     }
 
+    @available(*, deprecated, message: "Use `.box.contentCompressionResistance(h:v:)` instead.")
     @discardableResult
     @inlinable
     public func contentCompressionResistance(h: Float? = nil, v: Float? = nil) -> Self {
@@ -150,12 +168,15 @@ extension NSUIView {
     }
 
     /// Set the hugging priorites for the stack
+    @available(*, deprecated, message: "Use `.box.contentHugging(h:v:)` instead.")
     @discardableResult
     @inlinable
     public func contentHugging(h: Float? = nil, v: Float? = nil) -> Self {
         return contentHugging(h: .valueOrNil(h), v: .valueOrNil(v))
     }
 }
+
+// MARK: - Type helpers (unchanged)
 
 extension NSUILayoutPriority {
     #if canImport(AppKit) && !targetEnvironment(macCatalyst)
@@ -190,4 +211,3 @@ extension NSUIStackViewDistribution {
     public static let defaultValue: Self = .fill
     #endif
 }
-

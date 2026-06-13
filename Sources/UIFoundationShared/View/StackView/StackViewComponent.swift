@@ -11,43 +11,52 @@ import AssociatedObject
 
 public protocol StackViewComponent: NSUIView {}
 
+// MARK: - Deprecated size helpers (moved to the `.box` namespace)
+
 extension StackViewComponent {
+    @available(*, deprecated, message: "Use `.box.size(_:)` instead.")
     @discardableResult
     @inlinable
     public func size(_ size: CGSize) -> Self {
         self.size(width: size.width, height: size.height)
     }
 
+    @available(*, deprecated, message: "Use `.box.size(_:)` instead.")
     @discardableResult
     @inlinable
     public func size(_ size: CGFloat) -> Self {
         self.size(width: size, height: size)
     }
-    
+
+    @available(*, deprecated, message: "Use `.box.minSize(_:)` instead.")
     @discardableResult
     @inlinable
     public func minSize(_ size: CGSize) -> Self {
         self.minSize(width: size.width, height: size.height)
     }
 
+    @available(*, deprecated, message: "Use `.box.minSize(_:)` instead.")
     @discardableResult
     @inlinable
     public func minSize(_ size: CGFloat) -> Self {
         self.minSize(width: size, height: size)
     }
-    
+
+    @available(*, deprecated, message: "Use `.box.maxSize(_:)` instead.")
     @discardableResult
     @inlinable
     public func maxSize(_ size: CGSize) -> Self {
         self.maxSize(width: size.width, height: size.height)
     }
 
+    @available(*, deprecated, message: "Use `.box.maxSize(_:)` instead.")
     @discardableResult
     @inlinable
     public func maxSize(_ size: CGFloat) -> Self {
         self.maxSize(width: size, height: size)
     }
 
+    @available(*, deprecated, message: "Use `.box.size(width:height:widthPriority:heightPriority:)` instead.")
     @discardableResult
     public func size(width: CGFloat? = nil, height: CGFloat? = nil, widthPriority: NSUILayoutPriority? = nil, heightPriority: NSUILayoutPriority? = nil) -> Self {
         translatesAutoresizingMaskIntoConstraints = false
@@ -70,6 +79,7 @@ extension StackViewComponent {
         return self
     }
 
+    @available(*, deprecated, message: "Use `.box.minSize(width:height:widthPriority:heightPriority:)` instead.")
     @discardableResult
     public func minSize(width: CGFloat? = nil, height: CGFloat? = nil, widthPriority: NSUILayoutPriority? = nil, heightPriority: NSUILayoutPriority? = nil) -> Self {
         translatesAutoresizingMaskIntoConstraints = false
@@ -92,6 +102,7 @@ extension StackViewComponent {
         return self
     }
 
+    @available(*, deprecated, message: "Use `.box.maxSize(width:height:widthPriority:heightPriority:)` instead.")
     @discardableResult
     public func maxSize(width: CGFloat? = nil, height: CGFloat? = nil, widthPriority: NSUILayoutPriority? = nil, heightPriority: NSUILayoutPriority? = nil) -> Self {
         translatesAutoresizingMaskIntoConstraints = false
@@ -117,12 +128,18 @@ extension StackViewComponent {
 
 extension NSUIView: StackViewComponent {}
 
+// MARK: - Stack-specific per-component modifiers
+
+// Associated storage backing the `.stackView` per-component modifiers (see `StackViewNamespace`).
+// Setters are module-internal (no `private(set)`) so the namespace wrapper in another file can
+// mutate them. Read back during stack assembly in `StackView.swift`.
 extension StackViewComponent {
     #if canImport(AppKit) && !targetEnvironment(macCatalyst)
     @usableFromInline
     @AssociatedObject(.copy(.nonatomic))
-    private(set) var _gravity: NSStackView.Gravity?
+    var _gravity: NSStackView.Gravity?
 
+    @available(*, deprecated, message: "Use `stackView.gravity(_:)` instead.")
     @discardableResult
     @inlinable
     public func gravity(_ gravity: NSStackView.Gravity) -> Self {
@@ -132,8 +149,9 @@ extension StackViewComponent {
 
     @usableFromInline
     @AssociatedObject(.copy(.nonatomic))
-    private(set) var _visibilityPriority: NSStackView.VisibilityPriority?
+    var _visibilityPriority: NSStackView.VisibilityPriority?
 
+    @available(*, deprecated, message: "Use `stackView.visibilityPriority(_:)` instead.")
     @discardableResult
     @inlinable
     public func visibilityPriority(_ visibilityPriority: NSStackView.VisibilityPriority) -> Self {
@@ -145,8 +163,9 @@ extension StackViewComponent {
 
     @usableFromInline
     @AssociatedObject(.copy(.nonatomic))
-    private(set) var _customSpacing: CGFloat?
+    var _customSpacing: CGFloat?
 
+    @available(*, deprecated, message: "Use `stackView.customSpacing(_:)` instead.")
     @discardableResult
     @inlinable
     public func customSpacing(_ customSpacing: CGFloat) -> Self {
@@ -156,14 +175,9 @@ extension StackViewComponent {
 
     @usableFromInline
     @AssociatedObject(.copy(.nonatomic))
-    private(set) var _fillsCrossAxis: Bool?
+    var _fillsCrossAxis: Bool?
 
-    /// Pins this view to the stack view's cross-axis edges (top/bottom for horizontal stacks,
-    /// leading/trailing for vertical stacks), matching `UIStackView.Alignment.fill` semantics for
-    /// a single arranged subview.
-    ///
-    /// AppKit-side constraints are inset by the stack view's `edgeInsets`.
-    /// Avoid combining with a conflicting cross-axis size constraint on the same view.
+    @available(*, deprecated, message: "Use `stackView.fill()` instead.")
     @discardableResult
     @inlinable
     public func fill() -> Self {

@@ -46,7 +46,6 @@ extension StackViewAlignment {
     ///
     /// `.fill` and axis-inapplicable cases return `.notAnAttribute`; `.fill` requires
     /// additional per-view pinning constraints, handled at stack assembly time.
-    @usableFromInline
     @inlinable
     func attribute(for orientation: NSUserInterfaceLayoutOrientation) -> NSLayoutConstraint.Attribute {
         switch (self, orientation) {
@@ -81,7 +80,6 @@ extension StackViewAlignment {
     }
 
     /// `true` when the alignment requires cross-axis pinning constraints on each arranged subview.
-    @usableFromInline
     @inlinable
     var requiresCrossAxisFill: Bool {
         self == .fill

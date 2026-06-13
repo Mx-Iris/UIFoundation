@@ -9,7 +9,6 @@ import UIKit
 import UIFoundationTypealias
 
 extension NSUILayoutPriority {
-    @usableFromInline
     @inlinable
     static func valueOrNil(_ value: Float?) -> NSUILayoutPriority? {
         guard let v = value else { return nil }
@@ -18,7 +17,6 @@ extension NSUILayoutPriority {
 }
 
 extension NSUIEdgeInsets {
-    @usableFromInline
     @inlinable
     init(edgeInset: CGFloat) {
         self.init(top: edgeInset, left: edgeInset, bottom: edgeInset, right: edgeInset)
