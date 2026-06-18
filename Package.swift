@@ -73,14 +73,10 @@ let package = Package(
         .trait(name: "IDEIcons"),
         .trait(name: "NSAttributedStringBuilder"),
         .trait(name: "QuickActionBar"),
+        .trait(name: "TabsControl"),
     ],
     dependencies: [
         .package(
-            local: .package(
-                path: "../FrameworkToolbox",
-                isRelative: true,
-                isEnabled: false
-            ),
             remote: .package(
                 url: "https://github.com/Mx-Iris/FrameworkToolbox",
                 from: "0.4.0"
@@ -129,6 +125,7 @@ let package = Package(
                 .process("Filter/Resources/MoreSymbols.xcassets"),
                 .process("Filter/Resources/Localization"),
                 .process("Filter/Resources/Documentation.docc"),
+                .copy("TabsControl/Templates"),
             ],
             swiftSettings: swiftSettings,
         ),

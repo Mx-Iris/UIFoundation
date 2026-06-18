@@ -271,8 +271,36 @@ Differences from upstream `DSFQuickActionBar`:
 - `PrivacyInfo.xcprivacy` is not bundled (UIFoundation has no privacy manifest of its own).
 - Original MIT license and per-file copyright are preserved, plus a top-level entry in `THIRD_PARTY_LICENSES.md` at the repo root.
 
+### Tabs Control (ported from `onekiloparsec/KPCTabsControl`)
+
+Numbers.app-style multi-tab control for macOS (editable / reorderable / closable tabs, with `Default`, `Chrome`, and `Safari` styles). Ships as an **opt-in SPM trait** called `TabsControl` (default: disabled), mirroring the `FilterUI` / `QuickActionBar` pattern:
+
+```swift
+.package(url: "…/UIFoundation", traits: ["TabsControl"])     // SPM dependency
+swift build --traits TabsControl                              // CLI
+swift test  --traits TabsControl                              // CLI
+```
+
+```swift
+let tabs = TabsControl()
+tabs.dataSource = self          // TabsControl.DataSource
+tabs.delegate = self            // TabsControl.Delegate
+tabs.style = TabsControl.DefaultStyle()   // or .ChromeStyle() / .SafariStyle()
+tabs.reloadTabs()
+```
+
+Wiring:
+- `traits: [..., .trait(name: "TabsControl")]` in `Package.swift`
+- Every source file under `Sources/UIFoundationAppKit/TabsControl/**/*.swift` is wrapped in `#if TabsControl && os(macOS) … #endif`
+- macOS-only; the file-level `#if` additionally requires `os(macOS)`, so the trait compiles to nothing on UIKit / Catalyst / tvOS / visionOS / watchOS
+- PDF template glyphs live in `Sources/UIFoundationAppKit/TabsControl/Templates/` and are bundled via `.copy("TabsControl/Templates")` (always copied, harmless when the trait is off); loaded with `Bundle.module.url(forResource:withExtension:subdirectory:)`
+- Per the unique-basename rule (see Code Style Notes), feature-scoped files are prefixed `TabsControl+…` (e.g. the ported `Helpers.swift` became `TabsControl+Geometry.swift`, `Style.swift` → `TabsControl+Style.swift`); distinctive names such as `TabButton.swift` / `TabButtonCell.swift` keep their name, and per-class extensions stay `NSClassName+TabsControl.swift`
+
+**Namespace convention (key difference from upstream):** to avoid polluting the umbrella module's top-level namespace with generic names, the entire public API is **nested under the `TabsControl` class** — Swift ≥ 6.3 (Swift 5 language mode included) permits nesting protocols inside types, which this relies on. Only `TabsControl` and `TabButton` stay top-level. Map: `Style`/`ThemedStyle`/`Theme` → `TabsControl.Style`/`.ThemedStyle`/`.Theme`; `TabButtonTheme`/`TabsControlTheme` → `TabsControl.ButtonTheme`/`.ControlTheme`; `TabsControlDataSource`/`TabsControlDelegate` → `TabsControl.DataSource`/`.Delegate`; `TabPosition`/`ClosePosition`/`TabWidth`/`TabSelectionState` → `TabsControl.TabPosition`/`.ClosePosition`/`.TabWidth`/`.SelectionState`; `DefaultStyle`/`ChromeStyle`/`SafariStyle` (+ matching themes) → nested; `Offset`/`IconFrames`/`TitleEditorSettings`/`BorderMask`/`TitleDefaults` → nested; the old global `TabsControlSelectionDidChangeNotification` string is now `TabsControl.selectionDidChangeNotification` (`Notification.Name`). Files whose content is a protocol default-impl extension (`extension TabsControl.ThemedStyle`, `extension TabsControl.Theme`) are **not** lexically inside `TabsControl`, so sibling nested types there must be fully qualified as `TabsControl.X`; declaration files using `extension TabsControl { … }` resolve short names.
+
 ## Code Style Notes
 
+- **Unique basenames per target**: within a single SPM target, every source file must have a unique file*name* — SwiftPM keys compiled object files by basename, so two same-named files in one target (even in different subdirectories) fail the build with `couldn't build …o because of multiple producers`. Prefix feature-scoped files with the feature name (`QuickActionBar+Helpers.swift`, `TabsControl+Style.swift`) instead of relying on subdirectory paths to disambiguate. The `QuickActionBar/` and `TabsControl/` feature dirs follow `Feature.swift` (entry) + `Feature+Descriptor.swift` for everything else, keeping only distinctive type-named files (e.g. `TabButton.swift`) unprefixed.
 - Extensions on AppKit/UIKit classes follow the naming convention `NSClassName+.swift`
 - One extension file per class in `UIFoundationToolbox/AppKit/`
 - Button style subclasses live in `UIFoundationAppKit/Button/StyleSplittedButton/` (e.g., `PushButton`, `SwitchButton`, `HelpButton`)
