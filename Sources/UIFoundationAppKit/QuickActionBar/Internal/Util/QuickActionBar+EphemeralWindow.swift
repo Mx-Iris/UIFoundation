@@ -1,5 +1,5 @@
 //
-//  EphemeralWindow.swift
+//  QuickActionBar+EphemeralWindow.swift
 //  UIFoundation
 //
 //  Ported into UIFoundation from DSFQuickActionBar by Darren Ford

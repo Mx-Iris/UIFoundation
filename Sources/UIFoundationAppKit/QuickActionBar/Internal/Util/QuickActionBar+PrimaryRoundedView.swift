@@ -1,5 +1,5 @@
 //
-//  PrimaryRoundedView.swift
+//  QuickActionBar+PrimaryRoundedView.swift
 //  UIFoundation
 //
 //  Ported into UIFoundation from DSFQuickActionBar by Darren Ford

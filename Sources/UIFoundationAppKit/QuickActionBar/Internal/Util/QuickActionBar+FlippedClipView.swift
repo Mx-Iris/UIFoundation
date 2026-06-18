@@ -1,5 +1,5 @@
 //
-//  FlippedClipView.swift
+//  QuickActionBar+FlippedClipView.swift
 //  UIFoundation
 //
 //  Ported into UIFoundation from DSFQuickActionBar by Darren Ford

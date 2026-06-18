@@ -1,5 +1,5 @@
 //
-//  Helpers.swift
+//  QuickActionBar+Helpers.swift
 //  UIFoundation
 //
 //  Internal static helpers used by `QuickActionBar`. Replaces

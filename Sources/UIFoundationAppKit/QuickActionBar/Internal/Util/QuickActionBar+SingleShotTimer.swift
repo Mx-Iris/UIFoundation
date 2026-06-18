@@ -1,5 +1,5 @@
 //
-//  SingleShotTimer.swift
+//  QuickActionBar+SingleShotTimer.swift
 //  UIFoundation
 //
 //  Ported into UIFoundation from DSFQuickActionBar by Darren Ford

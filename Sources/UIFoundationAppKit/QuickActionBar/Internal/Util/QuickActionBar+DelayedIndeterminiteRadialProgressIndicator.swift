@@ -1,5 +1,5 @@
 //
-//  DelayedIndeterminiteRadialProgressIndicator.swift
+//  QuickActionBar+DelayedIndeterminiteRadialProgressIndicator.swift
 //  UIFoundation
 //
 //  Ported into UIFoundation from DSFQuickActionBar by Darren Ford

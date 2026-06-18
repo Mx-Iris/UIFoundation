@@ -1,5 +1,5 @@
 //
-//  TransparentBackgroundScroller.swift
+//  QuickActionBar+TransparentBackgroundScroller.swift
 //  UIFoundation
 //
 //  Ported into UIFoundation from DSFQuickActionBar by Darren Ford
