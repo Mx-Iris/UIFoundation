@@ -78,6 +78,13 @@ class TextFinderDemoViewController: NSViewController {
         setupTextFinder()
     }
 
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        // Make the outline the first responder so ⌘F reaches this view controller
+        // through the responder chain while it is embedded in the demo browser.
+        view.window?.makeFirstResponder(outlineView)
+    }
+
     private func setupOutlineView() {
         let nameColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("NameColumn"))
         nameColumn.title = "Name"
@@ -169,7 +176,7 @@ extension TextFinderDemoViewController: NSOutlineViewDelegate {
         guard let fileNode = item as? FileNode, let tableColumn else { return nil }
 
         let cellIdentifier = tableColumn.identifier
-        
+
         let cellView: NSTableCellView = outlineView.box.makeView(identifier: cellIdentifier) {
             let cellView = NSTableCellView()
             cellView.identifier = cellIdentifier

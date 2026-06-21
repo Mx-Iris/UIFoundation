@@ -9,29 +9,16 @@
 /* Begin PBXBuildFile section */
 		E94046812FB61EB0008552BF /* UIFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = E94046802FB61EB0008552BF /* UIFoundation */; };
 		E94046832FB61EB0008552BF /* UIFoundationToolbox in Frameworks */ = {isa = PBXBuildFile; productRef = E94046822FB61EB0008552BF /* UIFoundationToolbox */; };
-		E943A7AD2AF76E0E00526917 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E943A7AC2AF76E0E00526917 /* AppDelegate.swift */; };
-		E943A7AF2AF76E0E00526917 /* MainStoryboardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E943A7AE2AF76E0E00526917 /* MainStoryboardViewController.swift */; };
-		E943A7B12AF76E0F00526917 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E943A7B02AF76E0F00526917 /* Assets.xcassets */; };
-		E943A7B42AF76E0F00526917 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = E943A7B22AF76E0F00526917 /* Main.storyboard */; };
 		E943A7DD2AF76F1100526917 /* UIFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = E943A7DC2AF76F1100526917 /* UIFoundation */; };
-		E943A7DF2AF770A200526917 /* MainSplitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E943A7DE2AF770A200526917 /* MainSplitViewController.swift */; };
-		E943A7E12AF7731F00526917 /* MainWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E943A7E02AF7731F00526917 /* MainWindowController.swift */; };
-		E943A7E32AF7739300526917 /* SidebarTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E943A7E22AF7739300526917 /* SidebarTableViewController.swift */; };
-		E943A7F02B0A000000526917 /* TextFinderDemoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E943A7EF2B0A000000526917 /* TextFinderDemoViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		E943A7A92AF76E0E00526917 /* UIFoundationExample-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "UIFoundationExample-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		E943A7AC2AF76E0E00526917 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		E943A7AE2AF76E0E00526917 /* MainStoryboardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainStoryboardViewController.swift; sourceTree = "<group>"; };
-		E943A7B02AF76E0F00526917 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		E943A7B32AF76E0F00526917 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
-		E943A7B52AF76E0F00526917 /* UIFoundationExample_macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = UIFoundationExample_macOS.entitlements; sourceTree = "<group>"; };
-		E943A7DE2AF770A200526917 /* MainSplitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainSplitViewController.swift; sourceTree = "<group>"; };
-		E943A7E02AF7731F00526917 /* MainWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowController.swift; sourceTree = "<group>"; };
-		E943A7E22AF7739300526917 /* SidebarTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarTableViewController.swift; sourceTree = "<group>"; };
-		E943A7EF2B0A000000526917 /* TextFinderDemoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextFinderDemoViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		E943A7AB2AF76E0E00526917 /* UIFoundationExample-macOS */ = {isa = PBXFileSystemSynchronizedRootGroup; path = "UIFoundationExample-macOS"; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		E943A7A62AF76E0E00526917 /* Frameworks */ = {
@@ -62,22 +49,6 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		E943A7AB2AF76E0E00526917 /* UIFoundationExample-macOS */ = {
-			isa = PBXGroup;
-			children = (
-				E943A7AC2AF76E0E00526917 /* AppDelegate.swift */,
-				E943A7E02AF7731F00526917 /* MainWindowController.swift */,
-				E943A7DE2AF770A200526917 /* MainSplitViewController.swift */,
-				E943A7E22AF7739300526917 /* SidebarTableViewController.swift */,
-				E943A7AE2AF76E0E00526917 /* MainStoryboardViewController.swift */,
-				E943A7EF2B0A000000526917 /* TextFinderDemoViewController.swift */,
-				E943A7B02AF76E0F00526917 /* Assets.xcassets */,
-				E943A7B22AF76E0F00526917 /* Main.storyboard */,
-				E943A7B52AF76E0F00526917 /* UIFoundationExample_macOS.entitlements */,
-			);
-			path = "UIFoundationExample-macOS";
-			sourceTree = "<group>";
-		};
 		E943A7DB2AF76F1100526917 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -97,6 +68,9 @@
 				E943A7A72AF76E0E00526917 /* Resources */,
 			);
 			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				E943A7AB2AF76E0E00526917 /* UIFoundationExample-macOS */,
 			);
 			name = "UIFoundationExample-macOS";
 			packageProductDependencies = (
@@ -148,8 +122,6 @@
 		E943A7A72AF76E0E00526917 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
-				E943A7B12AF76E0F00526917 /* Assets.xcassets in Resources */,
-				E943A7B42AF76E0F00526917 /* Main.storyboard in Resources */,
 			);
 		};
 /* End PBXResourcesBuildPhase section */
@@ -158,26 +130,9 @@
 		E943A7A52AF76E0E00526917 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			files = (
-				E943A7AF2AF76E0E00526917 /* MainStoryboardViewController.swift in Sources */,
-				E943A7AD2AF76E0E00526917 /* AppDelegate.swift in Sources */,
-				E943A7E12AF7731F00526917 /* MainWindowController.swift in Sources */,
-				E943A7DF2AF770A200526917 /* MainSplitViewController.swift in Sources */,
-				E943A7E32AF7739300526917 /* SidebarTableViewController.swift in Sources */,
-				E943A7F02B0A000000526917 /* TextFinderDemoViewController.swift in Sources */,
 			);
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXVariantGroup section */
-		E943A7B22AF76E0F00526917 /* Main.storyboard */ = {
-			isa = PBXVariantGroup;
-			children = (
-				E943A7B32AF76E0F00526917 /* Base */,
-			);
-			name = Main.storyboard;
-			sourceTree = "<group>";
-		};
-/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		E943A7B62AF76E0F00526917 /* Debug configuration for PBXProject "UIFoundationExample-macOS" */ = {
@@ -390,6 +345,7 @@
 				FilterUI,
 				IDEIcons,
 				NSAttributedStringBuilder,
+				TabsControl,
 			);
 		};
 /* End XCLocalSwiftPackageReference section */
