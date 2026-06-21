@@ -19,7 +19,7 @@ open class TabButton: NSButton {
     private var alternativeTitleIconView: NSImageView?
     private var trackingArea: NSTrackingArea?
 
-    private var tabButtonCell: TabButtonCell
+    private var tabButtonCell: TabButtonCell { cell as! TabButtonCell }
 
     open var item: Any? {
         get { cell?.representedObject }
@@ -119,7 +119,7 @@ open class TabButton: NSButton {
     init(index: Int, item: Any?, target: AnyObject?, action: Selector?, style: TabsControl.Style) {
         self.index = index
         self.style = style
-        self.tabButtonCell = TabButtonCell(textCell: "", style: style)
+        let tabButtonCell = TabButtonCell(textCell: "", style: style)
         super.init(frame: .zero)
 
         tabButtonCell.representedObject = item

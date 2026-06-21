@@ -20,7 +20,7 @@ extension TabsControl {
         public init() {}
 
         public let tabButtonTheme: ButtonTheme = DefaultButtonTheme()
-        public let selectedTabButtonTheme: ButtonTheme = SelectedButtonTheme(base: DefaultButtonTheme())
+        public let selectedTabButtonTheme: ButtonTheme = SelectedButtonTheme()
         public let unselectableTabButtonTheme: ButtonTheme = UnselectableButtonTheme(base: DefaultButtonTheme())
         public let tabsControlTheme: ControlTheme = DefaultControlTheme()
 
@@ -35,8 +35,6 @@ extension TabsControl {
         }
 
         fileprivate struct SelectedButtonTheme: ButtonTheme {
-            let base: DefaultButtonTheme
-
             var backgroundColor: NSColor { .controlAccentColor }
             var borderColor: NSColor { NSColor.separatorColor }
             var titleColor: NSColor { .labelColor }

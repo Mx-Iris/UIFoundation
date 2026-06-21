@@ -16,16 +16,10 @@ import AppKit
 /// `TabsControl` is the main class of the component, and is designed to suffice for implementing tabs in your app.
 /// The only necessary thing for it to work is an implementation of its `dataSource`.
 open class TabsControl: NSControl, NSTextDelegate {
-    private var ScrollViewObservationContext: UnsafeMutableRawPointer?
     private var delegateInterceptor = TabsControlDelegateInterceptor()
 
     private lazy var scrollView = NSScrollView(frame: bounds)
     private lazy var tabsView = NSView(frame: scrollView.bounds)
-
-    private var addButton: NSButton?
-    private var scrollLeftButton: NSButton?
-    private var scrollRightButton: NSButton?
-    private var hideScrollButtons: Bool = true
 
     private var editingTab: (title: String, button: TabButton)?
 
@@ -86,43 +80,7 @@ open class TabsControl: NSControl, NSTextDelegate {
 
         addSubview(scrollView)
 
-        if hideScrollButtons == false {
-            let scrollLeftButton = NSButton.auxiliaryButton(
-                withImageNamed: "TabLeftTemplate",
-                target: self,
-                action: #selector(TabsControl.scrollTabView(_:))
-            )
-
-            let scrollRightButton = NSButton.auxiliaryButton(
-                withImageNamed: "TabRightTemplate",
-                target: self,
-                action: #selector(TabsControl.scrollTabView(_:))
-            )
-
-            scrollLeftButton.autoresizingMask = .minXMargin
-            scrollRightButton.autoresizingMask = .minXMargin
-
-            let leftCell = scrollLeftButton.cell as! TabButtonCell
-            leftCell.buttonPosition = .first
-
-            addSubview(scrollLeftButton)
-            addSubview(scrollRightButton)
-
-            // This is typically what autolayout is supposed to help avoiding.
-            // But for pixel-control freaking guys like me, I see no escape.
-            var r = CGRect.zero
-            r.size.height = scrollView.frame.height
-            r.size.width = scrollLeftButton.frame.width
-            r.origin.x = scrollView.frame.maxX - r.size.width
-            scrollRightButton.frame = r
-            r.origin.x -= r.size.width
-            scrollLeftButton.frame = r
-            self.scrollLeftButton = scrollLeftButton
-            self.scrollRightButton = scrollRightButton
-        }
-
         startObservingScrollView()
-        updateAuxiliaryButtons()
     }
 
     deinit {
@@ -184,12 +142,16 @@ open class TabsControl: NSControl, NSTextDelegate {
                 button.closePosition = dataSource.tabsControl?(self, closePositionForItem: item)
                 button.closeTarget = self
                 button.closeAction = #selector(TabsControl.closeTab(_:))
+            } else {
+                button.closeIcon = nil
+                button.closePosition = nil
+                button.closeTarget = nil
+                button.closeAction = nil
             }
             button.alternativeTitleIcon = dataSource.tabsControl?(self, titleAlternativeIconForItem: item)
         }
 
         layoutTabButtons(nil, animated: false)
-        updateAuxiliaryButtons()
         invalidateRestorableState()
     }
 
@@ -197,7 +159,6 @@ open class TabsControl: NSControl, NSTextDelegate {
 
     private func updateTabs(animated: Bool = false) {
         layoutTabButtons(nil, animated: animated)
-        updateAuxiliaryButtons()
         invalidateRestorableState()
     }
 
@@ -247,26 +208,9 @@ open class TabsControl: NSControl, NSTextDelegate {
         }
     }
 
-    private func updateAuxiliaryButtons() {
-        let contentView = scrollView.contentView
-        let showScrollButtons = (contentView.subviews.count > 0) && (contentView.subviews[0].frame.maxX > contentView.bounds.width)
-
-        scrollLeftButton?.isHidden = !showScrollButtons
-        scrollRightButton?.isHidden = !showScrollButtons
-
-        if showScrollButtons == true {
-            scrollLeftButton?.isEnabled = visibilityCondition(forButton: scrollLeftButton!, forLeftHandSide: true)
-            scrollRightButton?.isEnabled = visibilityCondition(forButton: scrollRightButton!, forLeftHandSide: false)
-        }
-    }
-
     // MARK: - ScrollView Observation
 
     private func startObservingScrollView() {
-        // TODO: replace this with scroll view change notifications
-        scrollView.addObserver(self, forKeyPath: "frame", options: .new, context: &ScrollViewObservationContext)
-        scrollView.addObserver(self, forKeyPath: "documentView.frame", options: .new, context: &ScrollViewObservationContext)
-
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(TabsControl.scrollViewDidScroll(_:)),
@@ -276,9 +220,6 @@ open class TabsControl: NSControl, NSTextDelegate {
     }
 
     private func stopObservingScrollView() {
-        scrollView.removeObserver(self, forKeyPath: "frame", context: &ScrollViewObservationContext)
-        scrollView.removeObserver(self, forKeyPath: "documentView.frame", context: &ScrollViewObservationContext)
-
         NotificationCenter.default.removeObserver(
             self,
             name: NSView.frameDidChangeNotification,
@@ -286,43 +227,9 @@ open class TabsControl: NSControl, NSTextDelegate {
         )
     }
 
-    open override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
-        if context == &ScrollViewObservationContext {
-            updateAuxiliaryButtons()
-        } else {
-            super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
-        }
-    }
-
     @objc private func scrollViewDidScroll(_ notification: Notification) {
         layoutTabButtons(nil, animated: false)
-        updateAuxiliaryButtons()
         invalidateRestorableState()
-    }
-
-    // MARK: - Actions
-
-    @objc private func scrollTabView(_ sender: Any?) {
-        let forLeft = (sender as? NSButton == scrollLeftButton)
-
-        guard let tab = tabButtons.first(where: { self.visibilityCondition(forButton: $0, forLeftHandSide: forLeft) })
-        else { return }
-
-        NSAnimationContext.runAnimationGroup({ context in
-            context.allowsImplicitAnimation = true
-            tab.scrollToVisible(tab.bounds)
-        }, completionHandler: {
-            self.invalidateRestorableState()
-        })
-    }
-
-    private func visibilityCondition(forButton button: NSButton, forLeftHandSide: Bool) -> Bool {
-        let visibleRect = tabsView.visibleRect
-        if forLeftHandSide == true {
-            return button.frame.minX < visibleRect.minX
-        } else {
-            return button.frame.maxX > visibleRect.maxX - 2.0 * scrollLeftButton!.frame.width
-        }
     }
 
     // MARK: - Reordering
@@ -417,57 +324,49 @@ open class TabsControl: NSControl, NSTextDelegate {
 
         delegate?.tabsControl?(self, didCloseItem: item)
 
-        if buttonIndex == selectedButtonIndex {
+        guard let currentSelectedButtonIndex = selectedButtonIndex else { return }
+
+        if buttonIndex == currentSelectedButtonIndex {
+            // The selected tab itself was closed: select an adjacent enabled tab.
             var nextButtonIndex: Int?
-            if tabButtons.count < 1 {
+            if tabButtons.isEmpty {
                 nextButtonIndex = nil
+            } else if buttonIndex == 0 {
+                nextButtonIndex = 0
             } else {
-                if buttonIndex == 0 {
-                    nextButtonIndex = 1
-                } else {
-                    nextButtonIndex = buttonIndex - 1
-                }
+                nextButtonIndex = buttonIndex - 1
             }
             if let nextButtonIndex, let nextButton = tabButtons[safe: nextButtonIndex], nextButton.isEnabled {
                 selectedButtonIndex = nextButtonIndex
             } else {
                 selectedButtonIndex = nil
             }
-            if let action = action,
-               let target = target {
+            if let action, let target {
                 NSApp.sendAction(action, to: target, from: self)
             }
             delegate?.tabsControlDidChangeSelection?(self, item: selectedButton?.representedObject)
+        } else if buttonIndex < currentSelectedButtonIndex {
+            // A tab before the selection was closed: shift the selection so the same tab stays selected.
+            selectedButtonIndex = currentSelectedButtonIndex - 1
         }
     }
 
     // MARK: - Selection
 
     @objc private func selectTab(_ sender: Any?) {
-        var button: TabButton?
-
-        if let buttonSender = sender as? TabButton {
-            button = buttonSender
-        } else if let index = sender as? Int {
-            button = tabButtons[safe: index]
-        }
-
-        guard let button = button,
+        guard let button = sender as? TabButton,
               button.isEnabled
         else { return }
 
         selectedButtonIndex = button.index
         invalidateRestorableState()
 
-        if let action = action,
-           let target = target {
+        if let action, let target {
             NSApp.sendAction(action, to: target, from: self)
         }
 
-        if sender is TabButton {
-            NotificationCenter.default.post(name: TabsControl.selectionDidChangeNotification, object: self)
-            delegate?.tabsControlDidChangeSelection?(self, item: button.representedObject)
-        }
+        // `selectedButtonIndex`'s `didSet` already posts `selectionDidChangeNotification`.
+        delegate?.tabsControlDidChangeSelection?(self, item: button.representedObject)
 
         guard let currentEvent = NSApp.currentEvent else { return }
 
@@ -514,7 +413,8 @@ open class TabsControl: NSControl, NSTextDelegate {
     ///
     /// - parameter index: An integer indicating the index of the item to be selected.
     open func selectItemAtIndex(_ index: Int) {
-        selectTab(index)
+        guard let button = tabButtons[safe: index] else { return }
+        selectTab(button)
     }
 
     private func updateButtonStatesForSelection() {

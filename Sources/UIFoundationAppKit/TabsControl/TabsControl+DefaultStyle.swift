@@ -180,7 +180,7 @@ extension TabsControl.ThemedStyle {
     }
 
     fileprivate func drawBorder(_ border: BorderDrawing, color: NSColor) {
-        guard case let .draw(borderRects: borderRects, rectCount: _) = border
+        guard case let .draw(borderRects: borderRects) = border
         else { return }
 
         color.setFill()
@@ -193,7 +193,7 @@ extension TabsControl.ThemedStyle {
 
 private enum BorderDrawing {
     case empty
-    case draw(borderRects: [NSRect], rectCount: Int)
+    case draw(borderRects: [NSRect])
 
     fileprivate static func fromMask(_ sourceRect: NSRect, borderMask: TabsControl.BorderMask?) -> BorderDrawing {
         guard let mask = borderMask else { return .empty }
@@ -221,7 +221,7 @@ private enum BorderDrawing {
 
         guard outputCount > 0 else { return .empty }
 
-        return .draw(borderRects: borderRects, rectCount: outputCount)
+        return .draw(borderRects: borderRects)
     }
 }
 
