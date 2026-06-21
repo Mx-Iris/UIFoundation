@@ -84,12 +84,12 @@ NSView
 Three pieces live under `Sources/UIFoundationAppKit/Base/`:
 
 1. **`LayerBackgroundRenderer`** (`LayerBackgroundRenderer.swift`) — opaque rendering object. Holds all configuration properties + `BorderPositions` / `BorderLocation` types + the `CAShapeLayer` border sublayer. Drives the layer in `updateLayer()` / `layout()`, and triggers `owner.needsDisplay = true` on every property change. Internally weak-references its host via `attach(to:)`, which also flips `wantsLayer = true` and `layerContentsRedrawPolicy = .onSetNeedsDisplay`.
-2. **`LayerBackgroundProviding`** (`LayerBackgroundProviding.swift`) — `@MainActor` marker protocol constrained to `NSView`. Has no requirements. The protocol extension provides:
+2. **`LayerBackgroundProviding`** (`LayerBackgroundProviding.swift`) — `@MainActor` protocol constrained to `NSView`. Its sole requirement is `isLayerBackingEnabled` (`Bool`), which the extension defaults to `true` — override it to opt a conformer out of the pipeline. The protocol extension provides:
    - `backgroundRenderer` as a `@AssociatedObject(.retain(.nonatomic))`-backed property (from the `AssociatedObject` macro package) — lazily initialised on first access, completely hidden from conformers.
    - All forwarding properties (`cornerRadius`, `backgroundColor`, `border*`, `shadow*`, `shadowPath`) plumbing into the renderer.
-   - `attachToSelf()` — bind the renderer to the conforming view (call once after `super.init`).
-   - `updateLayerBackground()` / `layoutLayerBackground()` — hooks to call from the conformer's `updateLayer()` / `layout()` overrides.
-3. **`LayerBackedView`** — conforms to `LayerBackgroundProviding` and wires `attachToSelf()` / `updateLayerBackground()` / `layoutLayerBackground()` automatically. Subclasses still override `setup()` / `firstLayout()` only.
+   - `attachToSelfIfNeeded()` — bind the renderer to the conforming view (call once after `super.init`); gated on `isLayerBackingEnabled`.
+   - `updateLayerBackgroundIfNeeded()` / `layoutLayerBackgroundIfNeeded()` — hooks to call from the conformer's `updateLayer()` / `layout()` overrides (no-ops when `isLayerBackingEnabled` is `false`).
+3. **`LayerBackedView`** — conforms to `LayerBackgroundProviding` and wires `attachToSelfIfNeeded()` / `updateLayerBackgroundIfNeeded()` / `layoutLayerBackgroundIfNeeded()` automatically. Subclasses still override `setup()` / `firstLayout()` only.
 
 **Composition example (`NSTableCellView`):**
 
@@ -97,22 +97,22 @@ Three pieces live under `Sources/UIFoundationAppKit/Base/`:
 final class MyCell: NSTableCellView, LayerBackgroundProviding {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        attachToSelf()                // enables layer backing, installs renderer
+        attachToSelfIfNeeded()        // enables layer backing, installs renderer
         cornerRadius = 10             // protocol forwarding properties
         backgroundColor = .controlBackgroundColor
         borderPositions = .all
         borderColor = .separatorColor
         borderWidth = 1
     }
-    required init?(coder: NSCoder) { super.init(coder: coder); attachToSelf() }
+    required init?(coder: NSCoder) { super.init(coder: coder); attachToSelfIfNeeded() }
 
     override var wantsUpdateLayer: Bool { true }
-    override func updateLayer() { super.updateLayer(); updateLayerBackground() }
-    override func layout()      { super.layout();      layoutLayerBackground() }
+    override func updateLayer() { super.updateLayer(); updateLayerBackgroundIfNeeded() }
+    override func layout()      { super.layout();      layoutLayerBackgroundIfNeeded() }
 }
 ```
 
-A working demo lives at `UIFoundationExample-macOS/UIFoundationExample-macOS/AppDelegate.swift` (`LayerBackgroundDemoViewController` / `LayerBackgroundCell`).
+A working demo lives at `UIFoundationExample-macOS/UIFoundationExample-macOS/Demos/LayerBackgroundDemoViewController.swift` (`LayerBackgroundDemoViewController` / `LayerBackgroundCell`); it is one entry in the demo browser (see the **Example App** section).
 
 **Caveats / trade-offs:**
 
@@ -297,6 +297,24 @@ Wiring:
 - Per the unique-basename rule (see Code Style Notes), feature-scoped files are prefixed `TabsControl+…` (e.g. the ported `Helpers.swift` became `TabsControl+Geometry.swift`, `Style.swift` → `TabsControl+Style.swift`); distinctive names such as `TabButton.swift` / `TabButtonCell.swift` keep their name, and per-class extensions stay `NSClassName+TabsControl.swift`
 
 **Namespace convention (key difference from upstream):** to avoid polluting the umbrella module's top-level namespace with generic names, the entire public API is **nested under the `TabsControl` class** — Swift ≥ 6.3 (Swift 5 language mode included) permits nesting protocols inside types, which this relies on. Only `TabsControl` and `TabButton` stay top-level. Map: `Style`/`ThemedStyle`/`Theme` → `TabsControl.Style`/`.ThemedStyle`/`.Theme`; `TabButtonTheme`/`TabsControlTheme` → `TabsControl.ButtonTheme`/`.ControlTheme`; `TabsControlDataSource`/`TabsControlDelegate` → `TabsControl.DataSource`/`.Delegate`; `TabPosition`/`ClosePosition`/`TabWidth`/`TabSelectionState` → `TabsControl.TabPosition`/`.ClosePosition`/`.TabWidth`/`.SelectionState`; `DefaultStyle`/`ChromeStyle`/`SafariStyle` (+ matching themes) → nested; `Offset`/`IconFrames`/`TitleEditorSettings`/`BorderMask`/`TitleDefaults` → nested; the old global `TabsControlSelectionDidChangeNotification` string is now `TabsControl.selectionDidChangeNotification` (`Notification.Name`). Files whose content is a protocol default-impl extension (`extension TabsControl.ThemedStyle`, `extension TabsControl.Theme`) are **not** lexically inside `TabsControl`, so sibling nested types there must be fully qualified as `TabsControl.X`; declaration files using `extension TabsControl { … }` resolve short names.
+
+## Example App (macOS)
+
+`UIFoundationExample-macOS/` is a single-window **demo browser**: a sidebar (source list, grouped by category) on the left, the selected demo's view controller on the right. All code, no storyboard-driven UI (the storyboard is kept **only** for the main menu — it has no initial controller and never auto-opens a window).
+
+Structure under `UIFoundationExample-macOS/UIFoundationExample-macOS/`:
+- `AppDelegate.swift` — builds a `DemoBrowserWindowController` on launch; nothing else.
+- `Browser/` — `DemoBrowserWindowController` (code-built `NSWindow`), `DemoBrowserSplitViewController` (sidebar + `DemoDetailViewController`), `DemoSidebarViewController` (source-list `NSOutlineView`; items are a private `SidebarNode` reference type because `NSOutlineView` needs stable item identity).
+- `Catalog/` — `Demo` (a value type: `title` / `category` / `summary` / `minimumMacOS` / `makeViewController`) and `DemoCatalog.all` (the registry) + `DemoCatalog.grouped`.
+- `Demos/` — one self-contained `NSViewController` per demo (`TabsControlDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`).
+
+**To add a demo:** drop a new `NSViewController` file under `Demos/` and append one `Demo` to `DemoCatalog.all`. Nothing else changes.
+
+Two project facts that make this work (and matter when extending it):
+- The Xcode project's app source group is a **file-system-synchronized group** (`PBXFileSystemSynchronizedRootGroup`, Xcode 16+). Any file added under the app folder is auto-included in the target — **no `project.pbxproj` edits needed** to add/move/delete demos.
+- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabsControl` is enabled alongside `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder`); otherwise the control's symbols won't be compiled into the package and the demo won't link.
+
+Build the example from the command line with `xcodebuild -project UIFoundationExample-macOS/UIFoundationExample-macOS.xcodeproj -scheme UIFoundationExample-macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build 2>&1 | xcsift`.
 
 ## Code Style Notes
 
