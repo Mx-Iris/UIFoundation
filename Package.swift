@@ -79,7 +79,7 @@ let package = Package(
         .package(
             remote: .package(
                 url: "https://github.com/Mx-Iris/FrameworkToolbox",
-                from: "0.4.0"
+                from: "0.7.4"
             ),
         ),
         .package(
@@ -95,8 +95,6 @@ let package = Package(
         .target(
             name: "UIFoundation",
             dependencies: [
-//                "UIFoundationAppKit",
-//                "UIFoundationUIKit",
                 .target(name: "UIFoundationAppKit", condition: .when(platforms: appkitPlatforms)),
                 .target(name: "UIFoundationUIKit", condition: .when(platforms: uikitPlatforms)),
                 "UIFoundationUtilities",
