@@ -407,17 +407,17 @@ if (tooltip.fadesOutWhenInactive) {
 
 ### 7.1 文件布局
 
+> 命名约定：`UIFoundationAppleInternalObjC/include/` 下，**公开类的私有 category** 使用 `<Class>_Private.h`（参照已有的 `NSView_Private.h` / `CALayer_Private.h` / `NSButton_Private.h` 等）；**全新的私有类** 直接用 `<Class>.h`（参照 `NSScene.h` / `CABackdropLayer.h` 等）。本方案严格沿用此规则。
+
 ```text
 Sources/UIFoundationAppleInternalObjC/include/
-   NSToolTipManager_UIFoundationPrivate.h    ── 私有方法的 @interface 声明（@available 全标 macOS 10.15+）
-   NSToolTip_UIFoundationPrivate.h           ── @class NSToolTip; + 最小 @interface NSToolTip : NSObject @end
-                                                 （只是为了让 Swift 能持有该参数类型，不调用其方法）
-   NSColor_ToolTipColor.h                    ── +[NSColor toolTipColor]
-   NSFont_ToolTipFont.h                      ── +[NSFont toolTipsFontOfSize:]（fallback 检测用）
-
+   NSToolTipManager_Private.h                ── @interface NSToolTipManager () 私有方法 category
+   NSColor_Private.h                         ── @interface NSColor () + (NSColor *)toolTipColor
+   NSToolTip.h                               ── 全新私有类：@interface NSToolTip : NSObject
+                                                 暴露我们读得到的 view / cell 属性
 Sources/UIFoundationAppleInternal/Tooltip/
-   ToolTipStyle.swift                        ── 值类型样式
-   CustomToolTipManager.swift                ── 公开 API：install / globalStyle / setStyle(_:for:)
+   ToolTipStyle.swift                        ── 值类型样式（含 cornerRadius / borderColor / borderWidth / shadow*）
+   CustomToolTipManager.swift                ── 公开 API：install / uninstall / globalStyle / setStyle(_:for:)
                                                  内含 currentDisplayingView TLS 与 currentResolvedStyle 解析
    CustomToolTipManagerHook.swift            ── @DynamicSubclassHook 容器
    NSView+CustomToolTip.swift                ── view.box.customTooltipStyle 入口
@@ -427,6 +427,7 @@ Sources/UIFoundationAppleInternal/Tooltip/
 
 ```swift
 public struct ToolTipStyle: Sendable {
+    // —— 基本样式 ——
     public var font: NSFont?
     public var textColor: NSColor?
     public var backgroundColor: NSColor?         // 非 nil → 抑制毛玻璃，自绘实心
@@ -434,25 +435,29 @@ public struct ToolTipStyle: Sendable {
     public var yOffsetFromCursor: CGFloat?
     public var initialDelay: TimeInterval?
 
-    // —— 选 1-B 时启用的扩展位 ——
+    // —— 圆角 / 边框 / 阴影（启用后 _newToolTipWindow 会换掉 NSVisualEffectView）——
     public var cornerRadius: CGFloat?
     public var borderColor: NSColor?
     public var borderWidth: CGFloat?
-    public var shadow: NSShadow?
+    public var shadowColor: NSColor?
+    public var shadowOffset: CGSize?
+    public var shadowRadius: CGFloat?
 
     public static let system: ToolTipStyle       // 全 nil
-    public static let `default`: ToolTipStyle    // 推荐预设
+    public static let `default`: ToolTipStyle    // 推荐预设：13pt SF + labelColor + cornerRadius 6 + 轻阴影
 }
 
 public final class CustomToolTipManager {
     public static let shared: CustomToolTipManager
 
-    /// 一次性安装 swizzle；幂等。
+    /// 一次性安装 isa-swizzle 钩子；ref-counted，配对调用 uninstall()。
+    /// 必须由调用方在 applicationDidFinishLaunching: 之类时机显式调用。
     public static func install()
+    public static func uninstall()
 
     public var globalStyle: ToolTipStyle
 
-    /// 给单个 view 覆盖样式。
+    /// 给单个 view 覆盖样式（nil 表示清除覆盖）。
     public func setStyle(_ style: ToolTipStyle?, for view: NSView)
 }
 
@@ -507,18 +512,35 @@ struct CustomToolTipManagerHook {
         CustomToolTipManager.shared.currentResolvedStyle?.yOffsetFromCursor ?? callSuper()
     }
 
-    // —— 选 1-B 时再启用以下两个 ——
-    // @DynamicSubclassOverride
-    // func _newToolTipWindow() -> NSWindow { ... 用 LayerBackedView 替换 NSVisualEffectView ... }
-    //
-    // @DynamicSubclassOverride
-    // func installContentView(_ contentView: NSView?,
-    //                          forToolTip toolTip: NSToolTip,
-    //                          toolTipWindow window: NSWindow,
-    //                          isNew: Bool) {
-    //     callSuperIfImplemented(contentView, toolTip, window, isNew)
-    //     CustomToolTipManager.shared.applyCornerAndShadowIfNeeded(toWindow: window)
-    // }
+    // —— 圆角 / 边框 / 阴影路径 ——
+    // 让系统先把 NSToolTipPanel + NSVisualEffectView 建好，再视当前样式决定
+    // 是否把 contentView 换成 LayerBackedView（项目里现成的 corner/border/shadow 实现）。
+    @DynamicSubclassOverride
+    func _newToolTipWindow() -> NSWindow {
+        let panel = callSuper()
+        guard let style = CustomToolTipManager.shared.globalStyle.layerBackingEnabled
+                ?? CustomToolTipManager.shared.currentResolvedStyle?.layerBackingEnabled,
+              style == true else {
+            return panel  // 保留系统毛玻璃
+        }
+        let layerBackedView = LayerBackedView()
+        layerBackedView.wantsLayer = true
+        panel.contentView = layerBackedView
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        return panel
+    }
+
+    // installContentView:forToolTip:toolTipWindow:isNew: 是系统留的空 hook：
+    // 在系统调完原实现之后，把当前 style 的圆角/边框/阴影写到 LayerBackedView 上。
+    @DynamicSubclassOverride
+    func installContentView(_ contentView: NSView?,
+                             forToolTip toolTip: NSToolTip,
+                             toolTipWindow window: NSWindow,
+                             isNew: Bool) {
+        callSuperIfImplemented(contentView, toolTip, window, isNew)
+        CustomToolTipManager.shared.applyLayerBackingStyleIfNeeded(toWindow: window)
+    }
 }
 
 // CustomToolTipManager.swift
@@ -560,59 +582,64 @@ public final class CustomToolTipManager {
 - `displayToolTip:` 在 hook 容器中接收的 `NSToolTip` 参数来自 `NSToolTip_UIFoundationPrivate.h` 暴露的最小声明。
 - TLS 用 `@TaskLocal` 还是普通 `Thread.current.threadDictionary` 由实现时决定；`NSToolTipManager` 完全跑在主线程，二者皆可。
 
-### 7.4 选 1-B 时的圆角 / 阴影实现
+### 7.4 圆角 / 边框 / 阴影实现细节
 
-```text
-override _newToolTipWindow:
-    panel = 像系统一样建（同样 styleMask=0、level=103、WMWindowType=3）
-    panel.backgroundColor = .clear
-    panel.opaque = NO
-    panel.hasShadow = ???    // 见下
-    contentView = LayerBackedView()    // 项目里已有，自带 cornerRadius/border/shadow
-    panel.contentView = contentView
-    return panel
+走法：**让系统建 panel + 替换 contentView**。
 
-override installContentView:forToolTip:toolTipWindow:isNew:
-    if 当前 style 有圆角/阴影/边框需求:
-        把 contentView (LayerBackedView) 的 cornerRadius/border*/shadow* 按 style 设置
-    系统原 addDrawingSubviewForToolTip:… 会照常把 NSCustomToolTipDrawView 加到 contentView 上
-    它的 layout pin 四个 anchor 即可继续工作
-```
+1. `_newToolTipWindow` 调 `callSuper()` 拿到系统原生的 `NSToolTipPanel`（已经设好 styleMask / level / WMWindowType）。仅当当前样式启用 layer-backing 时，把 `NSVisualEffectView` 换成 `LayerBackedView` 并把 panel 设成透明背景。
+2. 系统接下来调 `installContentView:forToolTip:toolTipWindow:isNew:`（默认空实现）。我们的 override 调完 `callSuperIfImplemented(...)` 之后，把当前 `ToolTipStyle` 的 `cornerRadius` / `borderColor` / `borderWidth` / `shadow*` 写到 contentView 的 `LayerBackedView` 上。
+3. 系统继续走 `addDrawingSubviewForToolTip:attributedString:inView:`：内部 `NSToolTipCreateCustomDrawViewInView(contentView)` 把 `NSCustomToolTipDrawView` `addSubview:` 进我们的 `LayerBackedView` 并 pin 四个 anchor。流程不动。
+4. 文本绘制路径仍然走 `NSCustomToolTipDrawView.drawRect:` → `[attributedString drawWithRect:options:context:]`，无需我们 override。
+5. **裁切**：`LayerBackedView` 自带 `cornerRadius` + `masksToBounds`；`NSCustomToolTipDrawView` 在其内部当 subview，自然被父 layer 的圆角 mask 裁。
+6. **阴影**：阴影画在 panel 而不是 contentView 上——通过 `panel.hasShadow = true` 启用系统阴影，再用 `panel.invalidateShadow()` 触发重计算。若想要自定义阴影（颜色 / 偏移 / 半径），关闭 `panel.hasShadow` 并由 `LayerBackedView` 自身 layer 的 `shadow*` 承担。
 
-注意：**`NSCustomToolTipDrawView` 的 `drawRect:` 默认实现没有自带圆角裁切**，原本靠 `NSVisualEffectView` 的 layer mask 给画的。换成 `LayerBackedView` 后需要把 `clipsToBounds` 风格交给 `LayerBackedView.cornerRadius`（已实现 corner radius + masksToBounds）。
+注意：换掉 `NSVisualEffectView` 后，`-[NSToolTipManager _drawToolTipBackgroundInView:]` 中的 `isKindOfClass:[NSVisualEffectView class]` 判断不命中，会走 `else` 分支：`[toolTipBackgroundColor set]; NSRectFill(bounds)`。对我们正好——把 style 的 `backgroundColor` 平涂在 `LayerBackedView` 内，且被 corner radius 自动裁。
 
 ### 7.5 私有符号 ObjC 头声明示例
 
+> 文件命名沿用 `UIFoundationAppleInternalObjC/include/` 既有约定，并复用既有头的 `#if TARGET_OS_OSX` + `NS_ASSUME_NONNULL_BEGIN` 模板（参见 `NSScene.h` / `NSView_Private.h`）。
+
 ```objc
-// NSToolTip_UIFoundationPrivate.h
-#import <Foundation/Foundation.h>
+// NSToolTip.h —— 全新私有类
+#if TARGET_OS_OSX
+#import <TargetConditionals.h>
+
+#if TARGET_OS_OSX
+#import <AppKit/AppKit.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
 // 仅为了让 Swift 能持有 NSToolTip 类型，作为 hook 方法参数 / 字段类型。
-// 不调用其方法；属性只暴露我们读得到的两个。
+// 不调用其方法；属性只暴露我们读得到的几个。
 @interface NSToolTip : NSObject
-@property (nonatomic, readonly) NSView *view;
-@property (nonatomic, readonly) NSCell *cell;
+@property (nonatomic, readonly, nullable) NSView *view;
+@property (nonatomic, readonly, nullable) NSCell *cell;
 @end
 
 NS_ASSUME_NONNULL_END
+
+#endif
+#endif
 ```
 
 ```objc
-// NSToolTipManager_UIFoundationPrivate.h
+// NSToolTipManager_Private.h —— 公开类的私有 category
+#if TARGET_OS_OSX
+#import <TargetConditionals.h>
+
+#if TARGET_OS_OSX
 #import <AppKit/AppKit.h>
-#import "NSToolTip_UIFoundationPrivate.h"
+#import "NSToolTip.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface NSToolTipManager (UIFoundationPrivate)
+@interface NSToolTipManager ()
 - (NSDictionary<NSAttributedStringKey, id> *)toolTipAttributes;
 - (NSColor *)toolTipBackgroundColor;
 - (NSColor *)toolTipTextColor;
 - (CGSize)toolTipContentMargin;
 - (CGFloat)toolTipYOffset;
-- (id)_newToolTipWindow;
+- (NSWindow *)_newToolTipWindow;
 - (void)installContentView:(nullable NSView *)contentView
                 forToolTip:(NSToolTip *)toolTip
              toolTipWindow:(NSWindow *)window
@@ -620,11 +647,30 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)displayToolTip:(NSToolTip *)toolTip;
 @end
 
-@interface NSColor (UIFoundationPrivate)
+NS_ASSUME_NONNULL_END
+
+#endif
+#endif
+```
+
+```objc
+// NSColor_Private.h —— 公开类的私有 category
+#if TARGET_OS_OSX
+#import <TargetConditionals.h>
+
+#if TARGET_OS_OSX
+#import <AppKit/AppKit.h>
+
+NS_ASSUME_NONNULL_BEGIN
+
+@interface NSColor ()
 + (NSColor *)toolTipColor;
 @end
 
 NS_ASSUME_NONNULL_END
+
+#endif
+#endif
 ```
 
 ---
@@ -652,22 +698,13 @@ NS_ASSUME_NONNULL_END
 
 ---
 
-## 10. 待用户决策
+## 10. 决策记录（已敲定）
 
-**问题 1：要不要支持圆角 / 阴影 / 自定义边框？**
-
-- 选 **A**：不支持。`backgroundColor`、字体、padding、Y 偏移、延迟够用。最小入侵，零额外私有 ivar 接触。
-- 选 **B**（推荐）：支持。同时 override `_newToolTipWindow` + `installContentView:…`，content view 换成项目已有的 `LayerBackedView`。代价是放弃系统毛玻璃；圆角/阴影/边框全部可控。
-
-**问题 2：安装策略？**
-
-- 选 **A**（推荐）：用户显式调 `CustomToolTipManager.install()`。
-- 选 **B**：模块自动 install。
-
-**问题 3（可选）：要不要 per-view 样式覆盖？**
-
-- 选 **A**：只支持全局 `globalStyle`，实现最简。
-- 选 **B**（推荐）：支持 per-view（通过 `box.customTooltipStyle`），用线程本地变量在 `displayToolTip:` 调用栈期间穿透。
+| 项 | 选择 |
+|---|---|
+| **圆角 / 阴影 / 边框** | **支持**。`_newToolTipWindow` + `installContentView:…` 双 override，contentView 视样式替换为 `LayerBackedView`；接受放弃系统毛玻璃的代价以换取完全可控的外观。 |
+| **安装策略** | **显式 install**。由调用方在 `applicationDidFinishLaunching:` 调 `CustomToolTipManager.install()`；不做 `__attribute__((constructor))` 自动安装。 |
+| **per-view 样式覆盖** | **支持**。通过 `view.box.customTooltipStyle` 配合 `@AssociatedObject` 挂载；`displayToolTip:` 包一层 override，把 `toolTip.view` 推进 TLS，下游 hook 同步调用栈期间读取。 |
 
 ---
 
