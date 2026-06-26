@@ -388,9 +388,9 @@ if (tooltip.fadesOutWhenInactive) {
 
 `NSToolTipManager` 是进程级单例，hook 之后**会影响进程内全部 tooltip**。为了允许"只想给我自己的 view 换样式"，我们用**当前显示视图查找**做 per-view 样式：
 
-1. 我们在 `displayToolTip:` 上 swizzle 一层薄壳，在调用原实现之前把 `tooltip.view` 暂存进一个**线程本地变量** `currentDisplayingView`。
+1. 在 `displayToolTip:` 上挂一个 override 包一层，在调用 `callSuper(toolTip)` 之前把 `toolTip.view` 暂存进一个**线程本地变量** `currentDisplayingView`。
 2. 我们覆写的 `toolTipAttributes` / `toolTipBackgroundColor` / `toolTipContentMargin` / `toolTipYOffset` 在调用期间通过这个 TLS 取到 view。
-3. 从 view 上取 `@AssociatedObject` 挂载的 `ToolTipStyle?`；没有就退回 `globalStyle`；再没有就 fallback 系统原实现。
+3. 从 view 上取 `@AssociatedObject` 挂载的 `ToolTipStyle?`；没有就退回 `globalStyle`；再没有就 fallback 系统原实现（即 `callSuper()`）。
 4. `displayToolTip:` 调用结束后清 TLS。
 
 这是同步调用栈、单线程（主线程）执行，TLS 是干净可靠的。
@@ -399,19 +399,27 @@ if (tooltip.fadesOutWhenInactive) {
 
 ## 7. 实现方案落地
 
+> **Hook 机制选型**：采用 `FrameworkToolbox/ObjCRuntimeToolbox` 的 `@DynamicSubclassHook` 宏（KVO 风格的 isa-swizzling），**不**使用 `method_exchangeImplementations`。理由：
+> - 不污染 `NSToolTipManager` 的 IMP 表，原类零修改，便于和未来其他 hook / KVO 叠加。
+> - `install` / `uninstall` 是 ref-counted 的，可逆且幂等。
+> - `@DynamicSubclassOverride` 会自动生成 `callSuper(...)` 桥接，"调原实现"写法直观。
+> - 唯一约束：宏禁止 `@MainActor` / `async` / `throws` 等修饰；所有 hook 方法必须是普通同步 nonisolated 函数。`NSToolTipManager` 全流程在主线程运行，这条由 AppKit 运行时不变量保证，编译期不需要标注。
+
 ### 7.1 文件布局
 
 ```text
 Sources/UIFoundationAppleInternalObjC/include/
    NSToolTipManager_UIFoundationPrivate.h    ── 私有方法的 @interface 声明（@available 全标 macOS 10.15+）
+   NSToolTip_UIFoundationPrivate.h           ── @class NSToolTip; + 最小 @interface NSToolTip : NSObject @end
+                                                 （只是为了让 Swift 能持有该参数类型，不调用其方法）
    NSColor_ToolTipColor.h                    ── +[NSColor toolTipColor]
    NSFont_ToolTipFont.h                      ── +[NSFont toolTipsFontOfSize:]（fallback 检测用）
 
 Sources/UIFoundationAppleInternal/Tooltip/
    ToolTipStyle.swift                        ── 值类型样式
-   CustomToolTipManager.swift                ── 公开 API：install + globalStyle + per-view style
-   CustomToolTipManager+Swizzle.swift        ── method-swizzle 实现
-   CustomToolTipManager+CurrentView.swift    ── TLS "current view" 机制
+   CustomToolTipManager.swift                ── 公开 API：install / globalStyle / setStyle(_:for:)
+                                                 内含 currentDisplayingView TLS 与 currentResolvedStyle 解析
+   CustomToolTipManagerHook.swift            ── @DynamicSubclassHook 容器
    NSView+CustomToolTip.swift                ── view.box.customTooltipStyle 入口
 ```
 
@@ -454,33 +462,103 @@ extension NSView {
 }
 ```
 
-### 7.3 `install()` 内部细节
+### 7.3 Hook 容器与 `install()` 内部细节
 
 ```swift
-public static func install() {
-    // 1. 幂等保护：sentinel 静态 once
-    // 2. swizzle 顺序：
-    //    -displayToolTip:                      ← TLS 进入/退出
-    //    -toolTipAttributes                    ← 字体/字色
-    //    -toolTipTextColor
-    //    -toolTipBackgroundColor
-    //    -toolTipContentMargin
-    //    -toolTipYOffset
-    //    (1-B 时) -_newToolTipWindow + -installContentView:forToolTip:toolTipWindow:isNew:
-    // 3. 不动 NSToolTipManager 的单例创建。
+// CustomToolTipManagerHook.swift
+@DynamicSubclassHook(of: NSToolTipManager.self, suffix: "Customizable")
+struct CustomToolTipManagerHook {
+    // 包住 displayToolTip:，在同步调用栈期间把 toolTip.view 推进 TLS
+    @DynamicSubclassOverride
+    func displayToolTip(_ toolTip: NSToolTip) {
+        CustomToolTipManager.shared.beginDisplay(toolTip: toolTip)
+        defer { CustomToolTipManager.shared.endDisplay() }
+        callSuper(toolTip)
+    }
+
+    @DynamicSubclassOverride
+    func toolTipAttributes() -> [NSAttributedString.Key: Any] {
+        guard let style = CustomToolTipManager.shared.currentResolvedStyle else {
+            return callSuper()
+        }
+        var attributes = callSuper()
+        if let font = style.font            { attributes[.font] = font }
+        if let textColor = style.textColor  { attributes[.foregroundColor] = textColor }
+        return attributes
+    }
+
+    @DynamicSubclassOverride
+    func toolTipTextColor() -> NSColor {
+        CustomToolTipManager.shared.currentResolvedStyle?.textColor ?? callSuper()
+    }
+
+    @DynamicSubclassOverride
+    func toolTipBackgroundColor() -> NSColor {
+        CustomToolTipManager.shared.currentResolvedStyle?.backgroundColor ?? callSuper()
+    }
+
+    @DynamicSubclassOverride
+    func toolTipContentMargin() -> CGSize {
+        CustomToolTipManager.shared.currentResolvedStyle?.contentMargin ?? callSuper()
+    }
+
+    @DynamicSubclassOverride
+    func toolTipYOffset() -> CGFloat {
+        CustomToolTipManager.shared.currentResolvedStyle?.yOffsetFromCursor ?? callSuper()
+    }
+
+    // —— 选 1-B 时再启用以下两个 ——
+    // @DynamicSubclassOverride
+    // func _newToolTipWindow() -> NSWindow { ... 用 LayerBackedView 替换 NSVisualEffectView ... }
+    //
+    // @DynamicSubclassOverride
+    // func installContentView(_ contentView: NSView?,
+    //                          forToolTip toolTip: NSToolTip,
+    //                          toolTipWindow window: NSWindow,
+    //                          isNew: Bool) {
+    //     callSuperIfImplemented(contentView, toolTip, window, isNew)
+    //     CustomToolTipManager.shared.applyCornerAndShadowIfNeeded(toWindow: window)
+    // }
+}
+
+// CustomToolTipManager.swift
+public final class CustomToolTipManager {
+    public static let shared = CustomToolTipManager()
+    private init() {}
+
+    public var globalStyle: ToolTipStyle = .system
+
+    // —— 公开 API ——
+    public static func install() {
+        // ref-counted；先 force-realize 单例再装钩子
+        CustomToolTipManagerHook.install(on: NSToolTipManager.shared())
+    }
+    public static func uninstall() {
+        CustomToolTipManagerHook.uninstall(from: NSToolTipManager.shared())
+    }
+    public func setStyle(_ style: ToolTipStyle?, for view: NSView) {
+        // 通过 @AssociatedObject 挂到 view
+    }
+
+    // —— Hook 间共享的 TLS ——
+    @TaskLocal private static var currentDisplayingView: NSView?
+    func beginDisplay(toolTip: NSToolTip) {
+        // ...
+    }
+    func endDisplay() {
+        // ...
+    }
+    var currentResolvedStyle: ToolTipStyle? {
+        // perView → globalStyle → nil（nil 时 hook 直接调 callSuper）
+    }
 }
 ```
 
-每个 swizzle 后的 IMP 做：
-
-```text
-ImplCustom() {
-    style := resolveCurrentStyle()      // perView → global → nil
-    if style 对应字段为 nil:
-        return [self CustomSwizzledImpl_callOriginal]
-    return style 字段
-}
-```
+要点：
+- `install` / `uninstall` **ref-counted**：调用次数必须配对。
+- `callSuper()` 在宏体内由 `@DynamicSubclassOverride` 注入，无需自己写 `unsafeBitCast`。
+- `displayToolTip:` 在 hook 容器中接收的 `NSToolTip` 参数来自 `NSToolTip_UIFoundationPrivate.h` 暴露的最小声明。
+- TLS 用 `@TaskLocal` 还是普通 `Thread.current.threadDictionary` 由实现时决定；`NSToolTipManager` 完全跑在主线程，二者皆可。
 
 ### 7.4 选 1-B 时的圆角 / 阴影实现
 
@@ -506,8 +584,25 @@ override installContentView:forToolTip:toolTipWindow:isNew:
 ### 7.5 私有符号 ObjC 头声明示例
 
 ```objc
+// NSToolTip_UIFoundationPrivate.h
+#import <Foundation/Foundation.h>
+
+NS_ASSUME_NONNULL_BEGIN
+
+// 仅为了让 Swift 能持有 NSToolTip 类型，作为 hook 方法参数 / 字段类型。
+// 不调用其方法；属性只暴露我们读得到的两个。
+@interface NSToolTip : NSObject
+@property (nonatomic, readonly) NSView *view;
+@property (nonatomic, readonly) NSCell *cell;
+@end
+
+NS_ASSUME_NONNULL_END
+```
+
+```objc
 // NSToolTipManager_UIFoundationPrivate.h
 #import <AppKit/AppKit.h>
+#import "NSToolTip_UIFoundationPrivate.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -519,10 +614,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (CGFloat)toolTipYOffset;
 - (id)_newToolTipWindow;
 - (void)installContentView:(nullable NSView *)contentView
-                forToolTip:(id)toolTip
-             toolTipWindow:(id)window
+                forToolTip:(NSToolTip *)toolTip
+             toolTipWindow:(NSWindow *)window
                      isNew:(BOOL)isNew;
-- (void)displayToolTip:(id)toolTip;
+- (void)displayToolTip:(NSToolTip *)toolTip;
 @end
 
 @interface NSColor (UIFoundationPrivate)
@@ -547,11 +642,13 @@ NS_ASSUME_NONNULL_END
 
 ## 9. 风险与未决事项
 
-1. **`toolTipAttributes` 的 dispatch_once 缓存**：若我们 swizzle 后用户的代码先调用了原 IMP（例如其它模块拿走 `[manager toolTipAttributes]` 用），缓存就写死了。我们的 swizzle 不读全局缓存，所以不受影响；但用户代码读到的是缓存内容（旧行为）。低概率风险。
+1. **`toolTipAttributes` 的 dispatch_once 缓存**：若在 `install()` 之前**就已经**有代码调用过 `[manager toolTipAttributes]`（缓存命中），原 IMP 已经把结果存入全局 `qword_1EC6D13A8`。`DynamicSubclassHook` 切的是 isa 入口，覆写后我们的 override 不读那个全局缓存——所以**我们这边总是新鲜的**；但若其它模块持有了那次缓存返回的字典，他们看到的是旧值。低概率风险，且其它模块极不可能这么做。
 2. **`NSColor.toolTipColor` ABI 稳定性**：13/14/15/26 系列都存在该符号；后续若 Apple 改名，需要补 fallback。
 3. **`NSVisualEffectMaterial.toolTip == 17`** 自 10.14 起稳定。
 4. **`_newToolTipWindow` 的 WMWindowType 私有字段**：未来若 ivar 重排会崩。若仅做 1-A，可不动该方法，规避此风险。
 5. **`UIFoundationAppleInternal` 的既有约束**：明确禁止上 App Store；本改造完全符合该模块定位。
+6. **`@DynamicSubclassHook` 的 `@MainActor` 禁用约束**：宏在编译期拒绝 `@MainActor` / `async` / `throws` / `mutating` 的 hook 方法。我们所有 hook 方法都是普通 `func`，不加 actor 隔离；调用线程由 `NSToolTipManager` 的主线程不变量保证。若未来 AppKit 把 tooltip 调度搬到非主线程，会引出 TLS 读写线程不一致——届时需要把 TLS 换成 `@TaskLocal` 之类显式 propagation。
+7. **`DynamicSubclassHook` 是 `.dynamic` 库**：`FrameworkToolbox` 已把 `ObjCRuntimeToolbox` 声明为动态 product，避免 dealloc sentinel 跨 dylib 失效。`UIFoundationAppleInternal` 引入后需要确认产物形态不冲突（项目目前每个 product 都是默认的 static；新引入一个 dynamic 依赖在 SPM 下是允许的）。
 
 ---
 
