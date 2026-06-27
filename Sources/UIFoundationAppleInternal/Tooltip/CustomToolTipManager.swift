@@ -68,7 +68,7 @@ public final class CustomToolTipManager {
     public static func install() {
         let manager = NSToolTipManager.shared
         if shared.installCount == 0 {
-            shared.originalInitialDelay = manager.initialToolTipDelay
+            shared.originalInitialDelay = readInitialToolTipDelay(from: manager)
         }
         shared.installCount += 1
         CustomToolTipManagerHook.install(on: manager)
@@ -84,11 +84,17 @@ public final class CustomToolTipManager {
         if shared.installCount == 0 {
             shared.restorePanelsToSystemDefaults(manager: manager)
             if let originalInitialDelay = shared.originalInitialDelay {
-                manager.initialToolTipDelay = originalInitialDelay
+                manager.setInitialToolTipDelay(originalInitialDelay)
             }
             shared.originalInitialDelay = nil
         }
         CustomToolTipManagerHook.uninstall(from: manager)
+    }
+
+    /// Read the underlying `_toolTipDelay` ivar via KVC. NSToolTipManager
+    /// exposes only `setInitialToolTipDelay:`; there is no public getter.
+    private static func readInitialToolTipDelay(from manager: NSToolTipManager) -> TimeInterval? {
+        manager.value(forKey: "toolTipDelay") as? TimeInterval
     }
 
     private var installCount: Int = 0
@@ -98,9 +104,9 @@ public final class CustomToolTipManager {
         guard installCount > 0 else { return }
         let manager = NSToolTipManager.shared
         if let initialDelay = globalStyle.initialDelay {
-            manager.initialToolTipDelay = initialDelay
-        } else if let originalInitialDelay {
-            manager.initialToolTipDelay = originalInitialDelay
+            manager.setInitialToolTipDelay(initialDelay)
+        } else if let originalInitialDelay = originalInitialDelay {
+            manager.setInitialToolTipDelay(originalInitialDelay)
         }
     }
 
