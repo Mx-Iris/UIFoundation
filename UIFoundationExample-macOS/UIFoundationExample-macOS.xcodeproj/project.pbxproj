@@ -17,7 +17,11 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		E943A7AB2AF76E0E00526917 /* UIFoundationExample-macOS */ = {isa = PBXFileSystemSynchronizedRootGroup; path = "UIFoundationExample-macOS"; sourceTree = "<group>"; };
+		E943A7AB2AF76E0E00526917 /* UIFoundationExample-macOS */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "UIFoundationExample-macOS";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */

@@ -38,6 +38,12 @@ enum DemoCatalog {
             summary: "OutlineViewTextFinderClient driving an NSOutlineView — press ⌘F to open the find bar.",
             makeViewController: { TextFinderDemoViewController() }
         ),
+        Demo(
+            title: "Custom Tooltip",
+            category: "AppKit Private",
+            summary: "CustomToolTipManager swaps the system tooltip pipeline via isa-swizzling — switch presets, see per-view overrides.",
+            makeViewController: { CustomTooltipDemoViewController() }
+        ),
     ]
 
     /// Demos grouped by category, preserving first-seen category order.

@@ -298,6 +298,38 @@ Wiring:
 
 **Namespace convention (key difference from upstream):** to avoid polluting the umbrella module's top-level namespace with generic names, the entire public API is **nested under the `TabsControl` class** — Swift ≥ 6.3 (Swift 5 language mode included) permits nesting protocols inside types, which this relies on. Only `TabsControl` and `TabButton` stay top-level. Map: `Style`/`ThemedStyle`/`Theme` → `TabsControl.Style`/`.ThemedStyle`/`.Theme`; `TabButtonTheme`/`TabsControlTheme` → `TabsControl.ButtonTheme`/`.ControlTheme`; `TabsControlDataSource`/`TabsControlDelegate` → `TabsControl.DataSource`/`.Delegate`; `TabPosition`/`ClosePosition`/`TabWidth`/`TabSelectionState` → `TabsControl.TabPosition`/`.ClosePosition`/`.TabWidth`/`.SelectionState`; `DefaultStyle`/`ChromeStyle`/`SafariStyle` (+ matching themes) → nested; `Offset`/`IconFrames`/`TitleEditorSettings`/`BorderMask`/`TitleDefaults` → nested; the old global `TabsControlSelectionDidChangeNotification` string is now `TabsControl.selectionDidChangeNotification` (`Notification.Name`). Files whose content is a protocol default-impl extension (`extension TabsControl.ThemedStyle`, `extension TabsControl.Theme`) are **not** lexically inside `TabsControl`, so sibling nested types there must be fully qualified as `TabsControl.X`; declaration files using `extension TabsControl { … }` resolve short names.
 
+### Custom Tooltip (`UIFoundationAppleInternal/Tooltip/`)
+
+macOS-only customizable replacement for the `NSToolTipManager` pipeline. Lives in `UIFoundationAppleInternal` (private API; not App-Store-safe). No SPM trait — this ships unconditionally with the `AppleInternal` trait.
+
+```swift
+import UIFoundation
+
+// once, in applicationDidFinishLaunching:
+CustomToolTipManager.install()
+
+// global tweak applied to every NSView.toolTip
+CustomToolTipManager.shared.globalStyle = .default
+
+// per-view override (associated-object backed)
+view.box.customTooltipStyle = .default.with { $0.cornerRadius = 10 }
+```
+
+Pieces (under `Sources/UIFoundationAppleInternal/Tooltip/`):
+- `ToolTipStyle` — value type with `font`, `textColor`, `backgroundColor`, `contentMargin`, `yOffsetFromCursor`, `initialDelay`, plus the layer-backed fields (`cornerRadius`, `borderColor`, `borderWidth`, `shadowColor`, `shadowOffset`, `shadowRadius`). `.system` is the all-`nil` no-op; `.default` is the recommended preset. `with(_:)` mutates a copy.
+- `CustomToolTipManager` — `@MainActor` singleton. `install()` / `uninstall()` are ref-counted; `globalStyle` is the process-wide fallback; `setStyle(_:for:)` (or `view.box.customTooltipStyle`) attaches a per-view override.
+- `CustomToolTipManagerHook` — `@DynamicSubclassHook` container (from `FrameworkToolbox/ObjCRuntimeToolbox`) that isa-swizzles the `NSToolTipManager.shared` singleton and overrides `displayToolTip:` (for the per-view TLS), `toolTipAttributes` / `toolTipTextColor` / `toolTipBackgroundColor` / `toolTipContentMargin` / `toolTipYOffset` (per-field nil-fallback to `callSuper()`), and `_newToolTipWindow` / `installContentView:forToolTip:toolTipWindow:isNew:` (layer-backed contentView swap). The macro forbids `@MainActor` hook methods, so each method wraps manager calls in `MainActor.assumeIsolated { ... }` — `NSToolTipManager` only ever runs on the main thread (verified in the RE report).
+- `NSView+CustomToolTip.swift` — stores `_customTooltipStyle` on `NSView` via `@AssociatedObject(.copy(.nonatomic))` and exposes it through `FrameworkToolbox<NSView>.customTooltipStyle`.
+
+Private ObjC headers (in `UIFoundationAppleInternalObjC/include/`):
+- `NSToolTipManager.h` — fully private class (no public AppKit header declares it, despite Apple's documentation page); declares `+sharedToolTipManager` (bridged as `.shared` via `NS_SWIFT_NAME(shared)`), `initialToolTipDelay`, plus every hook target.
+- `NSToolTip.h` — private model class; we only need `view` / `cell` / `string` / `trackingNum` so the hook can route to per-view styles.
+- `NSColor_Private.h` — adds `+toolTipColor` to the public `NSColor`.
+
+Layer-backing trade-off: when **`globalStyle.isLayerBackingEnabled` is true** (any of corner / border / shadow / background set), `_newToolTipWindow` swaps the system `NSVisualEffectView` content view for a `LayerBackedView`. The decision is **panel-lifetime** — `NSToolTipManager` caches its panel, and hot-swapping mid-flight would orphan the cached `NSCustomToolTipDrawView`. Practical consequence: per-view overrides for font / text color / background / margin / y-offset work in any case; per-view overrides for corner / border / shadow only take effect when the global style also enables layer backing.
+
+Reference: full reverse-engineering report at [`Researchs/AppKit-NSToolTipManager-Internals.md`](Researchs/AppKit-NSToolTipManager-Internals.md).
+
 ## Example App (macOS)
 
 `UIFoundationExample-macOS/` is a single-window **demo browser**: a sidebar (source list, grouped by category) on the left, the selected demo's view controller on the right. All code, no storyboard-driven UI (the storyboard is kept **only** for the main menu — it has no initial controller and never auto-opens a window).
@@ -306,7 +338,7 @@ Structure under `UIFoundationExample-macOS/UIFoundationExample-macOS/`:
 - `AppDelegate.swift` — builds a `DemoBrowserWindowController` on launch; nothing else.
 - `Browser/` — `DemoBrowserWindowController` (code-built `NSWindow`), `DemoBrowserSplitViewController` (sidebar + `DemoDetailViewController`), `DemoSidebarViewController` (source-list `NSOutlineView`; items are a private `SidebarNode` reference type because `NSOutlineView` needs stable item identity).
 - `Catalog/` — `Demo` (a value type: `title` / `category` / `summary` / `minimumMacOS` / `makeViewController`) and `DemoCatalog.all` (the registry) + `DemoCatalog.grouped`.
-- `Demos/` — one self-contained `NSViewController` per demo (`TabsControlDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`).
+- `Demos/` — one self-contained `NSViewController` per demo (`TabsControlDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `CustomTooltipDemoViewController`).
 
 **To add a demo:** drop a new `NSViewController` file under `Demos/` and append one `Demo` to `DemoCatalog.all`. Nothing else changes.
 
@@ -319,6 +351,9 @@ Build the example from the command line with `xcodebuild -project UIFoundationEx
 ## Code Style Notes
 
 - **Unique basenames per target**: within a single SPM target, every source file must have a unique file*name* — SwiftPM keys compiled object files by basename, so two same-named files in one target (even in different subdirectories) fail the build with `couldn't build …o because of multiple producers`. Prefix feature-scoped files with the feature name (`QuickActionBar+Helpers.swift`, `TabsControl+Style.swift`) instead of relying on subdirectory paths to disambiguate. The `QuickActionBar/` and `TabsControl/` feature dirs follow `Feature.swift` (entry) + `Feature+Descriptor.swift` for everything else, keeping only distinctive type-named files (e.g. `TabButton.swift`) unprefixed.
+- **Private ObjC header naming** (`Sources/UIFoundationAppleInternalObjC/include/`): the convention has two shapes, picked by whether AppKit ships a public header for the class.
+  - `<Class>_Private.h` — for **public** AppKit/CoreAnimation classes where we re-open with `@interface ClassName ()` to add private methods. Examples: `NSView_Private.h`, `NSScrollView_Private.h`, `CALayer_Private.h`, `NSColor_Private.h`.
+  - `<Class>.h` — for **fully private** classes that have no public AppKit header (their symbols only appear in the framework's `.tbd`). We declare the entire `@interface ClassName : NSObject` ourselves. Examples: `NSScene.h`, `CABackdropLayer.h`, `NSToolTip.h`, **`NSToolTipManager.h`** (despite the public Apple docs page, `NSToolTipManager` has no entry in any SDK header — verify with `grep "interface NSToolTipManager" $(xcrun --sdk macosx --show-sdk-path)/System/Library/Frameworks/AppKit.framework/Headers/*.h` before assuming a class is public).
 - Extensions on AppKit/UIKit classes follow the naming convention `NSClassName+.swift`
 - One extension file per class in `UIFoundationToolbox/AppKit/`
 - Button style subclasses live in `UIFoundationAppKit/Button/StyleSplittedButton/` (e.g., `PushButton`, `SwitchButton`, `HelpButton`)

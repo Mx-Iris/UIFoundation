@@ -170,6 +170,7 @@ let package = Package(
                 "UIFoundationAppleInternalObjC",
                 "UIFoundationAppKit",
                 "UIFoundationCarbonInternal",
+                .product(name: "ObjCRuntimeToolbox", package: "FrameworkToolbox"),
             ],
             swiftSettings: swiftSettings,
         ),

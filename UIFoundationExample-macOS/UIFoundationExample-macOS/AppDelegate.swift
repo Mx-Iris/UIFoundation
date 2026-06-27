@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import UIFoundation
 
 @main
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -13,6 +14,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var browserWindowController: DemoBrowserWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        CustomToolTipManager.install()
+
         let windowController = DemoBrowserWindowController()
         windowController.showWindow(nil)
         windowController.window?.makeKeyAndOrderFront(nil)
