@@ -41,7 +41,7 @@ enum DemoCatalog {
         Demo(
             title: "Custom Tooltip",
             category: "AppKit Private",
-            summary: "CustomToolTipManager swaps the system tooltip pipeline via isa-swizzling — switch presets, see per-view overrides.",
+            summary: "CustomToolTipManager playground — live color/slider editing, per-view override, plus an unmodified system control for visual comparison.",
             makeViewController: { CustomTooltipDemoViewController() }
         ),
     ]
