@@ -1,6 +1,7 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
+import ObjectiveC
 import UIFoundationAppKit
 import UIFoundationAppleInternalObjC
 
@@ -21,21 +22,27 @@ import UIFoundationAppleInternalObjC
 /// The hook is an isa-swizzling subclass installed via
 /// `ObjCRuntimeToolbox`'s `@DynamicSubclassHook`, applied to the singleton
 /// `NSToolTipManager.shared`. ``install()`` / ``uninstall()`` are ref-counted —
-/// N installs require N uninstalls.
+/// N installs require N uninstalls, and the last `uninstall()` walks the cached
+/// `_normalToolTipPanel` / `_expansionToolTipPanel` to restore the original
+/// `NSVisualEffectView` content view, window chrome, and `initialToolTipDelay`
+/// before the isa is reverted.
 ///
-/// ## Layer-backing trade-off
+/// ## Layer-backing reconciliation
 ///
-/// When ``globalStyle`` enables any of the layer-backed fields
-/// (``ToolTipStyle/cornerRadius``, border, shadow, ``ToolTipStyle/backgroundColor``),
-/// the panel's content view is replaced with a layer-backed view at the time
-/// the panel is first created, **giving up the system `NSVisualEffectMaterial.toolTip`
-/// blur**. Per-view overrides for those fields only take effect when the global
-/// style also enables layer backing — the panel is a singleton cached by
-/// `NSToolTipManager`, and we do not hot-swap its content view across tooltip
-/// invocations to keep behaviour predictable.
+/// On every tooltip display the hook calls ``reconcileContentView(forWindow:toolTip:manager:)``,
+/// which inspects the resolved style and swaps `panel.contentView` between
+/// the system `NSVisualEffectView` (`material = .toolTip`) and a
+/// `LayerBackedView` so the requested corner / border / shadow / solid
+/// background can be drawn. Only the cached draw-view ivar matching the
+/// currently displayed panel (normal vs expansion) is reset to `nil` via KVC,
+/// so the system rebuilds it inside the new content view on the next
+/// `addDrawingSubviewForToolTip:` call; the other panel's cached draw view is
+/// left intact. The panel's pre-customization `backgroundColor` / `isOpaque` /
+/// `hasShadow` are saved in an associated object and restored when the
+/// resolved style stops needing layer backing.
 ///
-/// Per-view overrides for font, text color, content margin, and cursor offset
-/// work regardless of the layer-backing decision.
+/// Per-view overrides work in isolation — a single styled view can co-exist
+/// with other views that still get the unmodified system tooltip.
 @MainActor
 public final class CustomToolTipManager {
 
@@ -54,23 +61,47 @@ public final class CustomToolTipManager {
     /// Install the isa-swizzled subclass on the `NSToolTipManager` singleton.
     ///
     /// Ref-counted: calling `install()` N times requires N calls to ``uninstall()``
-    /// to fully restore the original isa. Safe to call from any thread; the
-    /// caller is responsible for ensuring it runs before any tooltip is shown.
+    /// to fully restore the original isa. The first call snapshots the system
+    /// `initialToolTipDelay`; the last `uninstall()` restores it, sweeps the
+    /// cached panels back to `NSVisualEffectView`, and nils the cached draw-view
+    /// ivars.
     public static func install() {
         let manager = NSToolTipManager.shared
+        if shared.installCount == 0 {
+            shared.originalInitialDelay = manager.initialToolTipDelay
+        }
+        shared.installCount += 1
         CustomToolTipManagerHook.install(on: manager)
         shared.propagateInitialDelay()
     }
 
-    /// Decrement the install ref-count and restore the original isa when it
-    /// drops to zero.
+    /// Decrement the install ref-count. When it reaches zero, restore the
+    /// cached panels to their pre-customization state and revert the isa.
     public static func uninstall() {
-        CustomToolTipManagerHook.uninstall(from: NSToolTipManager.shared)
+        guard shared.installCount > 0 else { return }
+        shared.installCount -= 1
+        let manager = NSToolTipManager.shared
+        if shared.installCount == 0 {
+            shared.restorePanelsToSystemDefaults(manager: manager)
+            if let originalInitialDelay = shared.originalInitialDelay {
+                manager.initialToolTipDelay = originalInitialDelay
+            }
+            shared.originalInitialDelay = nil
+        }
+        CustomToolTipManagerHook.uninstall(from: manager)
     }
 
+    private var installCount: Int = 0
+    private var originalInitialDelay: TimeInterval?
+
     private func propagateInitialDelay() {
-        guard let initialDelay = globalStyle.initialDelay else { return }
-        NSToolTipManager.shared.initialToolTipDelay = initialDelay
+        guard installCount > 0 else { return }
+        let manager = NSToolTipManager.shared
+        if let initialDelay = globalStyle.initialDelay {
+            manager.initialToolTipDelay = initialDelay
+        } else if let originalInitialDelay {
+            manager.initialToolTipDelay = originalInitialDelay
+        }
     }
 
     // MARK: - Per-view style
@@ -110,37 +141,126 @@ public final class CustomToolTipManager {
         return globalStyle
     }
 
-    /// Push the layer-backed fields of the current style onto a panel that has
-    /// already been swapped to use `LayerBackedView` as its content view.
+    // MARK: - Content view reconciliation
+
+    /// Bring the panel's content view in sync with the currently resolved
+    /// style: layer-backed if any of background / corner / border / shadow is
+    /// requested, otherwise the system `NSVisualEffectMaterial.toolTip` blur.
     ///
-    /// No-op when the content view is not layer-backed (i.e. the panel still
-    /// uses `NSVisualEffectView`).
-    func applyLayerBackingStyleIfNeeded(toWindow window: NSWindow) {
+    /// Must be called from the `installContentView:forToolTip:toolTipWindow:isNew:`
+    /// hook so the swap completes before `addDrawingSubviewForToolTip:` runs.
+    /// On a swap, only the cached draw-view ivar matching the displayed panel
+    /// (`_normalToolTipDrawView` vs `_expansionToolTipDrawView`) is reset to
+    /// `nil` via KVC — the other panel's cached draw view stays parented to
+    /// its untouched content view.
+    func reconcileContentView(forWindow window: NSWindow, toolTip: NSToolTip, manager: NSToolTipManager) {
+        let style = currentResolvedStyle
+        let wantsLayerBacking = style.isLayerBackingEnabled
+        let currentIsLayerBacked = window.contentView is LayerBackedView
+
+        if wantsLayerBacking != currentIsLayerBacked {
+            if wantsLayerBacking {
+                saveOriginalChromeIfNeeded(for: window)
+                window.contentView = LayerBackedView()
+                window.backgroundColor = .clear
+                window.isOpaque = false
+                window.hasShadow = false
+            } else {
+                window.contentView = makeSystemVisualEffectContentView()
+                restoreOriginalChrome(for: window)
+            }
+            // The displayed panel's draw view was a subview of the old
+            // contentView; nil only the matching cache so the system rebuilds
+            // it inside the new contentView on the next addDrawingSubviewForToolTip:
+            // call. The other panel's draw view is left intact.
+            let drawViewIvar = toolTip.isExpansionToolTip
+                ? "_expansionToolTipDrawView"
+                : "_normalToolTipDrawView"
+            manager.setValue(nil, forKey: drawViewIvar)
+        }
+
+        applyLayerBackingStyle(toWindow: window)
+    }
+
+    /// Push the layer-backed style fields onto a panel that is currently using
+    /// a `LayerBackedView` content view. No-op when the content view is still
+    /// the system `NSVisualEffectView`.
+    private func applyLayerBackingStyle(toWindow window: NSWindow) {
         guard let layerBackedView = window.contentView as? LayerBackedView else { return }
         let style = currentResolvedStyle
-        if let backgroundColor = style.backgroundColor {
-            layerBackedView.backgroundColor = backgroundColor
-        }
-        if let cornerRadius = style.cornerRadius {
-            layerBackedView.cornerRadius = cornerRadius
-        }
-        if let borderColor = style.borderColor {
-            layerBackedView.borderColor = borderColor
+        layerBackedView.backgroundColor = style.backgroundColor
+        layerBackedView.cornerRadius = style.cornerRadius ?? 0
+        layerBackedView.borderColor = style.borderColor
+        layerBackedView.borderWidth = style.borderWidth ?? 0
+        if style.borderColor != nil || (style.borderWidth ?? 0) > 0 {
             layerBackedView.borderPositions = .all
         }
-        if let borderWidth = style.borderWidth {
-            layerBackedView.borderWidth = borderWidth
+        layerBackedView.shadowColor = style.shadowColor
+        layerBackedView.shadowOpacity = style.shadowColor == nil ? 0 : 1
+        layerBackedView.shadowOffset = style.shadowOffset ?? .zero
+        layerBackedView.shadowRadius = style.shadowRadius ?? 0
+    }
+
+    private func makeSystemVisualEffectContentView() -> NSVisualEffectView {
+        let visualEffectView = NSVisualEffectView()
+        visualEffectView.material = .toolTip
+        visualEffectView.blendingMode = .behindWindow
+        visualEffectView.state = .active
+        return visualEffectView
+    }
+
+    // MARK: - Teardown
+
+    /// Walk the cached panels, swap any `LayerBackedView` content view back to
+    /// a fresh `NSVisualEffectView`, restore the saved window chrome, and nil
+    /// both draw-view ivars so the system rebuilds them on the next display.
+    /// Called from ``uninstall()`` when the ref-count drops to zero, BEFORE
+    /// the hook's isa is reverted.
+    private func restorePanelsToSystemDefaults(manager: NSToolTipManager) {
+        let panelKeys = ["_normalToolTipPanel", "_expansionToolTipPanel"]
+        let drawViewKeys = ["_normalToolTipDrawView", "_expansionToolTipDrawView"]
+        for (panelKey, drawViewKey) in zip(panelKeys, drawViewKeys) {
+            guard let panel = manager.value(forKey: panelKey) as? NSWindow else { continue }
+            if panel.contentView is LayerBackedView {
+                panel.contentView = makeSystemVisualEffectContentView()
+                restoreOriginalChrome(for: panel)
+            }
+            manager.setValue(nil, forKey: drawViewKey)
         }
-        if let shadowColor = style.shadowColor {
-            layerBackedView.shadowColor = shadowColor
-            layerBackedView.shadowOpacity = 1
+    }
+
+    // MARK: - Panel chrome save / restore
+
+    private func saveOriginalChromeIfNeeded(for window: NSWindow) {
+        if objc_getAssociatedObject(window, &AssociationKeys.chrome) != nil { return }
+        let chrome = OriginalPanelChrome(
+            backgroundColor: window.backgroundColor,
+            isOpaque: window.isOpaque,
+            hasShadow: window.hasShadow
+        )
+        objc_setAssociatedObject(window, &AssociationKeys.chrome, chrome, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    }
+
+    private func restoreOriginalChrome(for window: NSWindow) {
+        guard let chrome = objc_getAssociatedObject(window, &AssociationKeys.chrome) as? OriginalPanelChrome else { return }
+        window.backgroundColor = chrome.backgroundColor
+        window.isOpaque = chrome.isOpaque
+        window.hasShadow = chrome.hasShadow
+    }
+
+    private final class OriginalPanelChrome {
+        let backgroundColor: NSColor
+        let isOpaque: Bool
+        let hasShadow: Bool
+        init(backgroundColor: NSColor, isOpaque: Bool, hasShadow: Bool) {
+            self.backgroundColor = backgroundColor
+            self.isOpaque = isOpaque
+            self.hasShadow = hasShadow
         }
-        if let shadowOffset = style.shadowOffset {
-            layerBackedView.shadowOffset = shadowOffset
-        }
-        if let shadowRadius = style.shadowRadius {
-            layerBackedView.shadowRadius = shadowRadius
-        }
+    }
+
+    private enum AssociationKeys {
+        nonisolated(unsafe) static var chrome: UInt8 = 0
     }
 }
 

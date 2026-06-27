@@ -12,6 +12,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly, nullable) NSCell *cell;
 @property (nonatomic, readonly, nullable) NSString *string;
 @property (nonatomic, readonly) NSInteger trackingNum;
+@property (nonatomic, readonly) BOOL isExpansionToolTip;
 
 @end
 

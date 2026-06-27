@@ -103,13 +103,17 @@ public struct ToolTipStyle {
     /// `true` when any field that requires a custom layer-backed content view
     /// is set. The hook reads this to decide whether to swap
     /// `NSVisualEffectView` out for `LayerBackedView`.
+    ///
+    /// `shadowOffset` and `shadowRadius` intentionally do **not** participate
+    /// in the gate: a `CALayer` shadow is only visible when its `shadowColor`
+    /// is set, so a style with only `shadowOffset` / `shadowRadius` would
+    /// otherwise trigger a swap that drops the system blur without drawing a
+    /// shadow in return. Set ``shadowColor`` to opt the layer in.
     public var isLayerBackingEnabled: Bool {
         cornerRadius != nil
             || borderColor != nil
             || borderWidth != nil
             || shadowColor != nil
-            || shadowOffset != nil
-            || shadowRadius != nil
             || backgroundColor != nil
     }
 

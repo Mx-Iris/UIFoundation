@@ -90,30 +90,15 @@ struct CustomToolTipManagerHook {
         return yOffsetFromCursor ?? callSuper()
     }
 
-    // MARK: - Layer-backing replacement
+    // MARK: - Layer-backing reconciliation
     //
-    // Let the system build the NSToolTipPanel + NSVisualEffectView, then only
-    // when the global style enables layer-backed fields, swap the content
-    // view out for a LayerBackedView so corner radius / border / shadow can
-    // be drawn. The decision is made once per panel lifetime — the panel is
-    // cached by NSToolTipManager, and we do not hot-swap mid-flight to avoid
-    // orphaning the cached NSCustomToolTipDrawView.
-
-    @DynamicSubclassOverride
-    func _newToolTipWindow() -> NSWindow {
-        let panel = callSuper()
-        return MainActor.assumeIsolated {
-            guard CustomToolTipManager.shared.globalStyle.isLayerBackingEnabled else {
-                return panel
-            }
-            let layerBackedView = LayerBackedView()
-            panel.contentView = layerBackedView
-            panel.backgroundColor = .clear
-            panel.isOpaque = false
-            panel.hasShadow = false
-            return panel
-        }
-    }
+    // We let the system create the panel + NSVisualEffectView in
+    // _newToolTipWindow (untouched here). On every display, installContentView:
+    // is invoked before addDrawingSubviewForToolTip:, so it is the right spot
+    // to reconcile the panel's contentView with the current resolved style —
+    // per-view overrides work just as well as the global style, and switching
+    // back to a style without layer-backed fields restores the system blur for
+    // that view's tooltips.
 
     @DynamicSubclassOverride
     func installContentView(
@@ -124,7 +109,11 @@ struct CustomToolTipManagerHook {
     ) {
         callSuper(contentView, toolTip, window, isNew)
         MainActor.assumeIsolated {
-            CustomToolTipManager.shared.applyLayerBackingStyleIfNeeded(toWindow: window)
+            CustomToolTipManager.shared.reconcileContentView(
+                forWindow: window,
+                toolTip: toolTip,
+                manager: self.base
+            )
         }
     }
 }
