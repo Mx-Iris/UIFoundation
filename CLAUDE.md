@@ -298,6 +298,52 @@ Wiring:
 
 **Namespace convention (key difference from upstream):** to avoid polluting the umbrella module's top-level namespace with generic names, the entire public API is **nested under the `TabsControl` class** — Swift ≥ 6.3 (Swift 5 language mode included) permits nesting protocols inside types, which this relies on. Only `TabsControl` and `TabButton` stay top-level. Map: `Style`/`ThemedStyle`/`Theme` → `TabsControl.Style`/`.ThemedStyle`/`.Theme`; `TabButtonTheme`/`TabsControlTheme` → `TabsControl.ButtonTheme`/`.ControlTheme`; `TabsControlDataSource`/`TabsControlDelegate` → `TabsControl.DataSource`/`.Delegate`; `TabPosition`/`ClosePosition`/`TabWidth`/`TabSelectionState` → `TabsControl.TabPosition`/`.ClosePosition`/`.TabWidth`/`.SelectionState`; `DefaultStyle`/`ChromeStyle`/`SafariStyle` (+ matching themes) → nested; `Offset`/`IconFrames`/`TitleEditorSettings`/`BorderMask`/`TitleDefaults` → nested; the old global `TabsControlSelectionDidChangeNotification` string is now `TabsControl.selectionDidChangeNotification` (`Notification.Name`). Files whose content is a protocol default-impl extension (`extension TabsControl.ThemedStyle`, `extension TabsControl.Theme`) are **not** lexically inside `TabsControl`, so sibling nested types there must be fully qualified as `TabsControl.X`; declaration files using `extension TabsControl { … }` resolve short names.
 
+### Status Item Controller (ported from `hexedbits/StatusItemController`)
+
+A subclassable "view controller" for `NSStatusItem`-based menu bar apps on macOS. Ships as an **opt-in SPM trait** called `StatusItemController` (default: disabled), mirroring the `FilterUI` / `QuickActionBar` / `TabsControl` pattern:
+
+```swift
+.package(url: "…/UIFoundation", traits: ["StatusItemController"])   // SPM dependency
+swift build --traits StatusItemController                           // CLI
+swift test  --traits StatusItemController                           // CLI
+```
+
+```swift
+final class MyStatusItem: StatusItemController {
+    override func buildMenu() -> NSMenu {
+        NSMenu {
+            NSMenuItem("Preferences…", action: #selector(openPrefs))
+            NSMenuItem.separator()
+            NSMenuItem("Quit", action: #selector(quit))
+        }
+    }
+    override func leftClickAction()  { openMenu() }
+    override func rightClickAction() { openMenu() }
+}
+
+// In NSApplicationDelegate:
+let controller = MyStatusItem(image: NSImage(named: "StatusBarIcon")!)
+```
+
+Wiring:
+- `traits: [..., .trait(name: "StatusItemController")]` in `Package.swift`
+- Every source file under `Sources/UIFoundationAppKit/StatusItemController/**/*.swift` is wrapped in `#if StatusItemController && os(macOS) … #endif`
+- macOS-only; the file-level `#if` additionally requires `os(macOS)`, so the trait compiles to nothing on UIKit / Catalyst / tvOS / visionOS / watchOS even if accidentally enabled there
+- No new resources, ObjC headers, or external dependencies — pure AppKit
+
+Public API surface (intentionally minimal — only one top-level symbol):
+- `StatusItemController` — `@MainActor open class … : NSObject, NSMenuDelegate`. Owns `statusItem: NSStatusItem`. Construct with `init(image: NSImage, length: CGFloat = NSStatusItem.squareLength)`. Subclasses override:
+  - `buildMenu() -> NSMenu` — return the menu shown on a click
+  - `leftClickAction()` / `rightClickAction()` — left vs. right click dispatch (control-click counts as right)
+  - The provided actions are `openMenu()`, `hideMenu()`, and `@objc public func quit()` (calls `NSApp.terminate(self)`)
+
+Differences from upstream `hexedbits/StatusItemController`:
+- The upstream public properties `NSEvent.isRightClickUp` and `NSApplication.isCurrentEventRightClickUp` are demoted to **`internal`** and renamed (`isRightClickUpForStatusItem` / `isCurrentEventRightClickUpForStatusItem`), since they are only used by `StatusItemController` itself and would otherwise pollute UIFoundation's top-level AppKit namespace and bypass the `.box` convention.
+- The upstream `NSMenuItem` `convenience init(title:image:target:action:keyEquivalent:isEnabled:)` is **not** ported — `Sources/UIFoundationAppKit/Menu/NSMenuItem+Convenience.swift` already provides a richer set of convenience initializers, chained modifiers, and an `@MenuBuilder` DSL that fully supersede it.
+- `popUpMenu(_:)` is still used inside `openMenu()` for the same reason the upstream cites: bypassing it causes the menu to fail to pop up on the first click.
+
+Files: `Sources/UIFoundationAppKit/StatusItemController/StatusItemController.swift` + `StatusItemController+Helpers.swift`. Licensed under MIT; see `THIRD_PARTY_LICENSES.md` for the full attribution.
+
 ### Custom Tooltip (`UIFoundationAppleInternal/Tooltip/`)
 
 macOS-only customizable replacement for the `NSToolTipManager` pipeline. Lives in `UIFoundationAppleInternal` (private API; not App-Store-safe). No SPM trait — this ships unconditionally with the `AppleInternal` trait.

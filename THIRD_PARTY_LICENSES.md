@@ -101,3 +101,56 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+---
+
+## StatusItemController — `StatusItemController` trait
+
+- Upstream: https://github.com/hexedbits/StatusItemController
+- Author: Jesse Squires / Hexed Bits
+- License: MIT
+- Location in this repo: `Sources/UIFoundationAppKit/StatusItemController/`
+- Modifications:
+  - Demoted the upstream public `NSEvent.isRightClickUp` and
+    `NSApplication.isCurrentEventRightClickUp` properties to `internal`
+    and suffixed them with `ForStatusItem`
+    (`NSEvent.isRightClickUpForStatusItem`,
+    `NSApplication.isCurrentEventRightClickUpForStatusItem`) so they do
+    not leak into UIFoundation's top-level AppKit namespace.
+  - Did not port the upstream `NSMenuItem`
+    `convenience init(title:image:target:action:keyEquivalent:isEnabled:)`
+    because `Sources/UIFoundationAppKit/Menu/NSMenuItem+Convenience.swift`
+    already provides a richer set of convenience initializers,
+    chained modifiers, and an `@MenuBuilder` DSL that supersede it.
+  - Wrapped every source file in `#if StatusItemController && os(macOS) … #endif`
+    so the feature is gated behind the `StatusItemController` SPM trait
+    and is macOS-only.
+  - Did not port the upstream Example app, placeholder
+    `StatusItemControllerTests` (empty), Jazzy docs, `.podspec`,
+    `.xcodeproj`, CHANGELOG, or CI scripts.
+
+### License
+
+```
+MIT License
+
+Copyright (c) 2020 Hexed Bits
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

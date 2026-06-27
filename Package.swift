@@ -73,6 +73,7 @@ let package = Package(
         .trait(name: "IDEIcons"),
         .trait(name: "NSAttributedStringBuilder"),
         .trait(name: "QuickActionBar"),
+        .trait(name: "StatusItemController"),
         .trait(name: "TabsControl"),
     ],
     dependencies: [
