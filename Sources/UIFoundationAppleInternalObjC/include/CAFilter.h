@@ -1,4 +1,3 @@
-#if TARGET_OS_OSX
 #import <TargetConditionals.h>
 
 #if TARGET_OS_OSX
@@ -42,5 +41,4 @@ CA_EXTERN NSString *const kCAFilterDestOver;
 
 NS_ASSUME_NONNULL_END
 
-#endif
 #endif

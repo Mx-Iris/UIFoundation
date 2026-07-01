@@ -1,4 +1,3 @@
-#if TARGET_OS_OSX
 #import <TargetConditionals.h>
 
 #if TARGET_OS_OSX
@@ -40,5 +39,4 @@ typedef NS_ENUM(NSInteger, NSViewSemanticContext) {
 
 NS_HEADER_AUDIT_END(nullability, sendability)
 
-#endif
 #endif

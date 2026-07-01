@@ -12,6 +12,9 @@
 #import "NSTableViewStyleData.h"
 #import "NSImage_Private.h"
 #import "NSScrollView_Private.h"
+#import "NSToolTip.h"
+#import "NSToolTipManager.h"
+#import "NSColor_Private.h"
 
 #import "CALayer_Private.h"
 #import "CABackdropLayer.h"
