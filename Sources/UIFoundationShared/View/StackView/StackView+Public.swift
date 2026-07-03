@@ -25,13 +25,7 @@ extension NSUIStackView {
     @discardableResult
     @inlinable
     public func alignment(_ alignment: StackViewAlignment) -> Self {
-        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
-        self.alignment = alignment.attribute(for: orientation)
-        #endif
-
-        #if canImport(UIKit)
-        self.alignment = alignment.uiStackAlignment(for: axis)
-        #endif
+        setStackViewAlignment(alignment)
         return self
     }
 

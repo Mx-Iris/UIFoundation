@@ -94,7 +94,6 @@ extension StackViewAlignment {
     /// `.leading` / `.trailing` are nonsensical on horizontal stacks and fall back to
     /// `.top` / `.bottom`; `.top` / `.bottom` / `.firstBaseline` / `.lastBaseline` are
     /// nonsensical on vertical stacks and fall back to `.leading` / `.trailing` / `.fill`.
-    @usableFromInline
     @inlinable
     func uiStackAlignment(for axis: NSLayoutConstraint.Axis) -> UIStackView.Alignment {
         switch (self, axis) {

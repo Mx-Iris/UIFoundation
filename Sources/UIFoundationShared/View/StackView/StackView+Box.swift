@@ -25,13 +25,7 @@ extension FrameworkToolbox where Base: NSUIStackView {
     /// The view alignment within the stack view.
     @discardableResult
     public func alignment(_ alignment: StackViewAlignment) -> Base {
-        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
-        base.alignment = alignment.attribute(for: base.orientation)
-        #endif
-
-        #if canImport(UIKit)
-        base.alignment = alignment.uiStackAlignment(for: base.axis)
-        #endif
+        base.setStackViewAlignment(alignment)
         return base
     }
 

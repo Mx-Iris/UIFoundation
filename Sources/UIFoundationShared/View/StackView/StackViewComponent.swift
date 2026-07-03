@@ -177,6 +177,10 @@ extension StackViewComponent {
     @AssociatedObject(.copy(.nonatomic))
     var _fillsCrossAxis: Bool?
 
+    @usableFromInline
+    @AssociatedObject(.retain(.nonatomic))
+    var _stackViewCrossAxisFillConstraints: [NSLayoutConstraint]?
+
     @available(*, deprecated, message: "Use `stackView.fill()` instead.")
     @discardableResult
     @inlinable
