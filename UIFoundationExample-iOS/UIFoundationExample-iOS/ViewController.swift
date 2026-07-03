@@ -15,9 +15,5 @@ class ViewController: UITableViewController {
         
     }
 
-    override func numberOfSections(in tableView: UITableView) -> Int {
-        
-    }
-
 }
 
