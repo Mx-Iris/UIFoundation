@@ -169,7 +169,7 @@ Enable the `QuickActionBar` trait to present a Spotlight-style search panel:
 ```swift
 .package(
     url: "https://github.com/Mx-Iris/UIFoundation",
-    branch: "main",
+    from: "0.13.0",
     traits: ["QuickActionBar"]
 )
 ```
