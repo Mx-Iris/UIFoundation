@@ -258,6 +258,7 @@ Wiring:
 
 Public API surface:
 - `QuickActionBar` — the controller (was `DSFQuickActionBar`)
+- `QuickActionBar.resumePresentation()` — 仅在当前 panel 正处于 dismiss animation 时恢复同一个 window；返回值用于区分是否真正打断了关闭。实现必须从 presentation layer 的当前 transform 和 `NSWindow.alphaValue` 接续，且旧 animation completion 不得再关闭已恢复的 window。
 - `QuickActionBarContentSource` — delegate protocol (was `DSFQuickActionBarContentSource`); `canSelectItem` / `didSelectItem` / `quickActionBarDidCancel` have default no-op implementations
 - `QuickActionBar.SearchTask` — async-capable search task with `complete(with:)` / `cancel()`
 - `QuickActionBar.RequiredClickCount` — `.single` / `.double`
@@ -270,6 +271,7 @@ Differences from upstream `DSFQuickActionBar`:
 - `DSFAppearanceManager` dependency removed; reads accent / dark / increase-contrast / reduce-transparency directly from `NSColor.controlAccentColor`, `effectiveAppearance.bestMatch(from:)`, and `NSWorkspace.shared.accessibilityDisplay*`. `UsingEffectiveAppearance(ofWindow:)` is replaced by an in-tree `usingEffectiveAppearance(of:_:)` that uses `NSAppearance.performAsCurrentDrawingAppearance(_:)` on macOS 11+ with an `NSAppearance.current` fallback for 10.15.
 - `PrivacyInfo.xcprivacy` is not bundled (UIFoundation has no privacy manifest of its own).
 - Original MIT license and per-file copyright are preserved, plus a top-level entry in `THIRD_PARTY_LICENSES.md` at the repo root.
+- show/dismiss animation 支持在原 window 上反向打断；通过 animation identifier 淘汰过期 completion，避免快速重复触发时出现短暂无窗口或旧 completion 误关新状态。
 
 ### Tabs Control (ported from `onekiloparsec/KPCTabsControl`)
 

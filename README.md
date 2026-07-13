@@ -162,6 +162,32 @@ label.makeConstraints { make in
 }
 ```
 
+### Quick Action Bar
+
+Enable the `QuickActionBar` trait to present a Spotlight-style search panel:
+
+```swift
+.package(
+    url: "https://github.com/Mx-Iris/UIFoundation",
+    branch: "main",
+    traits: ["QuickActionBar"]
+)
+```
+
+```swift
+let actionBar = QuickActionBar()
+actionBar.contentSource = self
+actionBar.present(placeholderText: "Search")
+
+actionBar.cancel()
+
+if actionBar.resumePresentation() {
+    // An in-progress dismissal was reversed without recreating the panel.
+}
+```
+
+`resumePresentation()` returns `true` only while the existing panel is dismissing. Its fade and transform animations continue from their current presentation values, allowing repeated shortcut presses to reverse the transition smoothly.
+
 ### Cross-Platform Typealias
 
 `UIFoundationTypealias` provides `NSUI`-prefixed aliases (`NSUIView`, `NSUIColor`, `NSUIFont`, etc.) enabling cross-platform code without `#if canImport` branching:

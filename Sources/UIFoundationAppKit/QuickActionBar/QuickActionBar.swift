@@ -64,7 +64,6 @@ public final class QuickActionBar {
 
     internal weak var quickActionBarWindow: QuickActionBar.Window?
     internal var quickBarController: NSWindowController?
-    internal var onCloseCallback: (() -> Void)?
     internal var width: CGFloat = QuickActionBar.DefaultWidth
     internal var height: CGFloat = QuickActionBar.DefaultHeight
     internal var searchImage: NSImage?
@@ -118,8 +117,6 @@ public extension QuickActionBar {
                 return Self.DefaultImage
             }
         }()
-        self.onCloseCallback = didClose
-
         let originRect: CGRect
         if let parentWindow = parentWindow {
             originRect = parentWindow.frame
@@ -155,20 +152,21 @@ public extension QuickActionBar {
         quickBarWindow.currentCanBecomeMainWindow = canBecomeMainWindow
         quickBarWindow.placeholderText = placeholderText ?? ""
 
-        quickBarWindow.didDetectClose = { [weak self] in
+        quickBarWindow.didDetectClose = { [weak self, weak quickBarWindow] in
             guard
                 let self = self,
-                let window = self.quickActionBarWindow
+                let quickBarWindow,
+                self.quickActionBarWindow === quickBarWindow
             else {
                 return
             }
 
-            if window.userDidActivateItem == false {
+            if quickBarWindow.userDidActivateItem == false {
                 self.contentSource?.quickActionBarDidCancel(self)
             }
 
             self.quickBarController = nil
-            self.onCloseCallback?()
+            didClose?()
         }
 
         // Make sure the application is frontmost or the panel cannot become first responder.
@@ -185,9 +183,17 @@ public extension QuickActionBar {
 public extension QuickActionBar {
     /// Cancel an active action bar.
     func cancel() {
-        if let wc = self.quickBarController {
-            wc.window?.close()
+        if let windowController = self.quickBarController {
+            windowController.window?.close()
         }
+    }
+
+    /// Reverse an in-progress dismissal and keep presenting the current action bar.
+    ///
+    /// - Returns: `true` when an active dismissal was reversed; otherwise, `false`.
+    @discardableResult
+    func resumePresentation() -> Bool {
+        self.quickActionBarWindow?.resumePresentation() ?? false
     }
 }
 

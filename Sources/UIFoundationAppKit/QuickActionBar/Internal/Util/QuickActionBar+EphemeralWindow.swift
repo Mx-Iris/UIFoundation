@@ -17,7 +17,23 @@ import QuartzCore
 extension QuickActionBar {
     /// A panel that closes when it resigns focus (e.g. user clicks outside).
     internal class EphemeralWindow: NSPanel {
-        private var hasClosed = false
+        private enum PresentationAnimationState {
+            case idle
+            case presenting
+            case presented
+            case dismissing
+            case closed
+        }
+
+        private struct TransformAnimationValues {
+            let horizontalScale: CGFloat
+            let horizontalTranslation: CGFloat
+            let verticalScale: CGFloat
+            let verticalTranslation: CGFloat
+        }
+
+        private var presentationAnimationState: PresentationAnimationState = .idle
+        private var nextAnimationIdentifier: UInt = 0
 
         override init(contentRect: NSRect, styleMask style: NSWindow.StyleMask, backing backingStoreType: NSWindow.BackingStoreType, defer flag: Bool) {
             super.init(
@@ -54,16 +70,12 @@ extension QuickActionBar {
 
         /// Close and toggle presentation.
         override func close() {
-            if self.hasClosed == false {
-                self.hasClosed = true
-                self.didFinishPresentAnimation = nil
-                self.animationLayer?.removeAnimation(forKey: Self.animationKey)
-                dismissWithAnimation { [weak self] in
-                    guard let self = self else { return }
-                    self.performSuperClose()
-                    self.didDetectClose?()
-                }
-            }
+            guard
+                self.presentationAnimationState != .dismissing,
+                self.presentationAnimationState != .closed
+            else { return }
+
+            self.dismissWithAnimation()
         }
 
         private func performSuperClose() {
@@ -99,59 +111,45 @@ extension QuickActionBar {
             translationKeyPath: String,
             scaleFrom: CGFloat,
             scaleTo: CGFloat,
-            axisLength: CGFloat,
+            translationFrom: CGFloat,
+            translationTo: CGFloat,
             perceptualDuration: CGFloat,
-            bounce: CGFloat,
-            fillForwards: Bool
+            bounce: CGFloat
         ) -> (CASpringAnimation, CASpringAnimation) {
-            let scaleAnim: CASpringAnimation
-            let transAnim: CASpringAnimation
+            let scaleAnimation: CASpringAnimation
+            let translationAnimation: CASpringAnimation
 
             if #available(macOS 14.0, *) {
-                scaleAnim = CASpringAnimation(perceptualDuration: perceptualDuration, bounce: bounce)
-                transAnim = CASpringAnimation(perceptualDuration: perceptualDuration, bounce: bounce)
+                scaleAnimation = CASpringAnimation(perceptualDuration: perceptualDuration, bounce: bounce)
+                translationAnimation = CASpringAnimation(perceptualDuration: perceptualDuration, bounce: bounce)
             } else {
-                scaleAnim = CASpringAnimation(keyPath: scaleKeyPath)
-                transAnim = CASpringAnimation(keyPath: translationKeyPath)
+                scaleAnimation = CASpringAnimation(keyPath: scaleKeyPath)
+                translationAnimation = CASpringAnimation(keyPath: translationKeyPath)
                 let dampingValue: CGFloat = bounce > 0.2 ? 10 + (0.41 - bounce) * 20 : 20
                 let stiffnessValue: CGFloat = bounce > 0.2 ? 300 : 150
-                for animation in [scaleAnim, transAnim] {
+                for animation in [scaleAnimation, translationAnimation] {
                     animation.damping = dampingValue
                     animation.stiffness = stiffnessValue
                     animation.mass = 1
                 }
             }
 
-            scaleAnim.keyPath = scaleKeyPath
-            scaleAnim.fromValue = scaleFrom
-            scaleAnim.toValue = scaleTo
-            scaleAnim.duration = scaleAnim.settlingDuration
+            scaleAnimation.keyPath = scaleKeyPath
+            scaleAnimation.fromValue = scaleFrom
+            scaleAnimation.toValue = scaleTo
+            scaleAnimation.duration = scaleAnimation.settlingDuration
 
-            // Translation = axisLength * (1 - scale) / 2 keeps scaling visually centered.
-            transAnim.keyPath = translationKeyPath
-            transAnim.fromValue = axisLength * (1.0 - scaleFrom) / 2.0
-            transAnim.toValue = axisLength * (1.0 - scaleTo) / 2.0
-            transAnim.duration = transAnim.settlingDuration
+            translationAnimation.keyPath = translationKeyPath
+            translationAnimation.fromValue = translationFrom
+            translationAnimation.toValue = translationTo
+            translationAnimation.duration = translationAnimation.settlingDuration
 
-            if fillForwards {
-                for animation in [scaleAnim, transAnim] {
-                    animation.fillMode = .forwards
-                    animation.isRemovedOnCompletion = false
-                }
-            }
-
-            return (scaleAnim, transAnim)
+            return (scaleAnimation, translationAnimation)
         }
 
         /// Present the window with a Spotlight-style spring scale + fade animation.
         func presentWithAnimation() {
-            let layer = self.animationLayer ?? self.contentView?.layer
-            guard let layer = layer else {
-                self.makeKeyAndOrderFront(nil)
-                self.didFinishPresentAnimation?()
-                self.didFinishPresentAnimation = nil
-                return
-            }
+            guard self.presentationAnimationState == .idle else { return }
 
             CATransaction.begin()
             CATransaction.setDisableActions(true)
@@ -159,69 +157,107 @@ extension QuickActionBar {
             CATransaction.commit()
 
             self.makeKeyAndOrderFront(nil)
+            self.presentWithAnimation(isInitialPresentation: true)
+        }
 
-            let bounds = layer.bounds
-
-            let (sxAnim, txAnim) = Self.makeAxisAnimations(
-                scaleKeyPath: "transform.scale.x", translationKeyPath: "transform.translation.x",
-                scaleFrom: 1.12, scaleTo: 1.0, axisLength: bounds.width,
-                perceptualDuration: 0.28, bounce: 0.41, fillForwards: false
-            )
-
-            let (syAnim, tyAnim) = Self.makeAxisAnimations(
-                scaleKeyPath: "transform.scale.y", translationKeyPath: "transform.translation.y",
-                scaleFrom: 0.95, scaleTo: 1.0, axisLength: bounds.height,
-                perceptualDuration: 0.28, bounce: 0.32, fillForwards: false
-            )
-
-            let group = CAAnimationGroup()
-            group.animations = [sxAnim, txAnim, syAnim, tyAnim]
-            group.duration = [sxAnim, txAnim, syAnim, tyAnim].map(\.duration).max() ?? 0.3
-            layer.add(group, forKey: Self.animationKey)
+        /// Reverse an in-progress dismissal without closing and recreating the panel.
+        @discardableResult
+        func resumePresentation() -> Bool {
+            guard self.presentationAnimationState == .dismissing else { return false }
 
             if #available(macOS 14.0, *) {
-                self.animations = ["alphaValue": CASpringAnimation(perceptualDuration: 0.28, bounce: 0.41)]
+                NSApp.activate()
+            } else {
+                NSApp.activate(ignoringOtherApps: true)
             }
 
-            NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.25
-                context.allowsImplicitAnimation = true
-                self.animator().alphaValue = 1.0
-            }, completionHandler: { [weak self] in
-                self?.didFinishPresentAnimation?()
-                self?.didFinishPresentAnimation = nil
-            })
+            self.makeKeyAndOrderFront(nil)
+            self.presentWithAnimation(isInitialPresentation: false)
+            return true
+        }
+
+        private func presentWithAnimation(isInitialPresentation: Bool) {
+            self.presentationAnimationState = .presenting
+            let animationIdentifier = self.beginAnimation()
+
+            if let layer = self.animationLayer ?? self.contentView?.layer {
+                let endingValues = Self.presentedTransformAnimationValues
+                let startingValues = if isInitialPresentation {
+                    Self.dismissedTransformAnimationValues(for: layer.bounds)
+                } else {
+                    Self.currentTransformAnimationValues(
+                        from: layer,
+                        defaultValues: Self.dismissedTransformAnimationValues(for: layer.bounds)
+                    )
+                }
+
+                self.addTransformAnimation(
+                    to: layer,
+                    startingValues: startingValues,
+                    endingValues: endingValues,
+                    perceptualDuration: 0.28,
+                    horizontalBounce: 0.41,
+                    verticalBounce: 0.32,
+                    keepsFinalState: false
+                )
+            }
+
+            self.animateAlphaValue(to: 1.0) { [weak self] in
+                guard
+                    let self,
+                    self.nextAnimationIdentifier == animationIdentifier,
+                    self.presentationAnimationState == .presenting
+                else { return }
+
+                self.presentationAnimationState = .presented
+                self.didFinishPresentAnimation?()
+                self.didFinishPresentAnimation = nil
+            }
         }
 
         /// Dismiss the window with a Spotlight-style spring scale + fade animation.
-        private func dismissWithAnimation(completion: @escaping () -> Void) {
-            let layer = self.animationLayer ?? self.contentView?.layer
-            guard let layer = layer else {
-                completion()
-                return
+        private func dismissWithAnimation() {
+            self.presentationAnimationState = .dismissing
+            let animationIdentifier = self.beginAnimation()
+
+            if let layer = self.animationLayer ?? self.contentView?.layer {
+                let startingValues = Self.currentTransformAnimationValues(
+                    from: layer,
+                    defaultValues: Self.presentedTransformAnimationValues
+                )
+                let endingValues = Self.dismissedTransformAnimationValues(for: layer.bounds)
+
+                self.addTransformAnimation(
+                    to: layer,
+                    startingValues: startingValues,
+                    endingValues: endingValues,
+                    perceptualDuration: 0.45,
+                    horizontalBounce: 0.05,
+                    verticalBounce: 0.05,
+                    keepsFinalState: true
+                )
             }
 
-            let bounds = layer.bounds
+            self.animateAlphaValue(to: 0) { [weak self] in
+                guard
+                    let self,
+                    self.nextAnimationIdentifier == animationIdentifier,
+                    self.presentationAnimationState == .dismissing
+                else { return }
 
-            let (sxAnim, txAnim) = Self.makeAxisAnimations(
-                scaleKeyPath: "transform.scale.x", translationKeyPath: "transform.translation.x",
-                scaleFrom: 1.0, scaleTo: 1.12, axisLength: bounds.width,
-                perceptualDuration: 0.45, bounce: 0.05, fillForwards: true
-            )
+                self.presentationAnimationState = .closed
+                self.didFinishPresentAnimation = nil
+                self.performSuperClose()
+                self.didDetectClose?()
+            }
+        }
 
-            let (syAnim, tyAnim) = Self.makeAxisAnimations(
-                scaleKeyPath: "transform.scale.y", translationKeyPath: "transform.translation.y",
-                scaleFrom: 1.0, scaleTo: 0.95, axisLength: bounds.height,
-                perceptualDuration: 0.45, bounce: 0.05, fillForwards: true
-            )
+        private func beginAnimation() -> UInt {
+            self.nextAnimationIdentifier &+= 1
+            return self.nextAnimationIdentifier
+        }
 
-            let group = CAAnimationGroup()
-            group.animations = [sxAnim, txAnim, syAnim, tyAnim]
-            group.duration = [sxAnim, txAnim, syAnim, tyAnim].map(\.duration).max() ?? 0.3
-            group.fillMode = .forwards
-            group.isRemovedOnCompletion = false
-            layer.add(group, forKey: Self.animationKey)
-
+        private func animateAlphaValue(to alphaValue: CGFloat, completion: @escaping () -> Void) {
             if #available(macOS 14.0, *) {
                 self.animations = ["alphaValue": CASpringAnimation(perceptualDuration: 0.28, bounce: 0.41)]
             }
@@ -229,8 +265,124 @@ extension QuickActionBar {
             NSAnimationContext.runAnimationGroup({ context in
                 context.duration = 0.25
                 context.allowsImplicitAnimation = true
-                self.animator().alphaValue = 0
+                self.animator().alphaValue = alphaValue
             }, completionHandler: completion)
+        }
+
+        private func addTransformAnimation(
+            to layer: CALayer,
+            startingValues: TransformAnimationValues,
+            endingValues: TransformAnimationValues,
+            perceptualDuration: CGFloat,
+            horizontalBounce: CGFloat,
+            verticalBounce: CGFloat,
+            keepsFinalState: Bool
+        ) {
+            let (horizontalScaleAnimation, horizontalTranslationAnimation) = Self.makeAxisAnimations(
+                scaleKeyPath: "transform.scale.x",
+                translationKeyPath: "transform.translation.x",
+                scaleFrom: startingValues.horizontalScale,
+                scaleTo: endingValues.horizontalScale,
+                translationFrom: startingValues.horizontalTranslation,
+                translationTo: endingValues.horizontalTranslation,
+                perceptualDuration: perceptualDuration,
+                bounce: horizontalBounce
+            )
+
+            let (verticalScaleAnimation, verticalTranslationAnimation) = Self.makeAxisAnimations(
+                scaleKeyPath: "transform.scale.y",
+                translationKeyPath: "transform.translation.y",
+                scaleFrom: startingValues.verticalScale,
+                scaleTo: endingValues.verticalScale,
+                translationFrom: startingValues.verticalTranslation,
+                translationTo: endingValues.verticalTranslation,
+                perceptualDuration: perceptualDuration,
+                bounce: verticalBounce
+            )
+
+            let animationGroup = CAAnimationGroup()
+            animationGroup.animations = [
+                horizontalScaleAnimation,
+                horizontalTranslationAnimation,
+                verticalScaleAnimation,
+                verticalTranslationAnimation,
+            ]
+            animationGroup.duration = [
+                horizontalScaleAnimation,
+                horizontalTranslationAnimation,
+                verticalScaleAnimation,
+                verticalTranslationAnimation,
+            ].map(\.duration).max() ?? perceptualDuration
+
+            if keepsFinalState {
+                animationGroup.fillMode = .forwards
+                animationGroup.isRemovedOnCompletion = false
+            }
+
+            layer.add(animationGroup, forKey: Self.animationKey)
+        }
+
+        private static var presentedTransformAnimationValues: TransformAnimationValues {
+            TransformAnimationValues(
+                horizontalScale: 1.0,
+                horizontalTranslation: 0,
+                verticalScale: 1.0,
+                verticalTranslation: 0
+            )
+        }
+
+        private static func dismissedTransformAnimationValues(for bounds: CGRect) -> TransformAnimationValues {
+            let horizontalScale: CGFloat = 1.12
+            let verticalScale: CGFloat = 0.95
+
+            return TransformAnimationValues(
+                horizontalScale: horizontalScale,
+                horizontalTranslation: bounds.width * (1.0 - horizontalScale) / 2.0,
+                verticalScale: verticalScale,
+                verticalTranslation: bounds.height * (1.0 - verticalScale) / 2.0
+            )
+        }
+
+        private static func currentTransformAnimationValues(
+            from layer: CALayer,
+            defaultValues: TransformAnimationValues
+        ) -> TransformAnimationValues {
+            guard let presentationLayer = layer.presentation() else { return defaultValues }
+
+            return TransformAnimationValues(
+                horizontalScale: Self.animationValue(
+                    from: presentationLayer,
+                    keyPath: "transform.scale.x",
+                    defaultValue: defaultValues.horizontalScale
+                ),
+                horizontalTranslation: Self.animationValue(
+                    from: presentationLayer,
+                    keyPath: "transform.translation.x",
+                    defaultValue: defaultValues.horizontalTranslation
+                ),
+                verticalScale: Self.animationValue(
+                    from: presentationLayer,
+                    keyPath: "transform.scale.y",
+                    defaultValue: defaultValues.verticalScale
+                ),
+                verticalTranslation: Self.animationValue(
+                    from: presentationLayer,
+                    keyPath: "transform.translation.y",
+                    defaultValue: defaultValues.verticalTranslation
+                )
+            )
+        }
+
+        private static func animationValue(
+            from presentationLayer: CALayer,
+            keyPath: String,
+            defaultValue: CGFloat
+        ) -> CGFloat {
+            guard let number = presentationLayer.value(forKeyPath: keyPath) as? NSNumber else {
+                return defaultValue
+            }
+
+            return CGFloat(number.doubleValue)
         }
     }
 }
