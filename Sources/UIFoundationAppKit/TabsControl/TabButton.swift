@@ -21,6 +21,17 @@ open class TabButton: NSButton {
 
     private var tabButtonCell: TabButtonCell { cell as! TabButtonCell }
 
+    /// The owning control, used to report hover changes so it can drive its Liquid-Glass decoration.
+    weak var tabsControl: TabsControl?
+
+    /// Whether the close button is currently revealed, so repeated mouse-moved events don't restart
+    /// its fade animation.
+    private var showsCloseButton = false
+
+    /// Set for the duration of the reload that created this button, so an animated layout places it
+    /// directly instead of sliding it in from the origin.
+    var isNewlyInserted = false
+
     open var item: Any? {
         get { cell?.representedObject }
         set { cell?.representedObject = newValue }
@@ -167,7 +178,9 @@ open class TabButton: NSButton {
 
         let trackingArea = NSTrackingArea(
             rect: bounds,
-            options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+            // `.mouseMoved` lets the owning control re-evaluate hover as the pointer crosses into or
+            // out of a stacking region within a single tab.
+            options: [.mouseEnteredAndExited, .mouseMoved, .activeInActiveApp, .inVisibleRect],
             owner: self,
             userInfo: userInfo
         )
@@ -190,17 +203,34 @@ open class TabButton: NSButton {
     }
 
     open override func mouseMoved(with event: NSEvent) {
-        closeButton?.animator().alphaValue = 1
+        updateHover(true)
     }
 
     open override func mouseEntered(with theEvent: NSEvent) {
         needsDisplay = true
-        closeButton?.animator().alphaValue = 1
+        updateHover(true)
     }
 
     open override func mouseExited(with theEvent: NSEvent) {
         needsDisplay = true
-        closeButton?.animator().alphaValue = 0
+        updateHover(false)
+    }
+
+    /// Hover affordances are decided by the owning control, which knows whether the pointer is over a
+    /// stacking pile (where the tab underneath must stay inert). Standalone buttons decide for themselves.
+    private func updateHover(_ isHovered: Bool) {
+        if let tabsControl {
+            tabsControl.tabButton(self, didChangeHover: isHovered)
+        } else {
+            setShowsCloseButton(isHovered)
+        }
+    }
+
+    /// Reveals or hides the hover affordances — currently the close button.
+    func setShowsCloseButton(_ shows: Bool) {
+        guard shows != showsCloseButton else { return }
+        showsCloseButton = shows
+        closeButton?.animator().alphaValue = shows ? 1 : 0
     }
 
     open override func mouseDown(with theEvent: NSEvent) {
