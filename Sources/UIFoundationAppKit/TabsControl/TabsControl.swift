@@ -253,6 +253,15 @@ open class TabsControl: NSControl, NSTextDelegate {
             button.alternativeTitleIcon = dataSource.tabsControl?(self, titleAlternativeIconForItem: item)
         }
 
+        // Adding a tab ends a run of closes: there is a new tab to make room for, so the strip has to
+        // divide itself afresh rather than hold the width the closes were protecting.
+        // `-[NSTabBar insertTabBarViewItem:atIndex:animated:]` clears the same flag. Keyed on an
+        // actual insertion, not on any reload — a host that reloads in response to `didCloseItem`
+        // must not knock the pin out from under the close that is still being applied.
+        if !insertedButtons.isEmpty {
+            isInteractivelyClosingTabs = false
+        }
+
         layoutTabButtons(nil, animated: animated)
         insertedButtons.forEach { $0.isNewlyInserted = false }
         invalidateRestorableState()
@@ -814,6 +823,11 @@ open class TabsControl: NSControl, NSTextDelegate {
     // MARK: - Reordering
 
     private func reorderTab(_ tab: TabButton, withEvent event: NSEvent) {
+        // Dragging a tab ends a run of closes — the user has moved on to a different gesture, and the
+        // drag needs live geometry to reorder against. `-[NSTabBar
+        // _trackReorderingEventsWithStartEvent:forTabButton:]` clears the same flag on the way in.
+        isInteractivelyClosingTabs = false
+
         var orderedTabs = tabButtons
         let tabX = tab.frame.minX
         let dragPoint = tabsView.convert(event.locationInWindow, from: nil)
