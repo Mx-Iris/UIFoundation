@@ -49,10 +49,11 @@ final class TabsControlDemoViewController: NSViewController {
     // MARK: - UI
 
     private func buildUserInterface() {
-        styleSwitcher.segmentCount = 3
+        styleSwitcher.segmentCount = 4
         styleSwitcher.setLabel("Default", forSegment: 0)
         styleSwitcher.setLabel("Chrome", forSegment: 1)
         styleSwitcher.setLabel("Safari", forSegment: 2)
+        styleSwitcher.setLabel("System", forSegment: 3)
         styleSwitcher.trackingMode = .selectOne
         styleSwitcher.selectedSegment = 0
         styleSwitcher.target = self
@@ -61,7 +62,7 @@ final class TabsControlDemoViewController: NSViewController {
         let addButton = NSButton(title: "Add Tab", target: self, action: #selector(addTab(_:)))
         addButton.bezelStyle = .rounded
 
-        let hintLabel = NSTextField(labelWithString: "Double-click to rename · drag to reorder · hover to reveal close")
+        let hintLabel = NSTextField(labelWithString: "Double-click to rename · drag to reorder · hover to reveal close · try “System” for Liquid Glass")
         hintLabel.font = .systemFont(ofSize: 11)
         hintLabel.textColor = .tertiaryLabelColor
 
@@ -101,7 +102,7 @@ final class TabsControlDemoViewController: NSViewController {
             tabsControl.topAnchor.constraint(equalTo: toolbar.bottomAnchor, constant: 16),
             tabsControl.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tabsControl.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tabsControl.heightAnchor.constraint(equalToConstant: 36),
+            tabsControl.heightAnchor.constraint(equalToConstant: 26),
 
             logLabel.topAnchor.constraint(equalTo: tabsControl.bottomAnchor, constant: 20),
             logLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
@@ -123,6 +124,9 @@ final class TabsControlDemoViewController: NSViewController {
         case 2:
             tabsControl.style = TabsControl.SafariStyle()
             log("style → Safari")
+        case 3:
+            tabsControl.style = TabsControl.SystemStyle()
+            log("style → System")
         default:
             tabsControl.style = TabsControl.DefaultStyle()
             log("style → Default")
@@ -132,7 +136,7 @@ final class TabsControlDemoViewController: NSViewController {
     @objc private func addTab(_ sender: Any?) {
         tabs.append(TabModel(title: "Tab \(nextTabNumber)"))
         nextTabNumber += 1
-        tabsControl.reloadTabs()
+        tabsControl.reloadTabs(animated: true)
         tabsControl.selectItemAtIndex(tabs.count - 1)
         log("added tab (\(tabs.count) total)")
     }
@@ -167,7 +171,8 @@ extension TabsControlDemoViewController: TabsControl.DataSource {
     }
 
     func tabsControl(_ control: TabsControl, closePositionForItem item: Any) -> TabsControl.ClosePosition {
-        .right
+        // The system window-tab bar puts the close button on the leading edge.
+        .left
     }
 }
 
