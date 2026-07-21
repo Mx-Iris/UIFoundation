@@ -11,10 +11,10 @@ public protocol TableViewTextFinderDataSource: AnyObject {
     /// Return the searchable text for a given row and column.
     /// Return `nil` to fall back to an empty string for the cell.
     ///
-    /// - Important: This method may be called on a **background thread** during
-    ///   index building. Implementations must not access UI objects (e.g.
-    ///   `NSTableView`, cell views). Use pre-cached data or column index
-    ///   constants instead of querying the table view for column identifiers.
+    /// Always called on the **main thread**. Index building gathers strings in
+    /// main-actor chunks, so implementations may freely read main-isolated
+    /// state (view models, caches); they should still be cheap per call, as
+    /// the client invokes this once per searchable cell.
     func textFinderClient(_ client: TableViewTextFinderClient, stringForRow row: Int, column: Int) -> String?
 
     /// Return the `NSTextField` that should be used for highlight rect computation

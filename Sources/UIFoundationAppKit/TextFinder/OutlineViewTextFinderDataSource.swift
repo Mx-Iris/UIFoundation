@@ -23,10 +23,10 @@ public protocol OutlineViewTextFinderDataSource: AnyObject {
     /// Return the searchable text for a given item and column.
     /// Return `nil` to fall back to an empty string for the cell.
     ///
-    /// - Important: This method may be called on a **background thread** during
-    ///   index building. Implementations must not access UI objects (e.g.
-    ///   `NSOutlineView`, cell views). Use pre-cached data or column index
-    ///   constants instead of querying the outline view for column identifiers.
+    /// Always called on the **main thread**. Index building gathers strings in
+    /// main-actor chunks, so implementations may freely read main-isolated
+    /// state (view models, caches); they should still be cheap per call, as
+    /// the client invokes this once per searchable cell.
     func textFinderClient(_ client: OutlineViewTextFinderClient, stringForItem item: Any, column: Int) -> String?
 
     /// Return the child items for the given parent item (nil = root).

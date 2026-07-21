@@ -30,12 +30,18 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
     /// Updated in `scrollRangeToVisible(_:)` whenever NSTextFinder navigates to a match.
     var currentMatchRange: NSRange = NSRange(location: 0, length: 0)
 
-    // MARK: - Background Indexing
+    // MARK: - Incremental Indexing
 
-    private let indexingQueue = DispatchQueue(label: "com.uifoundation.textfinder.table.indexing", qos: .userInitiated)
+    /// Number of rows whose strings are gathered per main-actor chunk before
+    /// yielding back to the run loop.
+    private static let indexingChunkRowCount = 2048
 
-    /// Monotonically increasing counter used to cancel stale background work.
-    /// Only written on the main thread; read from the background queue to detect cancellation.
+    /// Single-slot cancel-replace task that gathers cell strings on the main
+    /// actor in fixed-size chunks.
+    private var indexingTask: Task<Void, Never>?
+
+    /// Monotonically increasing counter used to discard stale indexing work.
+    /// Accessed only on the main thread.
     private var indexingGeneration: UInt = 0
 
     // MARK: - Initialization
@@ -64,12 +70,13 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
     }
 
     func rebuildIndex() {
-        // Bump generation so any in-flight background work is discarded.
+        // Bump generation so any in-flight indexing task discards its results.
         indexingGeneration &+= 1
         let generation = indexingGeneration
+        indexingTask?.cancel()
 
         // Clear immediately so NSTextFinder sees an empty string while
-        // the background index is being built.
+        // the chunked index is being rebuilt.
         textFinder.noteClientStringWillChange()
         indexStore.removeAll()
         currentMatchRange = NSRange(location: 0, length: 0)
@@ -79,41 +86,49 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
         let numberOfRows = tableView.numberOfRows
         guard numberOfRows > 0, numberOfColumns > 0 else { return }
 
-        indexingQueue.async { [weak self, weak dataSource] in
-            guard let self, let dataSource else { return }
-
+        // All data-source callbacks must stay on the main thread: consumers
+        // implement them on main-isolated view models, and calling them from
+        // a background queue raced with main-thread access to that same state
+        // (torn reads/writes of cached display strings produced over-released
+        // String storage that crashed later when the index store released its
+        // tokens). Yielding between fixed-size chunks keeps large tables from
+        // stalling the run loop.
+        indexingTask = Task { @MainActor [weak self] in
             var tokenStrings: [(row: Int, column: Int, string: String)] = []
             tokenStrings.reserveCapacity(numberOfRows * numberOfColumns)
 
-            for rowIndex in 0 ..< numberOfRows {
-                // Check cancellation periodically
-                guard self.indexingGeneration == generation else { return }
-                for columnIndex in 0 ..< numberOfColumns {
-                    let string = dataSource.textFinderClient(self, stringForRow: rowIndex, column: columnIndex) ?? ""
-                    tokenStrings.append((rowIndex, columnIndex, string))
+            var rowIndex = 0
+            while rowIndex < numberOfRows {
+                guard let self, !Task.isCancelled, self.indexingGeneration == generation,
+                      let dataSource = self.dataSource,
+                      self.tableView?.numberOfRows == numberOfRows else { return }
+                let chunkUpperBound = min(rowIndex + Self.indexingChunkRowCount, numberOfRows)
+                while rowIndex < chunkUpperBound {
+                    for columnIndex in 0 ..< numberOfColumns {
+                        let string = dataSource.textFinderClient(self, stringForRow: rowIndex, column: columnIndex) ?? ""
+                        tokenStrings.append((rowIndex, columnIndex, string))
+                    }
+                    rowIndex += 1
                 }
+                await Task.yield()
             }
 
-            guard self.indexingGeneration == generation else { return }
-
-            DispatchQueue.main.async { [weak self] in
-                guard let self, self.indexingGeneration == generation else { return }
-                self.textFinder.noteClientStringWillChange()
-                self.indexStore.removeAll()
-                for tokenString in tokenStrings {
-                    self.indexStore.appendToken(
-                        row: tokenString.row,
-                        column: tokenString.column,
-                        string: tokenString.string
-                    )
-                }
-                // If the find bar is visible, re-trigger search so the user
-                // sees results immediately instead of a stale "Not Found".
-                if self.indexStore.totalLength > 0,
-                   let findBarContainer = self.textFinder.findBarContainer,
-                   findBarContainer.isFindBarVisible {
-                    self.textFinder.performAction(.nextMatch)
-                }
+            guard let self, !Task.isCancelled, self.indexingGeneration == generation else { return }
+            self.textFinder.noteClientStringWillChange()
+            self.indexStore.removeAll()
+            for tokenString in tokenStrings {
+                self.indexStore.appendToken(
+                    row: tokenString.row,
+                    column: tokenString.column,
+                    string: tokenString.string
+                )
+            }
+            // If the find bar is visible, re-trigger search so the user
+            // sees results immediately instead of a stale "Not Found".
+            if self.indexStore.totalLength > 0,
+               let findBarContainer = self.textFinder.findBarContainer,
+               findBarContainer.isFindBarVisible {
+                self.textFinder.performAction(.nextMatch)
             }
         }
     }
