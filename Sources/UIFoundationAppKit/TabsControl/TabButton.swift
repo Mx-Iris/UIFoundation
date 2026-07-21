@@ -234,11 +234,19 @@ open class TabButton: NSButton {
         }
     }
 
+    /// The close button fades on its own clock in the system tab bar: `-[NSTabButton
+    /// initWithFrame:tabBarViewItem:]` registers a dedicated 0.16 s `alphaValue` animation on it,
+    /// distinct from the 0.15 s the surrounding relayout uses.
+    private static let closeButtonFadeDuration: TimeInterval = 0.16
+
     /// Reveals or hides the hover affordances — currently the close button.
     func setShowsCloseButton(_ shows: Bool) {
         guard shows != showsCloseButton else { return }
         showsCloseButton = shows
-        closeButton?.animator().alphaValue = shows ? 1 : 0
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = Self.closeButtonFadeDuration
+            closeButton?.animator().alphaValue = shows ? 1 : 0
+        }
     }
 
     open override func mouseDown(with theEvent: NSEvent) {

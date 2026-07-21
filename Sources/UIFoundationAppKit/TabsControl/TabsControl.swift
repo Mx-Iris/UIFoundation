@@ -239,6 +239,7 @@ open class TabsControl: NSControl, NSTextDelegate {
         }
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = Self.layoutAnimationDuration
+            context.timingFunction = CAMediaTimingFunction(name: .linear)
             visibleButtons.forEach { $0.animator().alphaValue = 1.0 }
         }, completionHandler: {
             visibleButtons.forEach { $0.isFadingIn = false }
@@ -247,8 +248,41 @@ open class TabsControl: NSControl, NSTextDelegate {
 
     // MARK: - Frame Animation
 
-    /// The duration the system window-tab bar uses for layout changes.
+    /// The spring the system window-tab bar moves tabs with.
+    ///
+    /// Taken from AppKit 26.5's `tabBarAnimation()`, which builds a `CASpringAnimation` with exactly
+    /// these constants and pins its duration to `settlingDuration` (0.5 s on macOS 26.5). AppKit
+    /// registers it through `setAnimations:` for `bounds`, `frameOrigin`, `position` and `constant`
+    /// on every tab button, separator, border and glass view it owns.
+    ///
+    /// The damping ratio is `600 / (2 * sqrt(400 * 1))` == 15 — heavily overdamped, so the motion
+    /// leaves briskly, never overshoots, and settles on a long soft tail. That tail is what makes the
+    /// system bar feel unhurried; a fixed short duration with an ease curve reads as noticeably snappier.
+    private enum LayoutSpring {
+        static let mass: CGFloat = 1.0
+        static let stiffness: CGFloat = 400.0
+        static let damping: CGFloat = 600.0
+    }
+
+    /// The duration of the `NSAnimationContext` AppKit wraps a tab-bar relayout in
+    /// (`-[NSTabBar _beginAnimationGrouping]`), which pairs it with a **linear** curve.
+    ///
+    /// It is not the duration tabs move over — the spring above owns that. It gates whether anything
+    /// animates at all and supplies the timing for the properties no spring is registered for, which
+    /// for this control means the insertion and removal fades.
     static let layoutAnimationDuration: TimeInterval = 0.15
+
+    /// Builds the system's tab-movement spring for one layer property.
+    private static func makeLayoutSpring(keyPath: String, from originValue: Any) -> CASpringAnimation {
+        let animation = CASpringAnimation(keyPath: keyPath)
+        animation.mass = LayoutSpring.mass
+        animation.stiffness = LayoutSpring.stiffness
+        animation.damping = LayoutSpring.damping
+        animation.fromValue = originValue
+        // Read only after the constants are in place — `settlingDuration` is derived from them.
+        animation.duration = animation.settlingDuration
+        return animation
+    }
 
     /// Moves `view` to `newFrame`, animating the motion when asked.
     ///
@@ -276,19 +310,8 @@ open class TabsControl: NSControl, NSTextDelegate {
 
         guard animated, let layer, let originPosition, let originBounds else { return }
 
-        let timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-
-        let positionAnimation = CABasicAnimation(keyPath: "position")
-        positionAnimation.fromValue = NSValue(point: originPosition)
-        positionAnimation.duration = layoutAnimationDuration
-        positionAnimation.timingFunction = timingFunction
-        layer.add(positionAnimation, forKey: "position")
-
-        let boundsAnimation = CABasicAnimation(keyPath: "bounds")
-        boundsAnimation.fromValue = NSValue(rect: originBounds)
-        boundsAnimation.duration = layoutAnimationDuration
-        boundsAnimation.timingFunction = timingFunction
-        layer.add(boundsAnimation, forKey: "bounds")
+        layer.add(makeLayoutSpring(keyPath: "position", from: NSValue(point: originPosition)), forKey: "position")
+        layer.add(makeLayoutSpring(keyPath: "bounds", from: NSValue(rect: originBounds)), forKey: "bounds")
     }
 
     // MARK: - Layout
@@ -691,6 +714,7 @@ open class TabsControl: NSControl, NSTextDelegate {
         button.isClosing = true
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = Self.layoutAnimationDuration
+            context.timingFunction = CAMediaTimingFunction(name: .linear)
             button.animator().alphaValue = 0.0
         }, completionHandler: {
             button.removeFromSuperview()
