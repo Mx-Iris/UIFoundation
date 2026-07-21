@@ -40,6 +40,10 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
     /// actor in fixed-size chunks.
     private var indexingTask: Task<Void, Never>?
 
+    /// Testing seam — lets tests await completion of the in-flight chunked
+    /// indexing pass.
+    var indexingTaskForTesting: Task<Void, Never>? { indexingTask }
+
     /// Monotonically increasing counter used to discard stale indexing work.
     /// Accessed only on the main thread.
     private var indexingGeneration: UInt = 0
