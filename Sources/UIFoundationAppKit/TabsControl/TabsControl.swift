@@ -767,24 +767,22 @@ open class TabsControl: NSControl, NSTextDelegate {
 
     // MARK: - Selection
 
+    /// The tab button cell's action — a genuine click on a tab.
     @objc private func selectTab(_ sender: Any?) {
         guard let button = sender as? TabButton,
               button.isEnabled
         else { return }
 
-        selectedButtonIndex = button.index
-        invalidateRestorableState()
+        selectButton(button)
 
-        if let action, let target {
-            NSApp.sendAction(action, to: target, from: self)
-        }
+        // Everything below belongs to the click. `TabButtonCell` sends its action on mouse-down, so a
+        // real tab click always presents one; any other caller must be kept out of the drag-tracking
+        // wait, which parks the main thread in `.eventTracking` until the user next presses the mouse.
+        // Reaching it from a programmatic selection froze the whole app — tab hover included — until
+        // the next click somewhere else released it.
+        guard let currentEvent = NSApp.currentEvent, currentEvent.type == .leftMouseDown else { return }
 
-        // `selectedButtonIndex`'s `didSet` already posts `selectionDidChangeNotification`.
-        delegate?.tabsControlDidChangeSelection?(self, item: button.representedObject)
-
-        guard let currentEvent = NSApp.currentEvent else { return }
-
-        if currentEvent.type == .leftMouseDown && currentEvent.clickCount > 1 {
+        if currentEvent.clickCount > 1 {
             editTabButton(button)
         } else if let item = button.representedObject,
             delegate?.tabsControl?(self, canReorderItem: item) == true {
@@ -795,6 +793,21 @@ open class TabsControl: NSControl, NSTextDelegate {
 
             reorderTab(button, withEvent: currentEvent)
         }
+    }
+
+    /// Moves the selection to `button`, without any of the click-driven follow-up.
+    private func selectButton(_ button: TabButton) {
+        guard button.isEnabled else { return }
+
+        selectedButtonIndex = button.index
+        invalidateRestorableState()
+
+        if let action, let target {
+            NSApp.sendAction(action, to: target, from: self)
+        }
+
+        // `selectedButtonIndex`'s `didSet` already posts `selectionDidChangeNotification`.
+        delegate?.tabsControlDidChangeSelection?(self, item: button.representedObject)
     }
 
     private func scrollToSelectedButton() {
@@ -831,7 +844,7 @@ open class TabsControl: NSControl, NSTextDelegate {
     /// - parameter index: An integer indicating the index of the item to be selected.
     open func selectItemAtIndex(_ index: Int) {
         guard let button = tabButtons[safe: index] else { return }
-        selectTab(button)
+        selectButton(button)
     }
 
     private func updateButtonStatesForSelection() {
@@ -941,7 +954,7 @@ open class TabsControl: NSControl, NSTextDelegate {
               let selectedButton = tabButtons.first(where: { $0.index == selectedButtonIndex })
         else { return }
 
-        selectTab(selectedButton)
+        selectButton(selectedButton)
     }
 
     // MARK: - Helpers
