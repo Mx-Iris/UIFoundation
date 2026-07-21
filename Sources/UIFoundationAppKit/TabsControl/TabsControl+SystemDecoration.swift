@@ -116,6 +116,9 @@ extension TabsControl {
         private var visualEffectView: NSVisualEffectView?
         private var currentState: TabState = .normal
 
+        /// Whichever material view this system could provide, or `nil` when only the plain fill is left.
+        private var effectView: NSView? { glassEffectView ?? visualEffectView }
+
         override init(frame frameRect: NSRect) {
             super.init(frame: frameRect)
             commonInit()
@@ -134,7 +137,6 @@ extension TabsControl {
             if #available(macOS 26.0, *) {
                 let glass = NSGlassEffectView()
                 glass.frame = bounds
-                glass.autoresizingMask = [.width, .height]
                 glass.cornerRadius = cornerRadius
                 glass.setPrivateContentLensing(true)
                 addSubview(glass)
@@ -142,7 +144,6 @@ extension TabsControl {
             } else if !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
                 let effect = NSVisualEffectView()
                 effect.frame = bounds
-                effect.autoresizingMask = [.width, .height]
                 effect.material = .selection
                 effect.isEmphasized = false
                 effect.blendingMode = .withinWindow
@@ -153,6 +154,27 @@ extension TabsControl {
                 addSubview(effect)
                 visualEffectView = effect
             }
+        }
+
+        /// Moves the glass to `newFrame`, carrying the hosted material view with it.
+        ///
+        /// The material view is positioned explicitly rather than by `autoresizingMask`, and it is
+        /// animated in its own right rather than riding along inside its container: sublayers do not
+        /// scale with their superlayer's bounds, so a container-only animation would leave the glass
+        /// at its final size throughout. ``layout()`` is the backstop that keeps the two in step for
+        /// any resize that does not come through here.
+        func apply(frame newFrame: NSRect, animated: Bool) {
+            // Growing out of nothing has no "from" state worth animating.
+            let animates = animated && !frame.isEmpty
+            TabsControl.setFrame(newFrame, of: self, animated: animates)
+            if let effectView {
+                TabsControl.setFrame(NSRect(origin: .zero, size: newFrame.size), of: effectView, animated: animates)
+            }
+        }
+
+        override func layout() {
+            super.layout()
+            effectView?.frame = bounds
         }
 
         /// Applies the system glass configuration for the given tab state.
@@ -258,6 +280,12 @@ extension TabsControl {
 
         override func layout() {
             super.layout()
+            // Sized explicitly for the same reason as `TabGlassView`: autoresizing is skipped when a
+            // frame change comes through an animator, and a material view left at zero size renders
+            // nothing at all.
+            glassEffectView?.frame = bounds
+            visualEffectView?.frame = bounds
+
             let radius = min(bounds.width, bounds.height) / 2.0
             if #available(macOS 26.0, *), let glass = glassEffectView as? NSGlassEffectView {
                 glass.cornerRadius = radius
@@ -302,12 +330,22 @@ extension TabsControl {
         }
     }
 
+    /// What the layout pass decided for a single tab.
+    ///
+    /// The decoration is driven from these values rather than by reading the buttons back, because a
+    /// button's `frame` and `alphaValue` are mid-flight while an animation runs — sampling them would
+    /// strand the glass and separators at whatever positions happened to be current.
+    struct TabLayoutInfo {
+        var frame: NSRect
+        var isCollapsed: Bool
+        var zPosition: CGFloat
+    }
+
     /// Owns and positions the per-tab Liquid-Glass backgrounds and the inter-tab separators that
     /// stand in for per-button bezel drawing when a ``TabsControl/Style`` opts into
     /// ``TabsControl/Style/controlDecoration``.
     ///
-    /// All decoration views live inside the tabs container at `zPosition == -1`, keeping them behind
-    /// every tab button (which draws its title on top).
+    /// Decoration views sit just behind their own tab button, so overlapping stacked tabs read correctly.
     final class SystemTabDecorator {
         private unowned let container: NSView
 
@@ -327,44 +365,50 @@ extension TabsControl {
             separators.removeAll()
         }
 
-        /// Repositions and reconfigures all decoration to match the current buttons, selection and
-        /// hover state.
+        /// Repositions and reconfigures all decoration to match the layout the control just computed.
+        ///
+        /// Decoration is moved with the same ``TabsControl/setFrame(_:of:animated:)`` the tab buttons
+        /// use, so the two travel in lockstep instead of one snapping ahead of the other.
         func update(
-            buttons: [TabButton],
+            layouts: [TabLayoutInfo],
             selectedIndex: Int?,
             hoveredIndex: Int?,
-            decoration: TabsControl.ControlDecoration
+            decoration: TabsControl.ControlDecoration,
+            animated: Bool
         ) {
-            updateTabGlasses(buttons: buttons, selectedIndex: selectedIndex, hoveredIndex: hoveredIndex, decoration: decoration)
-            updateSeparators(buttons: buttons, selectedIndex: selectedIndex, hoveredIndex: hoveredIndex, decoration: decoration)
+            updateTabGlasses(layouts: layouts, selectedIndex: selectedIndex, hoveredIndex: hoveredIndex, decoration: decoration, animated: animated)
+            updateSeparators(layouts: layouts, selectedIndex: selectedIndex, hoveredIndex: hoveredIndex, decoration: decoration, animated: animated)
         }
 
         // MARK: - Per-tab glass
 
         private func updateTabGlasses(
-            buttons: [TabButton],
+            layouts: [TabLayoutInfo],
             selectedIndex: Int?,
             hoveredIndex: Int?,
-            decoration: TabsControl.ControlDecoration
+            decoration: TabsControl.ControlDecoration,
+            animated: Bool
         ) {
-            while tabGlasses.count < buttons.count {
+            while tabGlasses.count < layouts.count {
                 let glass = TabGlassView(frame: .zero)
                 container.addSubview(glass)
                 tabGlasses.append(glass)
             }
-            while tabGlasses.count > buttons.count {
+            while tabGlasses.count > layouts.count {
                 tabGlasses.removeLast().removeFromSuperview()
             }
 
-            for (index, button) in buttons.enumerated() {
+            for (index, info) in layouts.enumerated() {
                 let glass = tabGlasses[index]
                 glass.cornerRadius = decoration.cornerRadius
-                glass.frame = pillFrame(for: button.frame, insets: decoration.selectionInsets)
+
+                let pill = pillFrame(for: info.frame, insets: decoration.selectionInsets)
+                glass.apply(frame: pill, animated: animated && !glass.isHidden)
 
                 // Keep each tab's glass immediately behind its own button. When tabs stack they
                 // overlap, so a single shared depth would let a lower tab's title draw over a higher
                 // tab's glass.
-                glass.layer?.zPosition = (button.layer?.zPosition ?? 0.0) - 0.5
+                glass.layer?.zPosition = info.zPosition - 0.5
 
                 let state: TabGlassView.TabState
                 if index == selectedIndex {
@@ -377,7 +421,7 @@ extension TabsControl {
                 glass.configure(state: state)
 
                 // A tab that has collapsed into a pile carries no glass.
-                if button.alphaValue <= 0.0 || glass.frame.width <= 0.0 {
+                if info.isCollapsed || pill.width <= 0.0 {
                     glass.isHidden = true
                 }
             }
@@ -386,17 +430,18 @@ extension TabsControl {
         // MARK: - Separators
 
         private func updateSeparators(
-            buttons: [TabButton],
+            layouts: [TabLayoutInfo],
             selectedIndex: Int?,
             hoveredIndex: Int?,
-            decoration: TabsControl.ControlDecoration
+            decoration: TabsControl.ControlDecoration,
+            animated: Bool
         ) {
-            guard decoration.drawsSeparators, buttons.count > 1 else {
+            guard decoration.drawsSeparators, layouts.count > 1 else {
                 separators.forEach { $0.isHidden = true }
                 return
             }
 
-            let neededCount = buttons.count - 1
+            let neededCount = layouts.count - 1
             while separators.count < neededCount {
                 let separator = TabSeparatorView(frame: .zero)
                 container.addSubview(separator)
@@ -410,25 +455,25 @@ extension TabsControl {
                 let separator = separators[index]
                 // A separator after tab `index` is hidden when it borders the selected tab or a
                 // hovered tab (matching -[NSTabBar _updateSeparatorVisibility]).
-                let leadingButton = buttons[index]
-                let trailingButton = buttons[index + 1]
+                let leading = layouts[index]
+                let trailing = layouts[index + 1]
                 // Also drop the separator once the tabs start piling up: a collapsed neighbour, or
                 // two tabs overlapping, leaves no gap for a hairline to sit in.
                 let isHidden =
                     selectedIndex == index || selectedIndex == index + 1 ||
                     hoveredIndex == index || hoveredIndex == index + 1 ||
-                    leadingButton.alphaValue <= 0.0 || trailingButton.alphaValue <= 0.0 ||
-                    leadingButton.frame.maxX > trailingButton.frame.minX
+                    leading.isCollapsed || trailing.isCollapsed ||
+                    leading.frame.maxX > trailing.frame.minX
                 separator.isHidden = isHidden
                 guard !isHidden else { continue }
 
-                let buttonFrame = leadingButton.frame
-                separator.frame = NSRect(
-                    x: buttonFrame.maxX - 0.5,
-                    y: buttonFrame.minY + decoration.separatorVerticalInset,
+                let separatorFrame = NSRect(
+                    x: leading.frame.maxX - 0.5,
+                    y: leading.frame.minY + decoration.separatorVerticalInset,
                     width: 1.0,
-                    height: max(0.0, buttonFrame.height - 2.0 * decoration.separatorVerticalInset)
+                    height: max(0.0, leading.frame.height - 2.0 * decoration.separatorVerticalInset)
                 )
+                TabsControl.setFrame(separatorFrame, of: separator, animated: animated)
             }
         }
 

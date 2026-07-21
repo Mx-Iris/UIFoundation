@@ -32,6 +32,14 @@ open class TabButton: NSButton {
     /// directly instead of sliding it in from the origin.
     var isNewlyInserted = false
 
+    /// Set while the button fades out after being closed. It stays in the view hierarchy for the
+    /// duration of the fade but is excluded from layout, so the remaining tabs close the gap over it.
+    var isClosing = false
+
+    /// Set while the button fades in after being inserted, so a layout pass running mid-fade does not
+    /// snap its opacity back to fully visible.
+    var isFadingIn = false
+
     open var item: Any? {
         get { cell?.representedObject }
         set { cell?.representedObject = newValue }

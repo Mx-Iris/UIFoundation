@@ -48,6 +48,9 @@ open class TabsControl: NSControl, NSTextDelegate {
     /// the clip view's bounds-changed notification.
     private var isLayingOutTabButtons = false
 
+    /// The layout produced by the most recent pass, reused when only the hover state changes.
+    private var lastTabLayouts: [TabLayoutInfo] = []
+
     // MARK: - Data Source & Delegate
 
     /// The data source of the tabs control, providing all the necessary information for the class to build the tabs.
@@ -230,12 +233,62 @@ open class TabsControl: NSControl, NSTextDelegate {
         let visibleButtons = buttons.filter { $0.alphaValue > 0.0 }
         guard !visibleButtons.isEmpty else { return }
 
-        visibleButtons.forEach { $0.alphaValue = 0.0 }
-        NSAnimationContext.runAnimationGroup { context in
-            // Matches the system tab bar's layout animation duration.
-            context.duration = 0.15
-            visibleButtons.forEach { $0.animator().alphaValue = 1.0 }
+        visibleButtons.forEach {
+            $0.alphaValue = 0.0
+            $0.isFadingIn = true
         }
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = Self.layoutAnimationDuration
+            visibleButtons.forEach { $0.animator().alphaValue = 1.0 }
+        }, completionHandler: {
+            visibleButtons.forEach { $0.isFadingIn = false }
+        })
+    }
+
+    // MARK: - Frame Animation
+
+    /// The duration the system window-tab bar uses for layout changes.
+    static let layoutAnimationDuration: TimeInterval = 0.15
+
+    /// Moves `view` to `newFrame`, animating the motion when asked.
+    ///
+    /// The frame is always published with implicit animation switched **off**, and the motion is then
+    /// added as an explicit layer animation. AppKit's own machinery is unusable here: a control whose
+    /// cell overrides `draw(withFrame:in:)` — which every ``TabButton`` does — silently *drops* frame
+    /// changes made inside an animation context, whether through `animator()` or through an enclosing
+    /// group with `allowsImplicitAnimation`. No animation is installed and the model value never
+    /// changes, so the button simply never moves and is left stranded behind its own decoration.
+    /// Everything the control positions goes through here, so buttons and decoration travel together.
+    static func setFrame(_ newFrame: NSRect, of view: NSView, animated: Bool) {
+        guard view.frame != newFrame else { return }
+
+        // Re-target from where the view currently *appears* to be, so a layout pass that interrupts
+        // an in-flight animation carries on smoothly instead of snapping back to the model value.
+        let layer = view.layer
+        let originPosition = layer.map { $0.presentation()?.position ?? $0.position }
+        let originBounds = layer.map { $0.presentation()?.bounds ?? $0.bounds }
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.0
+            context.allowsImplicitAnimation = false
+            view.frame = newFrame
+        }
+
+        guard animated, let layer, let originPosition, let originBounds else { return }
+
+        let timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+
+        let positionAnimation = CABasicAnimation(keyPath: "position")
+        positionAnimation.fromValue = NSValue(point: originPosition)
+        positionAnimation.duration = layoutAnimationDuration
+        positionAnimation.timingFunction = timingFunction
+        layer.add(positionAnimation, forKey: "position")
+
+        let boundsAnimation = CABasicAnimation(keyPath: "bounds")
+        boundsAnimation.fromValue = NSValue(rect: originBounds)
+        boundsAnimation.duration = layoutAnimationDuration
+        boundsAnimation.timingFunction = timingFunction
+        layer.add(boundsAnimation, forKey: "bounds")
     }
 
     // MARK: - Layout
@@ -288,21 +341,33 @@ open class TabsControl: NSControl, NSTextDelegate {
     private func layoutStackedTabButtons(_ tabButtons: [TabButton], geometry: StackingGeometry, animated: Bool) {
         let contentInset = style.controlDecoration?.barContentInset ?? 0.0
         let documentOrigin = contentInset + geometry.scrollOffset
+        var layouts: [TabLayoutInfo] = []
+        layouts.reserveCapacity(tabButtons.count)
 
         for (index, button) in tabButtons.enumerated() {
             let layout = geometry.layout(at: index)
             var buttonFrame = layout.frame
             buttonFrame.origin.x += documentOrigin
 
-            button.layer?.zPosition = geometry.zPosition(at: index)
+            let zPosition = geometry.zPosition(at: index)
+            button.layer?.zPosition = zPosition
+            layouts.append(TabLayoutInfo(frame: buttonFrame, isCollapsed: layout.isCollapsed, zPosition: zPosition))
 
+            // An insertion fade owns the opacity until it finishes — unless the tab has collapsed
+            // into a pile, in which case it must go invisible regardless.
             let alpha: CGFloat = layout.isCollapsed ? 0.0 : 1.0
-            if animated && !button.isHidden && !button.isNewlyInserted {
-                button.animator().frame = buttonFrame
-                button.animator().alphaValue = alpha
-            } else {
-                button.frame = buttonFrame
-                button.alphaValue = alpha
+            let ownsAlpha = layout.isCollapsed || !button.isFadingIn
+
+            // A freshly created button has no previous frame to travel from, so animating it would
+            // make it fly in from the origin.
+            let animatesButton = animated && !button.isHidden && !button.isNewlyInserted
+            Self.setFrame(buttonFrame, of: button, animated: animatesButton)
+            if ownsAlpha {
+                if animatesButton {
+                    button.animator().alphaValue = alpha
+                } else {
+                    button.alphaValue = alpha
+                }
             }
 
             if let selectable = delegate?.tabsControl?(self, canSelectItem: button.representedObject!) {
@@ -321,18 +386,27 @@ open class TabsControl: NSControl, NSTextDelegate {
             tabsView.frame = viewFrame
         }
 
-        if let decoration = style.controlDecoration {
-            decorator?.update(
-                buttons: tabButtons,
-                selectedIndex: selectedButtonIndex,
-                hoveredIndex: hoveredButtonIndex,
-                decoration: decoration
-            )
-        }
+        applyDecoration(layouts: layouts, animated: animated)
+    }
+
+    /// Hands the freshly computed layout to the decoration and remembers it, so a later hover change
+    /// can restyle without recomputing (and without sampling mid-animation button state).
+    private func applyDecoration(layouts: [TabLayoutInfo], animated: Bool) {
+        lastTabLayouts = layouts
+        guard let decoration = style.controlDecoration else { return }
+        decorator?.update(
+            layouts: layouts,
+            selectedIndex: selectedButtonIndex,
+            hoveredIndex: hoveredButtonIndex,
+            decoration: decoration,
+            animated: animated
+        )
     }
 
     private func layoutUnstackedTabButtons(_ tabButtons: [TabButton], animated: Bool) {
         var tabsViewWidth = CGFloat(0.0)
+        var layouts: [TabLayoutInfo] = []
+        layouts.reserveCapacity(tabButtons.count)
 
         // Decorating styles inset the tabs so their pills clear the rounded ends of the bar track.
         let contentInset = style.controlDecoration?.barContentInset ?? 0.0
@@ -359,16 +433,17 @@ open class TabsControl: NSControl, NSTextDelegate {
             // A modest finite depth, not `greatestFiniteMagnitude`: decoration sits just behind its
             // button at `zPosition - 0.5`, and at 1e38 that offset is lost to float precision, which
             // would let the glass composite *over* the title and blur it.
-            button.layer?.zPosition = button.state == NSControl.StateValue.on ? 1000.0 : CGFloat(index)
+            let zPosition: CGFloat = button.state == NSControl.StateValue.on ? 1000.0 : CGFloat(index)
+            button.layer?.zPosition = zPosition
+            layouts.append(TabLayoutInfo(frame: buttonFrame, isCollapsed: false, zPosition: zPosition))
 
-            // Tabs may have been faded out by a previous stacked layout.
-            button.alphaValue = 1.0
-
-            if animated && !button.isHidden && !button.isNewlyInserted {
-                button.animator().frame = buttonFrame
-            } else {
-                button.frame = buttonFrame
+            // Tabs may have been faded out by a previous stacked layout — but never interrupt an
+            // insertion fade that is still running.
+            if !button.isFadingIn {
+                button.alphaValue = 1.0
             }
+
+            Self.setFrame(buttonFrame, of: button, animated: animated && !button.isHidden && !button.isNewlyInserted)
 
             if let selectable = delegate?.tabsControl?(self, canSelectItem: button.representedObject!) {
                 button.isEnabled = selectable
@@ -379,20 +454,9 @@ open class TabsControl: NSControl, NSTextDelegate {
 
         let contentWidth = contentInset > 0.0 ? (buttonX + contentInset) : tabsViewWidth
         let viewFrame = CGRect(x: 0.0, y: 0.0, width: contentWidth, height: buttonHeight)
-        if animated {
-            tabsView.animator().frame = viewFrame
-        } else {
-            tabsView.frame = viewFrame
-        }
+        Self.setFrame(viewFrame, of: tabsView, animated: animated)
 
-        if let decoration = style.controlDecoration {
-            decorator?.update(
-                buttons: tabButtons,
-                selectedIndex: selectedButtonIndex,
-                hoveredIndex: hoveredButtonIndex,
-                decoration: decoration
-            )
-        }
+        applyDecoration(layouts: layouts, animated: animated)
     }
 
     /// Called by a ``TabButton`` when the mouse enters or leaves it, so the decoration can move its
@@ -425,13 +489,9 @@ open class TabsControl: NSControl, NSTextDelegate {
         guard newHoveredIndex != hoveredButtonIndex else { return }
         hoveredButtonIndex = newHoveredIndex
 
-        guard let decoration = style.controlDecoration else { return }
-        decorator?.update(
-            buttons: tabButtons,
-            selectedIndex: selectedButtonIndex,
-            hoveredIndex: hoveredButtonIndex,
-            decoration: decoration
-        )
+        // Restyle from the last computed layout rather than re-running one: hover only changes
+        // which tab is highlighted, never where anything sits.
+        applyDecoration(layouts: lastTabLayouts, animated: false)
     }
 
     // MARK: - Stacking Interaction
@@ -626,19 +686,30 @@ open class TabsControl: NSControl, NSTextDelegate {
         { return }
         let buttonIndex = button.index
 
-        button.removeFromSuperview()
+        // Fade the closing tab out where it stands while the remaining tabs slide in over it.
+        // `isClosing` drops it from the layout immediately, so the gap closes during the fade.
+        button.isClosing = true
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = Self.layoutAnimationDuration
+            button.animator().alphaValue = 0.0
+        }, completionHandler: {
+            button.removeFromSuperview()
+        })
 
+        // Renumber the survivors *before* laying out: the decoration maps a tab to its position in
+        // this array, so stale indices would light up the wrong tab — permanently, when closing a tab
+        // after the selected one leaves `selectedButtonIndex` untouched.
         let tabButtons = tabButtons
-
-        layoutTabButtons(nil, animated: true)
-
         for (index, tabButton) in tabButtons.enumerated() {
             tabButton.index = index
         }
 
         delegate?.tabsControl?(self, didCloseItem: item)
 
-        guard let currentSelectedButtonIndex = selectedButtonIndex else { return }
+        guard let currentSelectedButtonIndex = selectedButtonIndex else {
+            layoutTabButtons(nil, animated: true)
+            return
+        }
 
         if buttonIndex == currentSelectedButtonIndex {
             // The selected tab itself was closed: select an adjacent enabled tab.
@@ -660,8 +731,13 @@ open class TabsControl: NSControl, NSTextDelegate {
             }
             delegate?.tabsControlDidChangeSelection?(self, item: selectedButton?.representedObject)
         } else if buttonIndex < currentSelectedButtonIndex {
-            // A tab before the selection was closed: shift the selection so the same tab stays selected.
+            // A tab before the selection was closed: shift the selection so the same tab stays
+            // selected. Assigning re-lays out through `didSet`.
             selectedButtonIndex = currentSelectedButtonIndex - 1
+        } else {
+            // A tab *after* the selection was closed, so the selection is untouched and nothing else
+            // will lay out — the survivors would keep the gap open forever.
+            layoutTabButtons(nil, animated: true)
         }
     }
 
@@ -716,7 +792,10 @@ open class TabsControl: NSControl, NSTextDelegate {
             scrollToSelectedButton()
 
             updateButtonStatesForSelection()
-            layoutTabButtons(nil, animated: false)
+            // Animated: selecting is usually the tail of a user-facing change (insert, close), and a
+            // non-animated pass here would cancel the animation that change just started. When tabs
+            // are stacked the selection also re-anchors the fold, which the system animates too.
+            layoutTabButtons(nil, animated: true)
             invalidateRestorableState()
 
             NotificationCenter.default.post(name: TabsControl.selectionDidChangeNotification, object: self)
@@ -844,7 +923,10 @@ open class TabsControl: NSControl, NSTextDelegate {
     // MARK: - Helpers
 
     private var tabButtons: [TabButton] {
-        return tabsView.subviews.compactMap { $0 as? TabButton }.sorted(by: { $0.index < $1.index })
+        return tabsView.subviews
+            .compactMap { $0 as? TabButton }
+            .filter { !$0.isClosing }
+            .sorted(by: { $0.index < $1.index })
     }
 }
 
