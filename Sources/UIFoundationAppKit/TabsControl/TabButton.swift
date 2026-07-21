@@ -263,7 +263,13 @@ open class TabButton: NSButton {
                 closeButton?.image = smallIcon
             }
         }
-        let iconFrames = style.iconFrames(tabRect: bounds, closePosition: closePosition)
+        let iconFrames = style.iconFrames(
+            tabRect: bounds,
+            title: style.attributedTitle(content: title, selectionState: tabButtonCell.selectionState),
+            showingIcon: tabButtonCell.showsIcon,
+            showingMenu: tabButtonCell.showsMenu,
+            closePosition: closePosition
+        )
         iconView?.frame = iconFrames.iconFrame
         alternativeTitleIconView?.frame = iconFrames.alternativeTitleIconFrame
 
