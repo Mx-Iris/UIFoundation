@@ -155,13 +155,16 @@ extension TabsControl {
         /// The compression applied to a tab, with the baseline subtracted so that an unscrolled bar
         /// (and any rubber-band overshoot) compresses nothing.
         ///
-        /// Deliberately has no special case for `position <= 0`: short-circuiting it to the raw offset
-        /// makes the function discontinuous at the very first tab — at a scroll offset of 2489 pt the
-        /// two branches differ by about 150 pt — which reorders tab 0 behind its successors and leaves
-        /// a blank stretch at the head of the bar. The two agree exactly at offset 0, which is why an
-        /// unscrolled bar never showed it.
+        /// The `position <= 0` short-circuit is AppKit's own, from `offsetForSlowingOffsetWithCurve`,
+        /// and it is what keeps the frontmost tab inside the viewport at either end of the strip. A
+        /// tab at position zero is held back by the entire scroll offset, which cancels it exactly:
+        /// the first tab parks at x == 0 and the last parks flush against the trailing edge. Taking
+        /// the general branch there instead leaves the curve short by up to 33 pt, which drifts the
+        /// selected tab off the leading edge, or pushes its pill past the trailing one where the
+        /// track clips it flat.
         private func slow(_ position: CGFloat, _ offset: CGFloat, _ curve: (CGFloat) -> CGFloat) -> CGFloat {
-            heldBack(position, offset, curve) - heldBack(position, min(offset, 0.0), curve)
+            if position <= 0.0 { return max(offset, 0.0) }
+            return heldBack(position, offset, curve) - heldBack(position, min(offset, 0.0), curve)
         }
 
         // MARK: - Core offset function
