@@ -134,9 +134,14 @@ extension TabsControl {
 
         /// The compression applied to a tab, with the baseline subtracted so that an unscrolled bar
         /// (and any rubber-band overshoot) compresses nothing.
+        ///
+        /// Deliberately has no special case for `position <= 0`: short-circuiting it to the raw offset
+        /// makes the function discontinuous at the very first tab — at a scroll offset of 2489 pt the
+        /// two branches differ by about 150 pt — which reorders tab 0 behind its successors and leaves
+        /// a blank stretch at the head of the bar. The two agree exactly at offset 0, which is why an
+        /// unscrolled bar never showed it.
         private func slow(_ position: CGFloat, _ offset: CGFloat, _ curve: (CGFloat) -> CGFloat) -> CGFloat {
-            guard position > 0 else { return max(offset, 0.0) }
-            return heldBack(position, offset, curve) - heldBack(position, min(offset, 0.0), curve)
+            heldBack(position, offset, curve) - heldBack(position, min(offset, 0.0), curve)
         }
 
         // MARK: - Core offset function
@@ -212,17 +217,12 @@ extension TabsControl {
             var isCollapsed = false
 
             if index != frontmostIndex {
-                if trailingOffset < 0.0 {
+                // Only scrolled off an end, or squeezed to nothing. A tab that merely folds *under*
+                // the frontmost one keeps its slice of the pile: the system draws those slivers and
+                // just orders them behind it, and hiding them leaves the space they occupy blank —
+                // a bald patch where the pile should be.
+                if trailingOffset < 0.0 || leadingOffset > visibleWidth {
                     isCollapsed = true
-                } else if leadingOffset > visibleWidth {
-                    isCollapsed = true
-                } else if let frontmost = frontmostIndex {
-                    // Folded past the frontmost tab, i.e. hidden behind it.
-                    if index > frontmost, leadingOffset < horizontalOffset(at: frontmost) {
-                        isCollapsed = true
-                    } else if index <= frontmost, trailingOffset > horizontalOffset(at: frontmost + 1) {
-                        isCollapsed = true
-                    }
                 }
                 if width <= 0.0 {
                     width = 0.0

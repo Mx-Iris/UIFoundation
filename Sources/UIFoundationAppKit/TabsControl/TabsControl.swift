@@ -48,6 +48,10 @@ open class TabsControl: NSControl, NSTextDelegate {
     /// the clip view's bounds-changed notification.
     private var isLayingOutTabButtons = false
 
+    /// Set when a layout is requested while one is already running, so the request is honoured by
+    /// another pass rather than dropped.
+    private var needsAnotherLayoutPass = false
+
     /// The layout produced by the most recent pass, reused when only the hover state changes.
     private var lastTabLayouts: [TabLayoutInfo] = []
 
@@ -322,10 +326,29 @@ open class TabsControl: NSControl, NSTextDelegate {
     }
 
     private func layoutTabButtons(_ buttons: [TabButton]?, animated: Bool) {
-        guard !isLayingOutTabButtons else { return }
+        guard !isLayingOutTabButtons else {
+            // The scroll offset moved underneath the pass that is already running. Dropping the
+            // request would strand the buttons at positions computed for an offset that no longer
+            // exists, while their visibility is judged against the new one — which is exactly how a
+            // blank stretch opens up at the head of a stacked bar.
+            needsAnotherLayoutPass = true
+            return
+        }
         isLayingOutTabButtons = true
         defer { isLayingOutTabButtons = false }
 
+        // Laying out resizes the document view, which can make the clip view re-constrain its bounds
+        // and feed straight back in here. Re-run instead of dropping; it converges as soon as the
+        // offset stops moving, and the bound keeps a pathological case from spinning.
+        var remainingPasses = 4
+        repeat {
+            needsAnotherLayoutPass = false
+            layoutTabButtonsOnce(buttons, animated: animated)
+            remainingPasses -= 1
+        } while needsAnotherLayoutPass && remainingPasses > 0
+    }
+
+    private func layoutTabButtonsOnce(_ buttons: [TabButton]?, animated: Bool) {
         let tabButtons = buttons ?? tabButtons
 
         if let geometry = makeStackingGeometry(for: tabButtons) {
@@ -348,11 +371,23 @@ open class TabsControl: NSControl, NSTextDelegate {
         let visibleWidth = max(0.0, scrollView.frame.width - 2.0 * decoration.barContentInset)
         guard visibleWidth > 0.0, visibleWidth < minimumWidth * CGFloat(tabButtons.count) else { return nil }
 
+        // Closing a tab shortens the strip, which can leave the clip view scrolled past the new end.
+        // Pull it back before the layout reads it, so the frames and the visibility test are decided
+        // by the same offset and the bar cannot end up scrolled into empty space.
+        let maximumScrollOffset = max(0.0, minimumWidth * CGFloat(tabButtons.count) - visibleWidth)
+        let clipView = scrollView.contentView
+        var scrollOffset = clipView.bounds.origin.x
+        if scrollOffset < 0.0 || scrollOffset > maximumScrollOffset {
+            scrollOffset = min(max(0.0, scrollOffset), maximumScrollOffset)
+            clipView.setBoundsOrigin(NSPoint(x: scrollOffset, y: clipView.bounds.origin.y))
+            scrollView.reflectScrolledClipView(clipView)
+        }
+
         return StackingGeometry(
             tabCount: tabButtons.count,
             tabWidth: minimumWidth,
             visibleWidth: visibleWidth,
-            scrollOffset: scrollView.contentView.bounds.origin.x,
+            scrollOffset: scrollOffset,
             barHeight: tabsView.frame.height,
             frontmostIndex: selectedButtonIndex
         )
