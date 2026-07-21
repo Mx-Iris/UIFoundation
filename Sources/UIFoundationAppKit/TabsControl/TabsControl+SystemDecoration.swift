@@ -339,6 +339,17 @@ extension TabsControl {
         var frame: NSRect
         var isCollapsed: Bool
         var zPosition: CGFloat
+
+        /// The tab this describes, used to key its decoration.
+        ///
+        /// Decoration has to be keyed by *identity*, never by position. Keyed by position, closing a
+        /// tab in the middle hands every decoration view to its right-hand neighbour, so the glass
+        /// animates one slot to the *right* while the buttons animate one slot to the *left* and the
+        /// two cross — with the lit pill teleporting a whole tab backwards on the first frame. AppKit
+        /// keys the same way, off the tab bar item: `_tabBarViewItemsToTabButtons` and
+        /// `_tabBarViewItemsToTabSeparators` are both `NSMapTable`s, and `-_layOutButtonsAnimated:`
+        /// looks a button and its separator up under one key so the pair can never separate.
+        weak var button: TabButton?
     }
 
     /// Owns and positions the per-tab Liquid-Glass backgrounds and the inter-tab separators that
@@ -349,8 +360,9 @@ extension TabsControl {
     final class SystemTabDecorator {
         private unowned let container: NSView
 
-        private var tabGlasses: [TabGlassView] = []
-        private var separators: [TabSeparatorView] = []
+        /// Decoration keyed by the tab that owns it — see ``TabsControl/TabLayoutInfo/button``.
+        private var tabGlasses: [ObjectIdentifier: TabGlassView] = [:]
+        private var separators: [ObjectIdentifier: TabSeparatorView] = [:]
 
         init(container: NSView) {
             self.container = container
@@ -359,9 +371,9 @@ extension TabsControl {
         /// Removes every decoration view from the container. Call when switching away from a
         /// decorating style.
         func remove() {
-            tabGlasses.forEach { $0.removeFromSuperview() }
+            tabGlasses.values.forEach { $0.removeFromSuperview() }
             tabGlasses.removeAll()
-            separators.forEach { $0.removeFromSuperview() }
+            separators.values.forEach { $0.removeFromSuperview() }
             separators.removeAll()
         }
 
@@ -389,17 +401,23 @@ extension TabsControl {
             decoration: TabsControl.ControlDecoration,
             animated: Bool
         ) {
-            while tabGlasses.count < layouts.count {
-                let glass = TabGlassView(frame: .zero)
-                container.addSubview(glass)
-                tabGlasses.append(glass)
-            }
-            while tabGlasses.count > layouts.count {
-                tabGlasses.removeLast().removeFromSuperview()
-            }
+            var liveKeys: Set<ObjectIdentifier> = []
 
             for (index, info) in layouts.enumerated() {
-                let glass = tabGlasses[index]
+                guard let button = info.button else { continue }
+                let key = ObjectIdentifier(button)
+                liveKeys.insert(key)
+
+                let glass: TabGlassView
+                if let existing = tabGlasses[key] {
+                    glass = existing
+                } else {
+                    let created = TabGlassView(frame: .zero)
+                    container.addSubview(created)
+                    tabGlasses[key] = created
+                    glass = created
+                }
+
                 glass.cornerRadius = decoration.cornerRadius
 
                 let pill = pillFrame(for: info.frame, insets: decoration.selectionInsets)
@@ -425,6 +443,11 @@ extension TabsControl {
                     glass.isHidden = true
                 }
             }
+
+            for (key, glass) in tabGlasses where !liveKeys.contains(key) {
+                glass.removeFromSuperview()
+                tabGlasses.removeValue(forKey: key)
+            }
         }
 
         // MARK: - Separators
@@ -437,35 +460,46 @@ extension TabsControl {
             animated: Bool
         ) {
             guard decoration.drawsSeparators, layouts.count > 1 else {
-                separators.forEach { $0.isHidden = true }
+                separators.values.forEach { $0.isHidden = true }
                 return
             }
 
-            let neededCount = layouts.count - 1
-            while separators.count < neededCount {
-                let separator = TabSeparatorView(frame: .zero)
-                container.addSubview(separator)
-                separators.append(separator)
-            }
-            while separators.count > neededCount {
-                separators.removeLast().removeFromSuperview()
-            }
+            var liveKeys: Set<ObjectIdentifier> = []
 
-            for index in 0 ..< neededCount {
-                let separator = separators[index]
-                // A separator after tab `index` is hidden when it borders the selected tab or a
-                // hovered tab (matching -[NSTabBar _updateSeparatorVisibility]).
-                let leading = layouts[index]
-                let trailing = layouts[index + 1]
-                // Also drop the separator once the tabs start piling up: a collapsed neighbour, or
-                // two tabs overlapping, leaves no gap for a hairline to sit in.
-                let isHidden =
-                    selectedIndex == index || selectedIndex == index + 1 ||
-                    hoveredIndex == index || hoveredIndex == index + 1 ||
-                    leading.isCollapsed || trailing.isCollapsed ||
-                    leading.frame.maxX > trailing.frame.minX
-                separator.isHidden = isHidden
-                guard !isHidden else { continue }
+            // One separator per tab, owned by that tab and sitting at its trailing edge — the shape
+            // AppKit uses (`_tabBarViewItemsToTabSeparators`, positioned by
+            // -[NSTabBar _separatorFrameForButtonFrame:]). The trailing-most one is always hidden,
+            // which leaves the same count on screen as a separator-between-tabs model would, while
+            // keeping every separator tied to a tab that can be removed from the middle.
+            for (index, leading) in layouts.enumerated() {
+                guard let button = leading.button else { continue }
+                let key = ObjectIdentifier(button)
+                liveKeys.insert(key)
+
+                let separator: TabSeparatorView
+                if let existing = separators[key] {
+                    separator = existing
+                } else {
+                    let created = TabSeparatorView(frame: .zero)
+                    container.addSubview(created)
+                    separators[key] = created
+                    separator = created
+                }
+
+                // A separator is hidden when it borders the selected or the hovered tab (matching
+                // -[NSTabBar _updateSeparatorVisibility]). It also drops out once the tabs start
+                // piling up: a collapsed neighbour, or two tabs overlapping, leaves no gap for a
+                // hairline to sit in.
+                let isHidden: Bool
+                if let trailing = layouts[safe: index + 1] {
+                    isHidden =
+                        selectedIndex == index || selectedIndex == index + 1 ||
+                        hoveredIndex == index || hoveredIndex == index + 1 ||
+                        leading.isCollapsed || trailing.isCollapsed ||
+                        leading.frame.maxX > trailing.frame.minX
+                } else {
+                    isHidden = true
+                }
 
                 let separatorFrame = NSRect(
                     x: leading.frame.maxX - 0.5,
@@ -473,7 +507,16 @@ extension TabsControl {
                     width: 1.0,
                     height: max(0.0, leading.frame.height - 2.0 * decoration.separatorVerticalInset)
                 )
-                TabsControl.setFrame(separatorFrame, of: separator, animated: animated)
+                // Moved before the visibility change, and only animated from a position it was
+                // actually seen at: a separator revealed for the first time would otherwise fly in
+                // from the origin.
+                TabsControl.setFrame(separatorFrame, of: separator, animated: animated && !separator.isHidden)
+                separator.isHidden = isHidden
+            }
+
+            for (key, separator) in separators where !liveKeys.contains(key) {
+                separator.removeFromSuperview()
+                separators.removeValue(forKey: key)
             }
         }
 

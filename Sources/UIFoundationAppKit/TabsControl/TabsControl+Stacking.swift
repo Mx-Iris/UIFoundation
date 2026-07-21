@@ -109,6 +109,26 @@ extension TabsControl {
         /// Whether the geometry is usable (a degenerate viewport would divide by zero).
         private var isUsable: Bool { tabCount > 0 && visibleWidth > 0 && tabWidth > 0 && scale > 0 }
 
+        /// A copy of this geometry folded against a different frontmost tab.
+        ///
+        /// The anchor is the one thing a reused geometry must never keep stale. AppKit caches
+        /// everything `-_recalculateLayout` produces — the tab width, the tab count, the layout
+        /// bounds — but reads `-_frontmostButtonIndex` afresh on every `-_layOutButtonsAnimated:`.
+        /// Freezing the anchor as well leaves the piles folded against a tab that is no longer
+        /// selected, and squeezes the tab that actually *is* selected down into a sliver of the pile —
+        /// where it still draws its lit glass, as a bright bar a few points wide.
+        func anchored(onFrontmostIndex newFrontmostIndex: Int?) -> StackingGeometry {
+            guard newFrontmostIndex != frontmostIndex else { return self }
+            return StackingGeometry(
+                tabCount: tabCount,
+                tabWidth: tabWidth,
+                visibleWidth: visibleWidth,
+                scrollOffset: scrollOffset,
+                barHeight: barHeight,
+                frontmostIndex: newFrontmostIndex
+            )
+        }
+
         // MARK: - Slowing curves
 
         /// Ordinary tabs decelerate logarithmically as they enter a pile.

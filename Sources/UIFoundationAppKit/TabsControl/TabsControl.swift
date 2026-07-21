@@ -52,6 +52,36 @@ open class TabsControl: NSControl, NSTextDelegate {
     /// another pass rather than dropped.
     private var needsAnotherLayoutPass = false
 
+    /// Set while the user is closing tabs by clicking, which pins the layout to the geometry the
+    /// last full pass computed.
+    ///
+    /// AppKit calls this `_isInteractivelyClosingTabs` and honours it in
+    /// `-[NSTabBar _reallyUpdateButtonsAndLayOutAnimated:isSelectingButton:]` by skipping
+    /// `-_recalculateLayout` outright — the buttons are still laid out, just against the cached
+    /// width and tab count. The survivors therefore keep their size and simply shift into the slot
+    /// the closed tab left, which parks the next tab's close button under a stationary pointer and
+    /// lets several tabs be closed in a row without moving the mouse. The bar only divides itself
+    /// afresh once the pointer leaves.
+    private var isInteractivelyClosingTabs = false
+
+    /// The evenly divided tab width the last unpinned layout produced, reused while a close is pinned.
+    private var heldButtonWidth: CGFloat?
+
+    /// Set while a compound change is being applied, so the layout passes it triggers collapse into
+    /// one.
+    ///
+    /// AppKit coalesces the same way: every relayout goes through a single `CATransaction` commit
+    /// handler (`-[NSTabBar _scheduleButtonLayOutAnimated:]` guarded by `_didScheduleAnimatedLayout`),
+    /// so a close and the selection change it causes produce one pass rather than two that fight
+    /// over the same buttons.
+    private var isCoalescingLayout = false
+    private var needsCoalescedLayout = false
+    private var coalescedLayoutIsAnimated = false
+
+    /// The bar-level tracking area. Individual tabs report their own hover; this one exists to notice
+    /// the pointer leaving the control as a whole, which is when a pinned close is allowed to settle.
+    private var barTrackingArea: NSTrackingArea?
+
     /// The layout produced by the most recent pass, reused when only the hover state changes.
     private var lastTabLayouts: [TabLayoutInfo] = []
 
@@ -224,30 +254,27 @@ open class TabsControl: NSControl, NSTextDelegate {
         }
 
         layoutTabButtons(nil, animated: animated)
-        if animated {
-            animateInsertion(of: insertedButtons)
-        }
         insertedButtons.forEach { $0.isNewlyInserted = false }
         invalidateRestorableState()
     }
 
-    /// Fades freshly inserted tabs in. Tabs that the layout collapsed into a stacking pile are left
-    /// alone — they are meant to be invisible.
-    private func animateInsertion(of buttons: [TabButton]) {
-        let visibleButtons = buttons.filter { $0.alphaValue > 0.0 }
-        guard !visibleButtons.isEmpty else { return }
-
-        visibleButtons.forEach {
-            $0.alphaValue = 0.0
-            $0.isFadingIn = true
+    /// Places a tab button at `frame`.
+    ///
+    /// A freshly inserted tab is opened *out of nothing* — zero width at its leading edge, springing
+    /// out to full size while its neighbours make room — rather than faded in on top of the layout.
+    /// That is what the system does: a new window tab grows from a sliver to full width with no
+    /// opacity change at all.
+    private func place(_ button: TabButton, at frame: NSRect, animated: Bool) {
+        guard animated, !button.isHidden else {
+            Self.setFrame(frame, of: button, animated: false)
+            return
         }
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = Self.layoutAnimationDuration
-            context.timingFunction = CAMediaTimingFunction(name: .linear)
-            visibleButtons.forEach { $0.animator().alphaValue = 1.0 }
-        }, completionHandler: {
-            visibleButtons.forEach { $0.isFadingIn = false }
-        })
+
+        if button.isNewlyInserted {
+            let closed = NSRect(x: frame.minX, y: frame.minY, width: 0.0, height: frame.height)
+            Self.setFrame(closed, of: button, animated: false)
+        }
+        Self.setFrame(frame, of: button, animated: true)
     }
 
     // MARK: - Frame Animation
@@ -325,7 +352,32 @@ open class TabsControl: NSControl, NSTextDelegate {
         invalidateRestorableState()
     }
 
+    /// Runs `body` with layout requests collected rather than performed, then performs at most one.
+    private func coalescingLayout(_ body: () -> Void) {
+        guard !isCoalescingLayout else {
+            body()
+            return
+        }
+
+        isCoalescingLayout = true
+        needsCoalescedLayout = false
+        coalescedLayoutIsAnimated = false
+        body()
+        isCoalescingLayout = false
+
+        guard needsCoalescedLayout else { return }
+        layoutTabButtons(nil, animated: coalescedLayoutIsAnimated)
+    }
+
     private func layoutTabButtons(_ buttons: [TabButton]?, animated: Bool) {
+        // An explicit button order belongs to the reorder drag, which never runs inside a coalesced
+        // change; only whole-control layouts are collected.
+        if isCoalescingLayout, buttons == nil {
+            needsCoalescedLayout = true
+            coalescedLayoutIsAnimated = coalescedLayoutIsAnimated || animated
+            return
+        }
+
         guard !isLayingOutTabButtons else {
             // The scroll offset moved underneath the pass that is already running. Dropping the
             // request would strand the buttons at positions computed for an offset that no longer
@@ -335,7 +387,12 @@ open class TabsControl: NSControl, NSTextDelegate {
             return
         }
         isLayingOutTabButtons = true
-        defer { isLayingOutTabButtons = false }
+        defer {
+            isLayingOutTabButtons = false
+            // The tabs have just moved under a pointer that did not, so hover has to be re-decided
+            // from where the pointer actually is.
+            updateHoverForCurrentMouseLocation()
+        }
 
         // Laying out resizes the document view, which can make the clip view re-constrain its bounds
         // and feed straight back in here. Re-run instead of dropping; it converges as soon as the
@@ -351,7 +408,16 @@ open class TabsControl: NSControl, NSTextDelegate {
     private func layoutTabButtonsOnce(_ buttons: [TabButton]?, animated: Bool) {
         let tabButtons = buttons ?? tabButtons
 
-        if let geometry = makeStackingGeometry(for: tabButtons) {
+        // While a close is pinned the geometry is reused rather than recomputed, which is how the
+        // survivors keep their width — see ``isInteractivelyClosingTabs``. Reusing a `nil` geometry
+        // keeps an unstacked bar unstacked, where ``heldButtonWidth`` pins the width instead. The
+        // anchor is re-read either way: closing a tab before the selected one renumbers it, and a
+        // geometry still folded against its old index would bury it in the pile.
+        let geometry = isInteractivelyClosingTabs
+            ? stackingGeometry?.anchored(onFrontmostIndex: selectedButtonIndex)
+            : makeStackingGeometry(for: tabButtons)
+
+        if let geometry {
             stackingGeometry = geometry
             layoutStackedTabButtons(tabButtons, geometry: geometry, animated: animated)
         } else {
@@ -409,24 +475,18 @@ open class TabsControl: NSControl, NSTextDelegate {
 
             let zPosition = geometry.zPosition(at: index)
             button.layer?.zPosition = zPosition
-            layouts.append(TabLayoutInfo(frame: buttonFrame, isCollapsed: layout.isCollapsed, zPosition: zPosition))
+            layouts.append(TabLayoutInfo(frame: buttonFrame, isCollapsed: layout.isCollapsed, zPosition: zPosition, button: button))
 
-            // An insertion fade owns the opacity until it finishes — unless the tab has collapsed
-            // into a pile, in which case it must go invisible regardless.
+            // Opacity is reserved for tabs that have folded out of sight; everything visible keeps a
+            // width, however narrow, exactly as the system does.
             let alpha: CGFloat = layout.isCollapsed ? 0.0 : 1.0
-            let ownsAlpha = layout.isCollapsed || !button.isFadingIn
-
-            // A freshly created button has no previous frame to travel from, so animating it would
-            // make it fly in from the origin.
-            let animatesButton = animated && !button.isHidden && !button.isNewlyInserted
-            Self.setFrame(buttonFrame, of: button, animated: animatesButton)
-            if ownsAlpha {
-                if animatesButton {
-                    button.animator().alphaValue = alpha
-                } else {
-                    button.alphaValue = alpha
-                }
+            if animated && !button.isHidden {
+                button.animator().alphaValue = alpha
+            } else {
+                button.alphaValue = alpha
             }
+
+            place(button, at: buttonFrame, animated: animated)
 
             if let selectable = delegate?.tabsControl?(self, canSelectItem: button.representedObject!) {
                 button.isEnabled = selectable
@@ -473,13 +533,18 @@ open class TabsControl: NSControl, NSTextDelegate {
         let buttonHeight = tabsView.frame.height
 
         var buttonWidth = CGFloat(0)
-        switch style.tabButtonWidth {
-        case .full:
-            buttonWidth = fullWidth
-        case let .flexible(minWidth, maxWidth):
-            buttonWidth = max(minWidth, min(maxWidth, fullWidth))
-        case let .fixed(width):
-            buttonWidth = width
+        if isInteractivelyClosingTabs, let heldButtonWidth {
+            buttonWidth = heldButtonWidth
+        } else {
+            switch style.tabButtonWidth {
+            case .full:
+                buttonWidth = fullWidth
+            case let .flexible(minWidth, maxWidth):
+                buttonWidth = max(minWidth, min(maxWidth, fullWidth))
+            case let .fixed(width):
+                buttonWidth = width
+            }
+            heldButtonWidth = buttonWidth
         }
 
         var buttonX = contentInset
@@ -493,15 +558,12 @@ open class TabsControl: NSControl, NSTextDelegate {
             // would let the glass composite *over* the title and blur it.
             let zPosition: CGFloat = button.state == NSControl.StateValue.on ? 1000.0 : CGFloat(index)
             button.layer?.zPosition = zPosition
-            layouts.append(TabLayoutInfo(frame: buttonFrame, isCollapsed: false, zPosition: zPosition))
+            layouts.append(TabLayoutInfo(frame: buttonFrame, isCollapsed: false, zPosition: zPosition, button: button))
 
-            // Tabs may have been faded out by a previous stacked layout — but never interrupt an
-            // insertion fade that is still running.
-            if !button.isFadingIn {
-                button.alphaValue = 1.0
-            }
+            // Tabs may have been faded out by a previous stacked layout.
+            button.alphaValue = 1.0
 
-            Self.setFrame(buttonFrame, of: button, animated: animated && !button.isHidden && !button.isNewlyInserted)
+            place(button, at: buttonFrame, animated: animated)
 
             if let selectable = delegate?.tabsControl?(self, canSelectItem: button.representedObject!) {
                 button.isEnabled = selectable
@@ -510,11 +572,88 @@ open class TabsControl: NSControl, NSTextDelegate {
             tabsViewWidth += buttonWidth
         }
 
-        let contentWidth = contentInset > 0.0 ? (buttonX + contentInset) : tabsViewWidth
-        let viewFrame = CGRect(x: 0.0, y: 0.0, width: contentWidth, height: buttonHeight)
-        Self.setFrame(viewFrame, of: tabsView, animated: animated)
+        // Left alone while a close is pinned, so the strip keeps the extent it had before the tab
+        // went. AppKit skips the same work: `-_recalculateLayoutAndUpdateContainerViewFrames` is one
+        // of the things `_isInteractivelyClosingTabs` suppresses. The trailing gap this opens up is
+        // the point — it closes when the pointer leaves.
+        if !isInteractivelyClosingTabs {
+            let contentWidth = contentInset > 0.0 ? (buttonX + contentInset) : tabsViewWidth
+            let viewFrame = CGRect(x: 0.0, y: 0.0, width: contentWidth, height: buttonHeight)
+            Self.setFrame(viewFrame, of: tabsView, animated: animated)
+        }
 
         applyDecoration(layouts: layouts, animated: animated)
+    }
+
+    // MARK: - Mouse Tracking
+
+    open override func updateTrackingAreas() {
+        if let barTrackingArea {
+            removeTrackingArea(barTrackingArea)
+        }
+
+        let trackingArea = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(trackingArea)
+        barTrackingArea = trackingArea
+
+        super.updateTrackingAreas()
+    }
+
+    open override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+
+        // Only the bar's own area counts. Crossing between two tabs exits a `TabButton`'s area
+        // without ever leaving the control, and must not end the run of closes.
+        guard event.trackingArea === barTrackingArea else { return }
+        releasePinnedCloseLayout()
+    }
+
+    /// Lets the tabs divide the bar afresh once the pointer has left, ending the run of closes the
+    /// pinned width was protecting. Mirrors `-[NSTabBar mouseExited:]`.
+    private func releasePinnedCloseLayout() {
+        guard isInteractivelyClosingTabs else { return }
+        isInteractivelyClosingTabs = false
+        layoutTabButtons(nil, animated: true)
+    }
+
+    /// Re-decides which tab the pointer is over, from where the pointer actually is.
+    ///
+    /// Tabs move under a stationary pointer every time the bar lays out, so hover cannot be left to
+    /// enter and exit events alone — the system re-establishes it at the end of every layout pass
+    /// (`-[NSTabBar _updateIndexOfTabUnderCurrentMouseLocation:]`). Closing several tabs in a row
+    /// depends on it: the tab that slides into the vacated slot has to reveal its own close button
+    /// without the mouse having moved.
+    private func updateHoverForCurrentMouseLocation() {
+        guard let window, NSApp.isActive else { return }
+
+        let localPoint = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+        var hoveredButton: TabButton?
+        if bounds.contains(localPoint) {
+            // A pointer resting on a pile targets the pile, not whichever tab lies beneath it.
+            let isOverPile = stackingGeometry.map { !stackingRegion(at: localPoint, geometry: $0).isEmpty } ?? false
+            if !isOverPile {
+                // Stacked tabs overlap, so resolve to the visually topmost, as `hitTest(_:)` does.
+                let pointInTabs = tabsView.convert(localPoint, from: self)
+                let candidates = tabButtons.filter { $0.alphaValue > 0.0 && $0.frame.contains(pointInTabs) }
+                hoveredButton = candidates.max(by: { ($0.layer?.zPosition ?? 0.0) < ($1.layer?.zPosition ?? 0.0) })
+            }
+        }
+
+        for button in tabButtons {
+            button.setShowsCloseButton(button === hoveredButton)
+        }
+
+        guard hoveredButton?.index != hoveredButtonIndex else { return }
+        hoveredButtonIndex = hoveredButton?.index
+
+        // Restyle from the last computed layout rather than re-running one: hover only changes which
+        // tab is highlighted, never where anything sits.
+        applyDecoration(layouts: lastTabLayouts, animated: false)
     }
 
     /// Called by a ``TabButton`` when the mouse enters or leaves it, so the decoration can move its
@@ -660,7 +799,15 @@ open class TabsControl: NSControl, NSTextDelegate {
     }
 
     @objc private func clipViewBoundsDidChange(_ notification: Notification) {
-        guard isStacking else { return }
+        // Scrolling ends a run of closes. The tabs have moved out from under the pointer anyway, so
+        // the pinned width is protecting nothing — and leaving it pinned would freeze the stacked
+        // geometry against a scroll offset that has since moved, making the bar stop responding.
+        // `-[NSTabBar _clipViewBoundsChanged:]` clears the same flag and lays out unanimated. A
+        // window resize arrives here too, by way of the clip view re-bounding.
+        let wasPinned = isInteractivelyClosingTabs
+        isInteractivelyClosingTabs = false
+
+        guard isStacking || wasPinned else { return }
         layoutTabButtons(nil, animated: false)
     }
 
@@ -743,60 +890,70 @@ open class TabsControl: NSControl, NSTextDelegate {
               delegate?.tabsControl?(self, canCloseItem: item) == true else
         { return }
         let buttonIndex = button.index
+        let closedTheTrailingTab = button === tabButtons.last
 
-        // Fade the closing tab out where it stands while the remaining tabs slide in over it.
-        // `isClosing` drops it from the layout immediately, so the gap closes during the fade.
-        button.isClosing = true
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = Self.layoutAnimationDuration
-            context.timingFunction = CAMediaTimingFunction(name: .linear)
-            button.animator().alphaValue = 0.0
-        }, completionHandler: {
+        // Pin the tab width, so the tab to the right slides into this slot at the size it already
+        // has and its close button lands under the pointer — that is what lets a run of tabs be
+        // closed without moving the mouse. `-[NSTabBar closeTabButton:]` arms this only for a real
+        // click, which it detects as `window.currentEvent != nil`, and never for the trailing tab,
+        // where nothing would slide under the pointer to be clicked next.
+        isInteractivelyClosingTabs = !closedTheTrailingTab && window?.currentEvent != nil
+
+        coalescingLayout {
+            // Gone at once, the way the system closes a window tab: the animation people read as "the
+            // tab closed" is the survivors reflowing into the space, not the tab itself leaving. Fading
+            // it out where it stands leaves a motionless ghost for its neighbours to slide through.
             button.removeFromSuperview()
-        })
 
-        // Renumber the survivors *before* laying out: the decoration maps a tab to its position in
-        // this array, so stale indices would light up the wrong tab — permanently, when closing a tab
-        // after the selected one leaves `selectedButtonIndex` untouched.
-        let tabButtons = tabButtons
-        for (index, tabButton) in tabButtons.enumerated() {
-            tabButton.index = index
-        }
+            // Renumber the survivors *before* laying out: the decoration maps a tab to its position in
+            // this array, so stale indices would light up the wrong tab — permanently, when closing a
+            // tab after the selected one leaves `selectedButtonIndex` untouched.
+            let tabButtons = tabButtons
+            for (index, tabButton) in tabButtons.enumerated() {
+                tabButton.index = index
+            }
 
-        delegate?.tabsControl?(self, didCloseItem: item)
+            // A lone survivor has nothing left to slide under the pointer, so there is nothing to
+            // protect: divide the bar straight away. AppKit clears the same flag on the same test.
+            if tabButtons.count < 2 {
+                isInteractivelyClosingTabs = false
+            }
 
-        guard let currentSelectedButtonIndex = selectedButtonIndex else {
-            layoutTabButtons(nil, animated: true)
-            return
-        }
+            delegate?.tabsControl?(self, didCloseItem: item)
 
-        if buttonIndex == currentSelectedButtonIndex {
-            // The selected tab itself was closed: select an adjacent enabled tab.
-            var nextButtonIndex: Int?
-            if tabButtons.isEmpty {
-                nextButtonIndex = nil
-            } else if buttonIndex == 0 {
-                nextButtonIndex = 0
+            guard let currentSelectedButtonIndex = selectedButtonIndex else {
+                layoutTabButtons(nil, animated: true)
+                return
+            }
+
+            if buttonIndex == currentSelectedButtonIndex {
+                // The selected tab itself was closed: select an adjacent enabled tab.
+                var nextButtonIndex: Int?
+                if tabButtons.isEmpty {
+                    nextButtonIndex = nil
+                } else if buttonIndex == 0 {
+                    nextButtonIndex = 0
+                } else {
+                    nextButtonIndex = buttonIndex - 1
+                }
+                if let nextButtonIndex, let nextButton = tabButtons[safe: nextButtonIndex], nextButton.isEnabled {
+                    selectedButtonIndex = nextButtonIndex
+                } else {
+                    selectedButtonIndex = nil
+                }
+                if let action, let target {
+                    NSApp.sendAction(action, to: target, from: self)
+                }
+                delegate?.tabsControlDidChangeSelection?(self, item: selectedButton?.representedObject)
+            } else if buttonIndex < currentSelectedButtonIndex {
+                // A tab before the selection was closed: shift the selection so the same tab stays
+                // selected. Assigning requests a layout through `didSet`.
+                selectedButtonIndex = currentSelectedButtonIndex - 1
             } else {
-                nextButtonIndex = buttonIndex - 1
+                // A tab *after* the selection was closed, so the selection is untouched and nothing
+                // else will lay out — the survivors would keep the gap open forever.
+                layoutTabButtons(nil, animated: true)
             }
-            if let nextButtonIndex, let nextButton = tabButtons[safe: nextButtonIndex], nextButton.isEnabled {
-                selectedButtonIndex = nextButtonIndex
-            } else {
-                selectedButtonIndex = nil
-            }
-            if let action, let target {
-                NSApp.sendAction(action, to: target, from: self)
-            }
-            delegate?.tabsControlDidChangeSelection?(self, item: selectedButton?.representedObject)
-        } else if buttonIndex < currentSelectedButtonIndex {
-            // A tab before the selection was closed: shift the selection so the same tab stays
-            // selected. Assigning re-lays out through `didSet`.
-            selectedButtonIndex = currentSelectedButtonIndex - 1
-        } else {
-            // A tab *after* the selection was closed, so the selection is untouched and nothing else
-            // will lay out — the survivors would keep the gap open forever.
-            layoutTabButtons(nil, animated: true)
         }
     }
 
@@ -861,7 +1018,13 @@ open class TabsControl: NSControl, NSTextDelegate {
 
     public private(set) var selectedButtonIndex: Int? {
         didSet {
-            scrollToSelectedButton()
+            // Not while a close is being folded into a single pass. The system only ever scrolls the
+            // bar to reveal a freshly *inserted* tab (`_firstInsertedTabButtonIndex`); scrolling
+            // because a close moved the selection would drag the whole strip out from under the
+            // pointer just as the user lines up the next close.
+            if !isCoalescingLayout {
+                scrollToSelectedButton()
+            }
 
             updateButtonStatesForSelection()
             // Animated: selecting is usually the tail of a user-facing change (insert, close), and a
@@ -997,7 +1160,6 @@ open class TabsControl: NSControl, NSTextDelegate {
     private var tabButtons: [TabButton] {
         return tabsView.subviews
             .compactMap { $0 as? TabButton }
-            .filter { !$0.isClosing }
             .sorted(by: { $0.index < $1.index })
     }
 }
