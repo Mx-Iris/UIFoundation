@@ -14,6 +14,9 @@ final class DemoBrowserSplitViewController: NSSplitViewController {
 
     private var didSelectInitialDemo = false
 
+    /// The demo on screen. Read by the window, which routes shortcuts to it — see ``DemoBrowserWindow``.
+    var currentDemoViewController: NSViewController? { detailViewController.currentDemoViewController }
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -47,7 +50,7 @@ final class DemoDetailViewController: NSViewController {
 
     private let summaryLabel = NSTextField(labelWithString: "")
     private let contentView = NSView()
-    private var currentDemoViewController: NSViewController?
+    private(set) var currentDemoViewController: NSViewController?
 
     override func loadView() {
         view = NSView(frame: NSRect(x: 0, y: 0, width: 600, height: 600))
@@ -82,10 +85,8 @@ final class DemoDetailViewController: NSViewController {
         _ = view  // force view load (loadViewIfNeeded() is macOS 14+)
 
         if let current = currentDemoViewController {
-            // View first, then the parenting: taking the view out of the window is what drives the
-            // appearance callbacks, and an already-orphaned view controller never receives them. A
-            // demo that lends the app something while it is on screen — a menu item, say — relies on
-            // `viewWillDisappear()` to take it back.
+            // View first, then the parenting: losing the window is what drives the appearance
+            // callbacks, and an already-orphaned view controller never receives them.
             current.view.removeFromSuperview()
             current.removeFromParent()
         }
