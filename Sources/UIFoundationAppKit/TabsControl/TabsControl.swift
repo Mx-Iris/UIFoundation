@@ -377,6 +377,13 @@ open class TabsControl: NSControl, NSTextDelegate {
         invalidateRestorableState()
     }
 
+    /// Which edge a compressed tab pins its title and icon to — see ``TabButtonCell/titleLayoutWidth``.
+    enum TitleAnchor {
+        case leading
+        case center
+        case trailing
+    }
+
     /// The edge a tab that is opening out of nothing unfurls from.
     ///
     /// `-[NSTabBar _insertTabButtonWithTabViewItem:atIndex:]` creates the button with **zero width**
@@ -664,6 +671,16 @@ open class TabsControl: NSControl, NSTextDelegate {
             var buttonFrame = layout.frame
             buttonFrame.origin.x += documentOrigin
 
+            // Contents stay laid out at the tab's full width however far it is squeezed, pinned to the
+            // side its pile folds towards, so a compressed tab pushes its title out of sight instead
+            // of truncating it — `-[NSTabBar _layOutButtonsAnimated:]` sets the same two properties.
+            button.titleLayoutWidth = geometry.tabWidth
+            if let frontmost = geometry.frontmostIndex, index != frontmost {
+                button.titleLayoutAnchor = index < frontmost ? .leading : .trailing
+            } else {
+                button.titleLayoutAnchor = .center
+            }
+
             let zPosition = geometry.zPosition(at: index)
             button.layer?.zPosition = zPosition
             layouts.append(TabLayoutInfo(frame: buttonFrame, isCollapsed: layout.isCollapsed, zPosition: zPosition, button: button))
@@ -786,6 +803,10 @@ open class TabsControl: NSControl, NSTextDelegate {
             // A modest finite depth, not `greatestFiniteMagnitude`: decoration sits just behind its
             // button at `zPosition - 0.5`, and at 1e38 that offset is lost to float precision, which
             // would let the glass composite *over* the title and blur it.
+            // An evenly divided tab is never squeezed below what it was laid out for.
+            button.titleLayoutWidth = nil
+            button.titleLayoutAnchor = .center
+
             let zPosition: CGFloat = button.state == NSControl.StateValue.on ? 1000.0 : CGFloat(index)
             button.layer?.zPosition = zPosition
             layouts.append(TabLayoutInfo(frame: buttonFrame, isCollapsed: false, zPosition: zPosition, button: button))

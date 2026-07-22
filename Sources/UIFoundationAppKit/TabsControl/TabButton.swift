@@ -41,6 +41,26 @@ open class TabButton: NSButton {
         didSet { tabButtonCell.style = style }
     }
 
+    /// See ``TabButtonCell/titleLayoutWidth``.
+    var titleLayoutWidth: CGFloat? {
+        get { tabButtonCell.titleLayoutWidth }
+        set {
+            guard tabButtonCell.titleLayoutWidth != newValue else { return }
+            tabButtonCell.titleLayoutWidth = newValue
+            needsDisplay = true
+        }
+    }
+
+    /// See ``TabButtonCell/titleLayoutAnchor``.
+    var titleLayoutAnchor: TabsControl.TitleAnchor {
+        get { tabButtonCell.titleLayoutAnchor }
+        set {
+            guard tabButtonCell.titleLayoutAnchor != newValue else { return }
+            tabButtonCell.titleLayoutAnchor = newValue
+            needsDisplay = true
+        }
+    }
+
     /// The button is aware of its last known index in the tab bar.
     var index: Int
 
@@ -141,6 +161,14 @@ open class TabButton: NSButton {
 
         tabButtonCell.sendAction(on: .leftMouseDown)
         self.cell = tabButtonCell
+
+        // A stacked tab lays its contents out against its full width and lets the tab clip what no
+        // longer fits (see ``TabButtonCell/titleLayoutWidth``). Cell drawing is clipped for us, but
+        // the icon is a subview and would otherwise spill across the neighbouring tabs. The system
+        // clips the same content for the same reason, one level down: its title and icon live inside
+        // the tab's `NSGlassEffectView` content view, which is bounded by the pill.
+        wantsLayer = true
+        layer?.masksToBounds = true
     }
 
     open override func copy() -> Any {
@@ -263,8 +291,10 @@ open class TabButton: NSButton {
                 closeButton?.image = smallIcon
             }
         }
+        // Laid out against the same rectangle the title is, so the two travel together as the tab
+        // compresses — the system moves its icon and title as one "main content container".
         let iconFrames = style.iconFrames(
-            tabRect: bounds,
+            tabRect: tabButtonCell.contentLayoutRect(forBounds: bounds),
             title: style.attributedTitle(content: title, selectionState: tabButtonCell.selectionState),
             showingIcon: tabButtonCell.showsIcon,
             showingMenu: tabButtonCell.showsMenu,

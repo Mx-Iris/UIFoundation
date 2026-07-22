@@ -320,6 +320,49 @@ Three things follow, none of them guessable from the decompilation:
   exists only in the evenly divided layout: stacked tabs are laid out flush at 120 pt
   (`0(80) 80(120) 200(120) …`).
 
+### A compressed tab keeps a full-size title, and clips it
+
+A stacked tab is squeezed far below its natural width, and its contents do not shrink with it.
+`-[NSTabBar _layOutButtonsAnimated:]` calls `-setButtonWidthForTitleLayout:` with
+`_firstButtonFrame.size.width` — the *full* tab width — whatever the button's own frame has become,
+then pins that box to an edge with `-setAlignment:`: `1` for the frontmost tab, `0` for one piled up
+before it, `2` for one piled up after it.
+
+Measured with the sixth of fourteen tabs selected, reading each title field's frame in its button's
+own space:
+
+| pile | button width | title x | title width |
+| --- | ---: | ---: | ---: |
+| leading | 13 / 16 / 22 / 19 | +59.5 / +57.5 / +54.5 / +51.5 | 33 |
+| frontmost | 120 | +43.5 | 33.5 |
+| trailing | 18 / 29 / 65 | −58.0 / −56.5 / −16.5 | 33 |
+
+The title never truncates. It keeps its natural 33 pt and is pushed out of the tab on the side that
+pile folds towards — so a tab squeezed to a sliver draws **no text at all**, rather than an ellipsis.
+What clips it is the tab's own `NSGlassEffectView`, whose content view hosts the title and icon; the
+button itself does not clip (`masksToBounds` is false).
+
+On top of the anchoring there is a further offset of up to ~20 pt from
+`-_titleCenterOffsetForButtonAtIndex:frontmostButtonIndex:`, which is the difference between two
+`-_horizontalOffsetForButtonAtIndex:frontmostButtonIndex:slowingFactor:` evaluations — one at the
+factor held at ivar offset 808, one at `_edgeScrollingFactor` (800). That fourth constant is
+**52 × scale**, alongside the three already known (`_edgeScrollingFactor` 64,
+`_selectedButtonSlowingFactor` 90, `_slowingDistance` 128), confirmed against bars of 700, 900 and
+1400 pt.
+
+### Separators do not care about the pile
+
+```objc
+BOOL hidden;
+if (index == count - 1)                                          hidden = YES;   // trailing-most
+else if (selectedIndex == index || selectedIndex == index + 1)   hidden = YES;   // borders selection
+else hidden = button.hasMouseOverHighlight || nextButton.hasMouseOverHighlight;
+[separator setHidden:hidden];
+```
+
+There is no width or collapse test anywhere in `-_updateSeparatorVisibility`: a hairline is drawn
+between two piled-up tabs just as it is between two full-width ones.
+
 ## 10. Ivar and flag map
 
 Offsets are for `NSTabBar` on macOS 26.5 arm64e, obtained from a runtime `class_copyIvarList` dump.

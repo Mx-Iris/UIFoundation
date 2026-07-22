@@ -34,6 +34,24 @@ final class TabButtonCell: NSButtonCell {
 
     var closePosition: TabsControl.ClosePosition?
 
+    /// The width the title and icon are laid out against, when the tab is narrower than that.
+    ///
+    /// `-[NSTabButton setButtonWidthForTitleLayout:]`. A stacked tab is squeezed far below its natural
+    /// width, and the system keeps laying its contents out against the *full* tab width regardless,
+    /// letting the tab clip whatever no longer fits. A tab compressed to a sliver therefore shows no
+    /// text at all, rather than a title truncated down to an ellipsis. Measured on a real `NSTabBar`:
+    /// a 9 pt-wide tab still carries its full 33 pt title, sitting at x = 63.5 — entirely outside it.
+    var titleLayoutWidth: CGFloat?
+
+    /// Which edge of the tab the ``titleLayoutWidth`` box is pinned to.
+    ///
+    /// The `-setAlignment:` `NSTabBar` passes each button as it lays out a stacked bar: the frontmost
+    /// tab centres its contents, a tab piled up *before* it pins them to its leading edge and one
+    /// piled up after it to its trailing edge. Measured with the sixth of fourteen tabs selected, the
+    /// title sits at +59.5, +57.5, +54.5, +51.5 through the leading pile and at −58.0, −56.5, −16.5
+    /// through the trailing one — pushed out of sight on the side each pile folds towards.
+    var titleLayoutAnchor: TabsControl.TitleAnchor = .center
+
     var style: TabsControl.Style
 
     // MARK: - Initializers & Copy
@@ -166,12 +184,31 @@ final class TabButtonCell: NSButtonCell {
 
     // MARK: - Drawing
 
+    /// The rectangle the tab's contents are laid out in, which is the tab itself until stacking
+    /// squeezes it — see ``titleLayoutWidth``. Anything falling outside the tab is clipped away by
+    /// the control's own drawing, exactly as the system's pill clips its content view.
+    func contentLayoutRect(forBounds bounds: NSRect) -> NSRect {
+        guard let titleLayoutWidth, titleLayoutWidth > bounds.width else { return bounds }
+
+        let originX: CGFloat
+        switch titleLayoutAnchor {
+        case .leading:
+            originX = bounds.minX
+        case .center:
+            originX = bounds.midX - titleLayoutWidth / 2.0
+        case .trailing:
+            originX = bounds.maxX - titleLayoutWidth
+        }
+        return NSRect(x: originX, y: bounds.minY, width: titleLayoutWidth, height: bounds.height)
+    }
+
     override func draw(withFrame frame: NSRect, in controlView: NSView) {
         style.drawTabButtonBezel(frame: frame, position: buttonPosition, isSelected: isSelected)
 
-        if hasRoomToDrawFullTitle(inRect: frame) || hasTitleAlternativeIcon == false {
+        let contentFrame = contentLayoutRect(forBounds: frame)
+        if hasRoomToDrawFullTitle(inRect: contentFrame) || hasTitleAlternativeIcon == false {
             let title = style.attributedTitle(content: self.title, selectionState: selectionState)
-            _ = drawTitle(title, withFrame: frame, in: controlView)
+            _ = drawTitle(title, withFrame: contentFrame, in: controlView)
         }
 
         if showsMenu {
