@@ -25,6 +25,18 @@ final class TabsControlDemoViewController: NSViewController {
     ]
     private var nextTabNumber = 4
 
+    /// Which tab the *demo* considers active.
+    ///
+    /// A real host keeps the selection in its own model and pushes it into the control, rather than
+    /// reading it back out: the tab bar is one of several views onto that model, and commands like
+    /// ⌘W act on the model. The control learns about it through `selectItemAtIndex(_:)`, and every
+    /// user-driven change comes back through `tabsControlDidChangeSelection`.
+    private var activeTabIndex = 0
+
+    /// Set while a model-driven snapshot is being pushed into the control, so the selection the
+    /// control reports back is not mistaken for the user picking a tab.
+    private var isApplyingSnapshot = false
+
     private let tabsControl = TabsControl()
     private let styleSwitcher = NSSegmentedControl()
     private let eventLogTextView = NSTextView()
@@ -40,8 +52,7 @@ final class TabsControlDemoViewController: NSViewController {
         tabsControl.dataSource = self
         tabsControl.delegate = self
         tabsControl.style = TabsControl.DefaultStyle()
-        tabsControl.reloadTabs()
-        tabsControl.selectItemAtIndex(0)
+        applySnapshot(animated: false)
 
         log("loaded \(tabs.count) tabs")
     }
@@ -62,7 +73,7 @@ final class TabsControlDemoViewController: NSViewController {
         let addButton = NSButton(title: "Add Tab", target: self, action: #selector(addTab(_:)))
         addButton.bezelStyle = .rounded
 
-        let hintLabel = NSTextField(labelWithString: "Double-click to rename · drag to reorder · hover to reveal close · try “System” for Liquid Glass")
+        let hintLabel = NSTextField(labelWithString: "Double-click to rename · drag to reorder · hover to reveal close · ⌘W closes the active tab · try “System” for Liquid Glass")
         hintLabel.font = .systemFont(ofSize: 11)
         hintLabel.textColor = .tertiaryLabelColor
 
@@ -136,12 +147,68 @@ final class TabsControlDemoViewController: NSViewController {
     @objc private func addTab(_ sender: Any?) {
         // Opened next to the current tab, the way a browser opens one, rather than always at the end —
         // which is also what exercises inserting into the middle of the strip.
-        let insertionIndex = tabsControl.selectedButtonIndex.map { $0 + 1 } ?? tabs.count
+        let insertionIndex = tabs.isEmpty ? 0 : activeTabIndex + 1
         tabs.insert(TabModel(title: "Tab \(nextTabNumber)"), at: insertionIndex)
         nextTabNumber += 1
-        tabsControl.reloadTabs(animated: true)
-        tabsControl.selectItemAtIndex(insertionIndex)
+        activeTabIndex = insertionIndex
+        applySnapshot(animated: true)
         log("added tab at \(insertionIndex) (\(tabs.count) total)")
+        verifySelectionAgreement()
+    }
+
+    /// ⌘W. The File ▸ Close menu item sends `performClose(_:)` down the responder chain, which
+    /// reaches this view controller before it reaches the window — so the demo gets the shortcut
+    /// without adding a menu item of its own. Closing the last tab falls through to the window, the
+    /// way Safari does.
+    @objc func performClose(_ sender: Any?) {
+        guard tabs.count > 1 else {
+            view.window?.performClose(sender)
+            return
+        }
+        closeTab(at: activeTabIndex)
+    }
+
+    /// Removes the tab at `index` and activates its *right* neighbour, the way Safari and Chrome
+    /// do — closing a tab moves you on, not back.
+    private func closeTab(at index: Int) {
+        guard tabs.indices.contains(index), tabs.count > 1 else { return }
+        let closedTheActiveTab = index == activeTabIndex
+        let closedTitle = tabs[index].title
+        tabs.remove(at: index)
+        if closedTheActiveTab {
+            activeTabIndex = min(index, tabs.count - 1)
+        } else if index < activeTabIndex {
+            activeTabIndex -= 1
+        }
+        applySnapshot(animated: true)
+        log("closed \(closedTitle) → active \(tabs[activeTabIndex].title) (\(tabs.count) left)")
+        verifySelectionAgreement()
+    }
+
+    /// Pushes the model into the control: the reload brings the tabs, `selectItemAtIndex` brings the
+    /// selection.
+    private func applySnapshot(animated: Bool) {
+        isApplyingSnapshot = true
+        tabsControl.reloadTabs(animated: animated)
+        if tabs.indices.contains(activeTabIndex) {
+            tabsControl.selectItemAtIndex(activeTabIndex)
+        }
+        isApplyingSnapshot = false
+    }
+
+    /// The bar and the model have to end up naming the same tab: ⌘W closes whatever the *model*
+    /// calls active, while the user aims with whatever the *bar* highlights. Checked one runloop
+    /// turn later, once every follow-up selection has settled.
+    private func verifySelectionAgreement() {
+        DispatchQueue.main.async { [self] in
+            guard tabsControl.selectedButtonIndex != activeTabIndex else { return }
+            log("⚠️ bar highlights \(title(at: tabsControl.selectedButtonIndex)), model says \(title(at: activeTabIndex))")
+        }
+    }
+
+    private func title(at index: Int?) -> String {
+        guard let index, tabs.indices.contains(index) else { return "none" }
+        return tabs[index].title
     }
 
     private func log(_ message: String) {
@@ -183,6 +250,10 @@ extension TabsControlDemoViewController: TabsControl.DataSource {
 
 extension TabsControlDemoViewController: TabsControl.Delegate {
     func tabsControlDidChangeSelection(_ control: TabsControl, item: Any?) {
+        guard !isApplyingSnapshot else { return }
+        if let model = item as? TabModel, let index = tabs.firstIndex(where: { $0 === model }) {
+            activeTabIndex = index
+        }
         log("selected: \((item as? TabModel)?.title ?? "none")")
     }
 
@@ -195,7 +266,12 @@ extension TabsControlDemoViewController: TabsControl.Delegate {
     }
 
     func tabsControl(_ control: TabsControl, didReorderItems items: [Any]) {
+        // The active tab keeps its identity across a reorder, not its index.
+        let activeModel = tabs.indices.contains(activeTabIndex) ? tabs[activeTabIndex] : nil
         tabs = items.compactMap { $0 as? TabModel }
+        if let activeModel, let index = tabs.firstIndex(where: { $0 === activeModel }) {
+            activeTabIndex = index
+        }
         log("reordered: \(tabs.map(\.title).joined(separator: ", "))")
     }
 
@@ -213,9 +289,7 @@ extension TabsControlDemoViewController: TabsControl.Delegate {
     }
 
     func tabsControl(_ control: TabsControl, didCloseItem item: Any) {
-        if let model = item as? TabModel, let index = tabs.firstIndex(where: { $0 === model }) {
-            tabs.remove(at: index)
-        }
-        log("closed (\(tabs.count) left)")
+        guard let model = item as? TabModel, let index = tabs.firstIndex(where: { $0 === model }) else { return }
+        closeTab(at: index)
     }
 }

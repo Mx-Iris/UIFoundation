@@ -67,6 +67,20 @@ open class TabsControl: NSControl, NSTextDelegate {
     /// The evenly divided tab width the last unpinned layout produced, reused while a close is pinned.
     private var heldButtonWidth: CGFloat?
 
+    /// Set while ``TabsControl/Delegate/tabsControl(_:didCloseItem:)`` is being delivered, so a host
+    /// that moves the selection from inside that callback is noticed.
+    private var isNotifyingDelegateOfClose = false
+
+    /// Set when the delegate selected a tab while being told about a close.
+    ///
+    /// Such a host keeps the selection in its own model — the tab bar is one of several views onto
+    /// it — and has already said which tab is active now. The neighbour this control picks on its own
+    /// is decided from indices that predate the close, so letting it run would silently overrule that
+    /// answer, and every selection-driven command would then act on a different tab than the one the
+    /// bar lights up. A stacked bar makes the same disagreement visible on its own: the selection
+    /// anchors the fold, so re-selecting into a pile blows that sliver up to full width.
+    private var didDelegateSelectTabDuringClose = false
+
     /// Index of the earliest tab inserted since the last layout, which that layout scrolls into view.
     ///
     /// `_firstInsertedTabButtonIndex` in `NSTabBar`, consumed the same way: recorded on insertion and
@@ -1181,7 +1195,15 @@ open class TabsControl: NSControl, NSTextDelegate {
                 isInteractivelyClosingTabs = false
             }
 
+            isNotifyingDelegateOfClose = true
+            didDelegateSelectTabDuringClose = false
             delegate?.tabsControl?(self, didCloseItem: item)
+            isNotifyingDelegateOfClose = false
+
+            // The host owns the selection and has already placed it — see
+            // ``didDelegateSelectTabDuringClose``. Only the survivors' layout is left to do, and the
+            // selection it made has already asked for that.
+            guard !didDelegateSelectTabDuringClose else { return }
 
             guard let currentSelectedButtonIndex = selectedButtonIndex else {
                 layoutTabButtons(nil, animated: true)
@@ -1252,6 +1274,10 @@ open class TabsControl: NSControl, NSTextDelegate {
     /// Moves the selection to `button`, without any of the click-driven follow-up.
     private func selectButton(_ button: TabButton) {
         guard button.isEnabled else { return }
+
+        if isNotifyingDelegateOfClose {
+            didDelegateSelectTabDuringClose = true
+        }
 
         selectedButtonIndex = button.index
         invalidateRestorableState()

@@ -298,6 +298,15 @@ down to a 120 pt minimum and then *stacks* the overflow into piles at the ends. 
 matched against a real `NSTabBar` rather than eyeballed — see `Researchs/AppKit-NSTabBar-Insertion-Internals.md`
 for the reverse-engineered insertion / reveal path and the measurement method.
 
+**Who owns the selection.** By default the control does: closing a tab moves the selection to the tab
+on its left. A host that keeps the active tab in its own model instead — so that commands like ⌘W act
+on the model rather than on whatever the bar highlights — takes over by calling `selectItemAtIndex(_:)`
+from inside `tabsControl(_:didCloseItem:)`, and the control then stands down instead of overruling it.
+Without that hand-off the two disagree after every close, silently: the bar lights up one tab while the
+host's shortcut closes another, and on a *stacked* bar the disagreement is loud, because the selection
+anchors the fold and re-selecting into a pile blows that sliver up to full width. The demo
+(`TabsControlDemoViewController`) is wired the host-owned way and logs any disagreement.
+
 Wiring:
 - `traits: [..., .trait(name: "TabsControl")]` in `Package.swift`
 - Every source file under `Sources/UIFoundationAppKit/TabsControl/**/*.swift` is wrapped in `#if TabsControl && os(macOS) … #endif`

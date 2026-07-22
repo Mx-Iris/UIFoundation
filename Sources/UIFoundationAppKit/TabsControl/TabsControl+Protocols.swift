@@ -66,6 +66,15 @@ extension TabsControl {
 
         @objc optional func tabsControl(_ control: TabsControl, canCloseItem item: Any) -> Bool
 
+        /// Informs the delegate that the tab has been closed. It is the delegate's responsibility to
+        /// drop it from its own model.
+        ///
+        /// A delegate that keeps the selection in that model — so that commands like ⌘W act on it
+        /// rather than on whatever the bar happens to highlight — may call
+        /// ``TabsControl/selectItemAtIndex(_:)`` from here to say which tab is active now. Doing so
+        /// takes the selection over: the control skips the neighbour it would otherwise have moved to
+        /// on its own. A delegate that stays silent gets the default, which is the tab to the left of
+        /// the one that closed.
         @objc optional func tabsControl(_ control: TabsControl, didCloseItem item: Any)
     }
 }
