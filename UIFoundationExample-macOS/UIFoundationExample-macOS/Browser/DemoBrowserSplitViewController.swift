@@ -82,8 +82,12 @@ final class DemoDetailViewController: NSViewController {
         _ = view  // force view load (loadViewIfNeeded() is macOS 14+)
 
         if let current = currentDemoViewController {
-            current.removeFromParent()
+            // View first, then the parenting: taking the view out of the window is what drives the
+            // appearance callbacks, and an already-orphaned view controller never receives them. A
+            // demo that lends the app something while it is on screen — a menu item, say — relies on
+            // `viewWillDisappear()` to take it back.
             current.view.removeFromSuperview()
+            current.removeFromParent()
         }
 
         summaryLabel.stringValue = demo.summary

@@ -73,7 +73,7 @@ final class TabsControlDemoViewController: NSViewController {
         let addButton = NSButton(title: "Add Tab", target: self, action: #selector(addTab(_:)))
         addButton.bezelStyle = .rounded
 
-        let hintLabel = NSTextField(labelWithString: "Double-click to rename · drag to reorder · hover to reveal close · ⌘W closes the active tab · try “System” for Liquid Glass")
+        let hintLabel = NSTextField(labelWithString: "⌘T new tab · ⌘W close tab · double-click to rename · drag to reorder · try “System” for Liquid Glass")
         hintLabel.font = .systemFont(ofSize: 11)
         hintLabel.textColor = .tertiaryLabelColor
 
@@ -125,6 +125,68 @@ final class TabsControlDemoViewController: NSViewController {
         ])
     }
 
+    // MARK: - Menu
+
+    /// The File-menu items this demo lends the app while it is on screen, so ⌘T / ⌘W drive the tabs.
+    ///
+    /// Adding menu items rather than answering `performClose(_:)` from the responder chain: the chain
+    /// starts at the window's first responder, which is usually the browser's sidebar, and from there
+    /// it never passes through this view controller — `NSWindow` answers `performClose(_:)` first and
+    /// the window closes. These carry an explicit target instead, so the chain does not come into it.
+    ///
+    /// They are inserted *ahead* of the stock Close item, which is what wins ⌘W for the tabs while the
+    /// demo is up; the moment they are gone the stock item has it back. `⌘T` is likewise found before
+    /// Format ▸ Show Fonts, because the File menu is searched first.
+    private var lentMenuItems: [NSMenuItem] = []
+
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        lendMenuItems()
+    }
+
+    override func viewWillDisappear() {
+        super.viewWillDisappear()
+        reclaimMenuItems()
+    }
+
+    private func lendMenuItems() {
+        guard lentMenuItems.isEmpty, let (fileMenu, closeItemIndex) = windowCloseMenuLocation() else { return }
+
+        let newTabItem = NSMenuItem(title: "New Tab", action: #selector(addTab(_:)), keyEquivalent: "t")
+        newTabItem.keyEquivalentModifierMask = [.command]
+        newTabItem.target = self
+
+        let closeTabItem = NSMenuItem(title: "Close Tab", action: #selector(closeActiveTab(_:)), keyEquivalent: "w")
+        closeTabItem.keyEquivalentModifierMask = [.command]
+        closeTabItem.target = self
+
+        let separatorItem = NSMenuItem.separator()
+
+        for (offset, item) in [newTabItem, closeTabItem, separatorItem].enumerated() {
+            fileMenu.insertItem(item, at: closeItemIndex + offset)
+        }
+        lentMenuItems = [newTabItem, closeTabItem, separatorItem]
+    }
+
+    private func reclaimMenuItems() {
+        for item in lentMenuItems {
+            item.menu?.removeItem(item)
+        }
+        lentMenuItems = []
+    }
+
+    /// Where the stock Close item sits — found by what it does rather than by the menu's title, which
+    /// is localized.
+    private func windowCloseMenuLocation() -> (menu: NSMenu, index: Int)? {
+        for topLevelItem in NSApp.mainMenu?.items ?? [] {
+            guard let submenu = topLevelItem.submenu,
+                  let index = submenu.items.firstIndex(where: { $0.action == #selector(NSWindow.performClose(_:)) })
+            else { continue }
+            return (submenu, index)
+        }
+        return nil
+    }
+
     // MARK: - Actions
 
     @objc private func changeStyle(_ sender: NSSegmentedControl) {
@@ -156,11 +218,8 @@ final class TabsControlDemoViewController: NSViewController {
         verifySelectionAgreement()
     }
 
-    /// ⌘W. The File ▸ Close menu item sends `performClose(_:)` down the responder chain, which
-    /// reaches this view controller before it reaches the window — so the demo gets the shortcut
-    /// without adding a menu item of its own. Closing the last tab falls through to the window, the
-    /// way Safari does.
-    @objc func performClose(_ sender: Any?) {
+    /// ⌘W. Closing the last tab falls through to the window, the way Safari does.
+    @objc private func closeActiveTab(_ sender: Any?) {
         guard tabs.count > 1 else {
             view.window?.performClose(sender)
             return
