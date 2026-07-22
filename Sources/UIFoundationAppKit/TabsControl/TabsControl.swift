@@ -204,13 +204,17 @@ open class TabsControl: NSControl, NSTextDelegate {
         reloadTabs(animated: false)
     }
 
-    /// Identity of a data-source item, when it has one.
+    /// Identity of a data-source item, as far as one can be had.
     ///
-    /// Items arrive as `Any`, so only class instances can be recognised across a reload. A data
-    /// source vending values gets `nil` here and falls back to positional matching, which is what
-    /// this control has always done.
+    /// ``DataSource`` is an `@objc` protocol, so an item is always an object by the time it arrives —
+    /// a Swift `Int` crosses the boundary as a tagged `__NSCFNumber`, and a struct as a fresh opaque
+    /// box. That makes this *pointer* identity only in the useful case, where the host vends the same
+    /// object for the same tab; for a bridged value it is really **value** identity, and for a boxed
+    /// struct it never matches anything. Neither can be told apart from the real thing here, which is
+    /// why the mapping built from it is only trusted when it accounts for every tab — see
+    /// ``reloadTabs(animated:)``.
     private static func identity(of item: Any?) -> ObjectIdentifier? {
-        guard let item, type(of: item) is AnyClass else { return nil }
+        guard let item else { return nil }
         return ObjectIdentifier(item as AnyObject)
     }
 
@@ -231,37 +235,39 @@ open class TabsControl: NSControl, NSTextDelegate {
         // decoration, which is keyed by button identity, would follow the wrong tab too. AppKit
         // keys the same way, off the item: `_tabBarViewItemsToTabButtons` is an `NSMapTable`.
         let existingButtons = tabButtons
-        var isClaimed = [Bool](repeating: false, count: existingButtons.count)
         var buttonsForItems = [TabButton?](repeating: nil, count: itemCount)
+        var claimedButtons: Set<ObjectIdentifier> = []
 
-        var buttonIndexesForIdentities: [ObjectIdentifier: Int] = [:]
-        for (buttonIndex, button) in existingButtons.enumerated() {
+        var buttonsForIdentities: [ObjectIdentifier: TabButton] = [:]
+        for button in existingButtons {
             guard let identity = Self.identity(of: button.item) else { continue }
             // First claim wins, so a data source repeating one item still resolves deterministically.
-            if buttonIndexesForIdentities[identity] == nil {
-                buttonIndexesForIdentities[identity] = buttonIndex
+            if buttonsForIdentities[identity] == nil {
+                buttonsForIdentities[identity] = button
             }
         }
         for (itemIndex, item) in items.enumerated() {
             guard let identity = Self.identity(of: item),
-                  let buttonIndex = buttonIndexesForIdentities[identity],
-                  !isClaimed[buttonIndex]
+                  let button = buttonsForIdentities[identity],
+                  !claimedButtons.contains(ObjectIdentifier(button))
             else { continue }
-            isClaimed[buttonIndex] = true
-            buttonsForItems[itemIndex] = existingButtons[buttonIndex]
+            claimedButtons.insert(ObjectIdentifier(button))
+            buttonsForItems[itemIndex] = button
         }
 
-        // Anything left over fills the still-unmatched slots in order. For a data source of values,
-        // where nothing can be matched by identity, this is exactly the positional mapping this
-        // method used to do — button `i` to item `i`, with the tail created or removed.
-        let leftoverButtons = existingButtons.enumerated().filter { !isClaimed[$0.offset] }.map(\.element)
-        var nextLeftoverIndex = 0
-        for itemIndex in 0 ..< itemCount where buttonsForItems[itemIndex] == nil {
-            guard nextLeftoverIndex < leftoverButtons.count else { break }
-            buttonsForItems[itemIndex] = leftoverButtons[nextLeftoverIndex]
-            nextLeftoverIndex += 1
+        // The mapping is only trusted when it accounts for everything. An item that found no button
+        // *alongside* a button nothing claimed means the identities are not tracking tabs: that is the
+        // signature of a data source vending row indices, where closing a tab renumbers every item
+        // behind it, so the identities say "tab 3 is gone and tab 5 is homeless" when really tab 3 is
+        // the one that closed. Believing it drags the trailing tab clear across the bar into the hole.
+        // Position is the only thing left to go on there, and it is exactly right for such a host,
+        // being what the close's own renumbering already produced.
+        if buttonsForItems.contains(where: { $0 == nil }), claimedButtons.count < existingButtons.count {
+            buttonsForItems = (0 ..< itemCount).map { existingButtons[safe: $0] }
+            claimedButtons = Set(buttonsForItems.compactMap { $0 }.map(ObjectIdentifier.init))
         }
-        for button in leftoverButtons[nextLeftoverIndex...] {
+
+        for button in existingButtons where !claimedButtons.contains(ObjectIdentifier(button)) {
             button.removeFromSuperview()
         }
 
