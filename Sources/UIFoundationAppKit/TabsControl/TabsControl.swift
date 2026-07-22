@@ -368,6 +368,16 @@ open class TabsControl: NSControl, NSTextDelegate {
 
         if let previouslySelectedButton, previouslySelectedButton.superview != nil {
             storedSelectedButtonIndex = previouslySelectedButton.index
+        } else if let danglingSelectedIndex = storedSelectedButtonIndex {
+            // The selected tab is gone from the data source. Its index has to be brought back into
+            // range before anything is laid out: the selection is what the stacking fold is anchored
+            // on, and an index past the end anchors the bar around a tab that no longer exists — which
+            // a stacked bar shows as the whole leading pile lurching, then lurching back once the
+            // host says which tab is active now. Landing on the tab that took the closed one's place,
+            // or on the last one, is the answer every host gives anyway, so the two agree and nothing
+            // moves twice.
+            storedSelectedButtonIndex = itemCount > 0 ? min(danglingSelectedIndex, itemCount - 1) : nil
+            updateButtonStatesForSelection()
         }
 
         // Adding a tab ends a run of closes: there is a new tab to make room for, so the strip has to
@@ -602,7 +612,9 @@ open class TabsControl: NSControl, NSTextDelegate {
         if let insertedIndex = firstInsertedButtonIndex {
             firstInsertedButtonIndex = nil
             if !isInteractivelyClosingTabs {
-                Self.pendingScrollTranslation = revealButton(atIndex: insertedIndex)
+                // Added to, not assigned: building the geometry can already have pulled the offset back
+                // (see ``makeStackingGeometry(for:)``), and that move has to be absorbed too.
+                Self.pendingScrollTranslation += revealButton(atIndex: insertedIndex)
             }
         }
 
@@ -656,7 +668,17 @@ open class TabsControl: NSControl, NSTextDelegate {
         let clipView = scrollView.contentView
         var scrollOffset = clipView.bounds.origin.x
         if scrollOffset < 0.0 || scrollOffset > maximumScrollOffset {
-            scrollOffset = min(max(0.0, scrollOffset), maximumScrollOffset)
+            let settledOffset = min(max(0.0, scrollOffset), maximumScrollOffset)
+
+            // The viewport moving is the same problem the reveal scroll has, and it is absorbed the
+            // same way: every tab keeps its place in the *document*, so a clip view that jumps just
+            // before they animate drags the whole strip sideways and then hauls it back. Closing the
+            // trailing tab of a bar scrolled to its end gives back a full tab's worth of offset, and
+            // the leading pile — where a tab's whole width is a few points — is where that round trip
+            // is loudest. Handing the move to the animation's origin leaves every tab where it looks.
+            Self.pendingScrollTranslation += settledOffset - scrollOffset
+
+            scrollOffset = settledOffset
             clipView.setBoundsOrigin(NSPoint(x: scrollOffset, y: clipView.bounds.origin.y))
             scrollView.reflectScrolledClipView(clipView)
         }

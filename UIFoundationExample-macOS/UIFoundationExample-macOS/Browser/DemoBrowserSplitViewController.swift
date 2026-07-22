@@ -14,8 +14,25 @@ final class DemoBrowserSplitViewController: NSSplitViewController {
 
     private var didSelectInitialDemo = false
 
-    /// The demo on screen. Read by the window, which routes shortcuts to it — see ``DemoBrowserWindow``.
+    /// The demo on screen.
     var currentDemoViewController: NSViewController? { detailViewController.currentDemoViewController }
+
+    /// Lets the demo on screen answer menu actions it declares, wherever the focus happens to be.
+    ///
+    /// A menu action is dispatched down the *key window's* responder chain, and that chain starts at
+    /// the first responder — in this app usually the sidebar — so it runs sidebar → split view →
+    /// window without ever passing through the detail pane. This is AppKit's hook for exactly that: a
+    /// responder that cannot handle an action gets to nominate one that can, and this controller is on
+    /// every chain because its view is the window's content view.
+    ///
+    /// It is what gives the tabs demo a real ⌘W: `performClose(_:)` is found on the demo before the
+    /// search ever reaches the window, which is what would otherwise close the whole thing.
+    override func supplementalTarget(forAction action: Selector, sender: Any?) -> Any? {
+        if let currentDemoViewController, currentDemoViewController.responds(to: action) {
+            return currentDemoViewController
+        }
+        return super.supplementalTarget(forAction: action, sender: sender)
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()

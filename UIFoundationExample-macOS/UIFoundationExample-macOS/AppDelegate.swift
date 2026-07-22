@@ -28,21 +28,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 
-    /// Gives the File menu a New Tab item for demos that have tabs — see ``TabsShortcutHandling``.
+    /// Gives the File menu a New Tab item for demos that answer `newTab(_:)`.
     ///
     /// ⌘W needs no item of its own: the stock Close already dispatches `performClose(_:)` down the
-    /// responder chain, where ``DemoBrowserWindow`` picks it up. ⌘T has no such route, so it takes an
-    /// item — and taking it needs the combination to be free first. An item inserted into a menu whose
-    /// main menu already carries that key equivalent has it **silently cleared on the way in**, which
-    /// leaves a New Tab item that looks right and never fires. Format ▸ Show Fonts is the stock owner
-    /// of ⌘T; a demo browser has no use for the font panel, so it simply gives the key up.
+    /// responder chain, and the browser's split view controller nominates the demo on screen as a
+    /// supplemental target for it. ⌘T has no such route, so it takes an item — and taking it needs the
+    /// combination to be free first. An item inserted into a menu whose main menu already carries that
+    /// key equivalent has it **silently cleared on the way in**, which leaves a New Tab item that looks
+    /// right and never fires. Format ▸ Show Fonts is the stock owner of ⌘T; a demo browser has no use
+    /// for the font panel, so it simply gives the key up.
     ///
     /// The item carries no target, so the responder chain decides: it is enabled only while the demo
-    /// on screen has tabs, and inert otherwise.
+    /// on screen answers the action, and inert otherwise.
     private func installNewTabMenuItem() {
         guard let mainMenu = NSApp.mainMenu, let (fileMenu, closeItemIndex) = windowCloseMenuLocation() else { return }
         releaseKeyEquivalent("t", in: mainMenu)
-        let newTabItem = NSMenuItem(title: "New Tab", action: #selector(DemoBrowserWindow.newTab(_:)), keyEquivalent: "t")
+        let newTabItem = NSMenuItem(title: "New Tab", action: #selector(TabsControlDemoViewController.newTab(_:)), keyEquivalent: "t")
         newTabItem.keyEquivalentModifierMask = [.command]
         fileMenu.insertItem(newTabItem, at: closeItemIndex)
     }

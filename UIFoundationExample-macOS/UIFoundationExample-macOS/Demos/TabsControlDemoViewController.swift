@@ -144,6 +144,21 @@ final class TabsControlDemoViewController: NSViewController {
         }
     }
 
+    /// ⌘T and ⌘W. Both reach this demo wherever the focus is, because the browser's split view
+    /// controller nominates it — see `DemoBrowserSplitViewController.supplementalTarget(forAction:sender:)`.
+    /// Closing the last tab hands `performClose(_:)` back to the window, the way Safari does.
+    @objc func newTab(_ sender: Any?) {
+        addTab(sender)
+    }
+
+    @objc func performClose(_ sender: Any?) {
+        guard tabs.count > 1 else {
+            view.window?.performClose(sender)
+            return
+        }
+        closeTab(at: activeTabIndex)
+    }
+
     @objc private func addTab(_ sender: Any?) {
         // Opened next to the current tab, the way a browser opens one, rather than always at the end —
         // which is also what exercises inserting into the middle of the strip.
@@ -206,20 +221,6 @@ final class TabsControlDemoViewController: NSViewController {
         ]
         eventLogTextView.textStorage?.append(NSAttributedString(string: message + "\n", attributes: attributes))
         eventLogTextView.scrollToEndOfDocument(nil)
-    }
-}
-
-// MARK: - TabsShortcutHandling
-
-extension TabsControlDemoViewController: TabsShortcutHandling {
-    func newTabFromShortcut() {
-        addTab(nil)
-    }
-
-    func closeTabFromShortcut() -> Bool {
-        guard tabs.count > 1 else { return false }
-        closeTab(at: activeTabIndex)
-        return true
     }
 }
 
