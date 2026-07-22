@@ -206,16 +206,22 @@ open class TabsControl: NSControl, NSTextDelegate {
 
     /// Identity of a data-source item, as far as one can be had.
     ///
-    /// ``DataSource`` is an `@objc` protocol, so an item is always an object by the time it arrives —
-    /// a Swift `Int` crosses the boundary as a tagged `__NSCFNumber`, and a struct as a fresh opaque
-    /// box. That makes this *pointer* identity only in the useful case, where the host vends the same
-    /// object for the same tab; for a bridged value it is really **value** identity, and for a boxed
-    /// struct it never matches anything. Neither can be told apart from the real thing here, which is
-    /// why the mapping built from it is only trusted when it accounts for every tab — see
-    /// ``reloadTabs(animated:)``.
-    private static func identity(of item: Any?) -> ObjectIdentifier? {
+    /// ``DataSource`` is an `@objc` protocol, so an item is always an object by the time it arrives,
+    /// and its *address* is the wrong question for most of them: a Swift value crosses the boundary
+    /// in a fresh `__SwiftValue` box every call, so two vends of the same struct never share one.
+    /// What does survive the crossing is **equality** — the box forwards `isEqual:` and `hash` to the
+    /// value's `Hashable` conformance — so items are keyed by `AnyHashable` wherever they have one,
+    /// which covers Swift structs and enums as well as `NSObject`s. A class conforming to neither
+    /// still has its address, which is the only identity it can offer; the two key spaces cannot
+    /// collide, since `AnyHashable` equality requires the same underlying type on both sides.
+    ///
+    /// None of this can tell a *stable* identity from an incidental one — a row index vended as the
+    /// item compares equal to that same index after a renumbering — which is why the mapping built
+    /// from these keys is only trusted when it accounts for every tab. See ``reloadTabs(animated:)``.
+    private static func identity(of item: Any?) -> AnyHashable? {
         guard let item else { return nil }
-        return ObjectIdentifier(item as AnyObject)
+        if let hashable = item as? AnyHashable { return hashable }
+        return AnyHashable(ObjectIdentifier(item as AnyObject))
     }
 
     /// Reloads all tabs, optionally animating the change.
@@ -238,7 +244,7 @@ open class TabsControl: NSControl, NSTextDelegate {
         var buttonsForItems = [TabButton?](repeating: nil, count: itemCount)
         var claimedButtons: Set<ObjectIdentifier> = []
 
-        var buttonsForIdentities: [ObjectIdentifier: TabButton] = [:]
+        var buttonsForIdentities: [AnyHashable: TabButton] = [:]
         for button in existingButtons {
             guard let identity = Self.identity(of: button.item) else { continue }
             // First claim wins, so a data source repeating one item still resolves deterministically.
