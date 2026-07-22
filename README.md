@@ -188,6 +188,30 @@ if actionBar.resumePresentation() {
 
 `resumePresentation()` returns `true` only while the existing panel is dismissing. Its fade and transform animations continue from their current presentation values, allowing repeated shortcut presses to reverse the transition smoothly.
 
+### Tabs Control
+
+Enable the `TabsControl` trait for a multi-tab control with `Default`, `Chrome`, `Safari` and `System` styles:
+
+```swift
+.package(
+    url: "https://github.com/Mx-Iris/UIFoundation",
+    from: "0.13.0",
+    traits: ["TabsControl"]
+)
+```
+
+```swift
+let tabsControl = TabsControl()
+tabsControl.dataSource = self
+tabsControl.delegate = self
+tabsControl.style = TabsControl.SystemStyle()
+tabsControl.reloadTabs()
+```
+
+`SystemStyle` replicates the macOS 26 window tab bar: a Liquid-Glass pill per tab, hairline separators, and overflow that folds into compressed piles at both ends rather than shrinking past 120 pt. Its geometry and animation are matched against a live `NSTabBar`.
+
+See [`Documentations/TabsControl.md`](Documentations/TabsControl.md) for the full guide — the data source and delegate, how items are matched across a reload, which side owns the selection, and the stacking and scrolling models.
+
 ### Cross-Platform Typealias
 
 `UIFoundationTypealias` provides `NSUI`-prefixed aliases (`NSUIView`, `NSUIColor`, `NSUIFont`, etc.) enabling cross-platform code without `#if canImport` branching:

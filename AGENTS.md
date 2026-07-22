@@ -307,6 +307,10 @@ host's shortcut closes another, and on a *stacked* bar the disagreement is loud,
 anchors the fold and re-selecting into a pile blows that sliver up to full width. The demo
 (`TabsControlDemoViewController`) is wired the host-owned way and logs any disagreement.
 
+**Full guide:** `Documentations/TabsControl.md` — API, the three host-facing contracts (item identity,
+selection ownership, what a reload animates), the measured `SystemStyle` geometry, the stacking and
+scrolling models, and the known divergences from the system bar.
+
 Wiring:
 - `traits: [..., .trait(name: "TabsControl")]` in `Package.swift`
 - Every source file under `Sources/UIFoundationAppKit/TabsControl/**/*.swift` is wrapped in `#if TabsControl && os(macOS) … #endif`
