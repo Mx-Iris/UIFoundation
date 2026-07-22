@@ -139,14 +139,39 @@ open class TabsControl: NSControl, NSTextDelegate {
 
         if decoration.showsBarTrack {
             if barTrackView == nil {
-                let track = SystemBarTrackView(frame: bounds)
-                track.autoresizingMask = [.width, .height]
+                let track = SystemBarTrackView(frame: .zero)
                 addSubview(track, positioned: .below, relativeTo: scrollView)
                 barTrackView = track
             }
         } else {
             barTrackView?.removeFromSuperview()
             barTrackView = nil
+        }
+        updateBarTrackFrame()
+    }
+
+    open override func layout() {
+        super.layout()
+        updateBarTrackFrame()
+    }
+
+    /// Insets the bar track from the control's edges — see ``ControlDecoration/barTrackInset``.
+    ///
+    /// Sized here rather than by an autoresizing mask because the track is created from whatever
+    /// bounds the control happens to have when its style is set, which is routinely `.zero`; margins
+    /// derived from that never recover.
+    private func updateBarTrackFrame() {
+        guard let barTrackView, let decoration = style.controlDecoration else { return }
+
+        let inset = decoration.barTrackInset
+        let trackFrame = NSRect(
+            x: inset,
+            y: 0.0,
+            width: max(0.0, bounds.width - 2.0 * inset),
+            height: bounds.height
+        )
+        if barTrackView.frame != trackFrame {
+            barTrackView.frame = trackFrame
         }
     }
 
@@ -727,8 +752,11 @@ open class TabsControl: NSControl, NSTextDelegate {
 
         // Decorating styles inset the tabs so their pills clear the rounded ends of the bar track.
         let contentInset = style.controlDecoration?.barContentInset ?? 0.0
+        // The gaps come out of the width, so the strip still fills the bar exactly.
+        let spacing = style.controlDecoration?.interTabSpacing ?? 0.0
         let availableWidth = max(0.0, scrollView.frame.width - 2.0 * contentInset)
-        let fullWidth = tabButtons.isEmpty ? 0.0 : availableWidth / CGFloat(tabButtons.count)
+        let totalSpacing = spacing * CGFloat(max(0, tabButtons.count - 1))
+        let fullWidth = tabButtons.isEmpty ? 0.0 : max(0.0, availableWidth - totalSpacing) / CGFloat(tabButtons.count)
         let buttonHeight = tabsView.frame.height
 
         var buttonWidth = CGFloat(0)
@@ -751,6 +779,9 @@ open class TabsControl: NSControl, NSTextDelegate {
             let offset = style.tabButtonOffset(position: button.buttonPosition)
             let buttonFrame = CGRect(x: buttonX + offset.x, y: offset.y, width: buttonWidth, height: buttonHeight)
             buttonX += buttonWidth + offset.x
+            if index < tabButtons.count - 1 {
+                buttonX += spacing
+            }
 
             // A modest finite depth, not `greatestFiniteMagnitude`: decoration sits just behind its
             // button at `zPosition - 0.5`, and at 1e38 that offset is lost to float precision, which

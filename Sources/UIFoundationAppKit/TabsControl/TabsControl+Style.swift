@@ -30,9 +30,12 @@ extension TabsControl {
         /// The corner radius of the selection and hover pills.
         public var cornerRadius: CGFloat
 
-        /// The insets applied to a tab button's frame to compute the pill's frame. Vertical insets
-        /// give the pill its floating, capsule-like appearance; horizontal insets create the small
-        /// gap between adjacent pills.
+        /// The insets applied to a tab button's frame to compute the pill's frame, giving it its
+        /// floating, capsule-like appearance.
+        ///
+        /// Horizontally the system insets a pill by nothing at all: `NSGlassEffectView` occupies its
+        /// `NSTabButton` exactly, and what separates two pills is the 1 pt of ``interTabSpacing``
+        /// between the buttons themselves.
         public var selectionInsets: NSEdgeInsets
 
         /// Whether hovering a non-selected tab reveals a subtle highlight pill.
@@ -50,7 +53,25 @@ extension TabsControl {
 
         /// The horizontal inset applied to the tabs so their pills clear the rounded ends of the
         /// bar track. Applied on both leading and trailing edges when the style decorates.
+        ///
+        /// The system insets its scrolling area by 10 pt on each side of `NSTabBar`.
         public var barContentInset: CGFloat
+
+        /// The horizontal inset applied to the bar track itself.
+        ///
+        /// Deliberately *smaller* than ``barContentInset``: `NSTabBarTrackView` is inset 8 pt where
+        /// the tabs are inset 10, so the track stands only 2 pt proud of the leading and trailing
+        /// pills — a hairline of track, not a margin. A track spanning the whole control instead
+        /// leaves its rounded ends out in the open at both ends of the strip, which reads as a gap
+        /// the system bar does not have.
+        public var barTrackInset: CGFloat
+
+        /// The gap left between two adjacent tab buttons while the bar divides itself evenly.
+        ///
+        /// The system leaves exactly 1 pt, which is what separates two pills — its glass fills its
+        /// button edge to edge. Stacked tabs are laid out flush instead, at ``minimumTabWidth``,
+        /// which is why this applies only to the evenly divided layout.
+        public var interTabSpacing: CGFloat
 
         /// Whether tabs stack (telescope into a pile at each edge) instead of shrinking further once
         /// they no longer fit at ``minimumTabWidth``, matching the system window-tab bar.
@@ -61,12 +82,14 @@ extension TabsControl {
 
         public init(
             cornerRadius: CGFloat = 12.0,
-            selectionInsets: NSEdgeInsets = NSEdgeInsets(top: 3.0, left: 2.0, bottom: 3.0, right: 2.0),
+            selectionInsets: NSEdgeInsets = NSEdgeInsets(top: 3.0, left: 0.0, bottom: 3.0, right: 0.0),
             highlightsHover: Bool = true,
             drawsSeparators: Bool = true,
             separatorVerticalInset: CGFloat = 3.0,
             showsBarTrack: Bool = true,
-            barContentInset: CGFloat = 8.0,
+            barContentInset: CGFloat = 10.0,
+            barTrackInset: CGFloat = 8.0,
+            interTabSpacing: CGFloat = 1.0,
             allowsStacking: Bool = true,
             minimumTabWidth: CGFloat = 120.0
         ) {
@@ -77,6 +100,8 @@ extension TabsControl {
             self.separatorVerticalInset = separatorVerticalInset
             self.showsBarTrack = showsBarTrack
             self.barContentInset = barContentInset
+            self.barTrackInset = barTrackInset
+            self.interTabSpacing = interTabSpacing
             self.allowsStacking = allowsStacking
             self.minimumTabWidth = minimumTabWidth
         }

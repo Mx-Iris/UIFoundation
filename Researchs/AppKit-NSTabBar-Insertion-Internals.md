@@ -18,7 +18,7 @@
 - [6. `_isScrollingToRevealAddedTab`](#6-_isscrollingtorevealaddedtab)
 - [7. Where a new tab starts from](#7-where-a-new-tab-starts-from)
 - [8. The reveal must not move anything on screen](#8-the-reveal-must-not-move-anything-on-screen)
-- [9. Tab width has no maximum](#9-tab-width-has-no-maximum)
+- [9. Bar geometry](#9-bar-geometry)
 - [10. Ivar and flag map](#10-ivar-and-flag-map)
 - [11. Method of measurement](#11-method-of-measurement)
 
@@ -284,7 +284,9 @@ its pile. An implementation that animates from the pre-scroll document position 
 opposite reading: the strip jumps sideways by the full scroll distance on the first frame and spends
 the whole animation walking back, so the leading tabs visibly fly in from off-screen.
 
-## 9. Tab width has no maximum
+## 9. Bar geometry
+
+### Tab width has no maximum
 
 Measured on a live `NSTabBar`: two tabs in a 1480 pt clip are 739 and 740 pt wide; three are 493 pt;
 four are 369 pt. Tabs always divide the whole bar, with no upper bound, until the share would drop
@@ -292,6 +294,31 @@ below the 120 pt minimum — at which point stacking takes over and locks the wi
 
 This is not merely cosmetic. A maximum freezes the layout: once the existing tabs are capped, adding
 one moves nothing, and the insertion has no motion to be read from at all.
+
+### Insets, and where a pill actually sits
+
+Every frame below is in the tab bar's own coordinate space, from a 900 pt bar holding three tabs:
+
+| view | x |
+| --- | --- |
+| `NSTabBar` | 0 … 900 |
+| `NSTabBarTrackView` | **8 … 892** |
+| `NSTabBarScrollView` / `ClipView` / `DocumentView` | **10 … 890** |
+| `NSTabButton[0]` | 10 … 303 |
+| its `NSGlassEffectView` | **10 … 303** |
+| `NSTabButton[1]` | 304 … 597 |
+| `NSTabButton[2]` | 598 … 890 |
+
+Three things follow, none of them guessable from the decompilation:
+
+- **The track is inset 8 pt, the content 10 pt.** The track therefore stands just 2 pt proud of the
+  leading and trailing pills — a hairline, not a margin. A track spanning the whole bar instead
+  leaves its rounded ends out in the open, which reads as a gap at both ends of the strip.
+- **A pill *is* its button.** `NSGlassEffectView` occupies its `NSTabButton` exactly; there is no
+  horizontal inset between the two.
+- **Adjacent buttons are 1 pt apart**, and that gap is the whole of what separates two pills. It
+  exists only in the evenly divided layout: stacked tabs are laid out flush at 120 pt
+  (`0(80) 80(120) 200(120) …`).
 
 ## 10. Ivar and flag map
 
