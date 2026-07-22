@@ -1,17 +1,17 @@
 //
-//  TabsControl+SystemTheme.swift
+//  TabBar+SystemTheme.swift
 //  UIFoundation
 //
 //  Replicates the macOS 26 (Solarium / Liquid Glass) system window-tab appearance.
 //  Reverse-engineered from AppKit 26.5 (NSTabBar / NSTabButton / NSTabBarViewButton).
 //
 
-#if TabsControl && os(macOS)
+#if TabBar && os(macOS)
 
 import AppKit
 
-extension TabsControl {
-    /// The theme backing ``TabsControl/SystemStyle``. It reproduces the title colouring of the
+extension TabBar {
+    /// The theme backing ``TabBar/SystemStyle``. It reproduces the title colouring of the
     /// macOS 26 system window-tab bar.
     ///
     /// The system draws every tab title with `[NSFont systemFontOfSize:11]` (regular weight — the
@@ -22,14 +22,14 @@ extension TabsControl {
     /// - non-selectable tab → `tertiaryLabelColor`
     ///
     /// The tab and bar backgrounds are transparent: the visible material comes entirely from the
-    /// Liquid-Glass selection pill floated by ``TabsControl`` (see ``TabsControl/SystemStyle``).
+    /// Liquid-Glass selection pill floated by ``TabBar`` (see ``TabBar/SystemStyle``).
     public struct SystemTheme: Theme {
         public init() {}
 
         public let tabButtonTheme: ButtonTheme = NormalButtonTheme()
         public let selectedTabButtonTheme: ButtonTheme = SelectedButtonTheme()
         public let unselectableTabButtonTheme: ButtonTheme = UnselectableButtonTheme()
-        public let tabsControlTheme: ControlTheme = SystemControlTheme()
+        public let tabBarTheme: ControlTheme = SystemControlTheme()
 
         /// The system title font: 11 pt regular system font, identical across selection states.
         fileprivate static var titleFont: NSFont { NSFont.systemFont(ofSize: 11.0) }

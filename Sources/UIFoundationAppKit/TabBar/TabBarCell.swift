@@ -1,5 +1,5 @@
 //
-//  TabsControlCell.swift
+//  TabBarCell.swift
 //  UIFoundation
 //
 //  Ported into UIFoundation from KPCTabsControl
@@ -9,12 +9,12 @@
 //  MIT License — Copyright (c) 2014-2016 Cédric Foellmi
 //
 
-#if TabsControl && os(macOS)
+#if TabBar && os(macOS)
 
 import AppKit
 
-final class TabsControlCell: NSCell {
-    var style: TabsControl.Style! {
+final class TabBarCell: NSCell {
+    var style: TabBar.Style! {
         didSet { controlView?.needsDisplay = true }
     }
 
@@ -39,7 +39,7 @@ final class TabsControlCell: NSCell {
     override func draw(withFrame cellFrame: NSRect, in controlView: NSView) {
         guard style != nil else { return }
 
-        style.drawTabsControlBezel(frame: cellFrame)
+        style.drawTabBarBezel(frame: cellFrame)
     }
 }
 

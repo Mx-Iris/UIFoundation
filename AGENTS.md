@@ -273,56 +273,58 @@ Differences from upstream `DSFQuickActionBar`:
 - Original MIT license and per-file copyright are preserved, plus a top-level entry in `THIRD_PARTY_LICENSES.md` at the repo root.
 - show/dismiss animation 支持在原 window 上反向打断；通过 animation identifier 淘汰过期 completion，避免快速重复触发时出现短暂无窗口或旧 completion 误关新状态。
 
-### Tabs Control (ported from `onekiloparsec/KPCTabsControl`)
+### Tab Bar (ported from `onekiloparsec/KPCTabsControl`)
 
-Numbers.app-style multi-tab control for macOS (editable / reorderable / closable tabs, with `Default`, `Chrome`, `Safari` and `System` styles). Ships as an **opt-in SPM trait** called `TabsControl` (default: disabled), mirroring the `FilterUI` / `QuickActionBar` pattern:
+Multi-tab control for macOS (editable / reorderable / closable tabs), styled after the macOS 26 window tab bar. Ships as an **opt-in SPM trait** called `TabBar` (default: disabled), mirroring the `FilterUI` / `QuickActionBar` pattern:
 
 ```swift
-.package(url: "…/UIFoundation", traits: ["TabsControl"])     // SPM dependency
-swift build --traits TabsControl                              // CLI
-swift test  --traits TabsControl                              // CLI
+.package(url: "…/UIFoundation", traits: ["TabBar"])     // SPM dependency
+swift build --traits TabBar                              // CLI
+swift test  --traits TabBar                              // CLI
 ```
 
 ```swift
-let tabs = TabsControl()
-tabs.dataSource = self          // TabsControl.DataSource
-tabs.delegate = self            // TabsControl.Delegate
-tabs.style = TabsControl.DefaultStyle()   // or .ChromeStyle() / .SafariStyle() / .SystemStyle()
+let tabs = TabBar()
+tabs.dataSource = self          // TabBar.DataSource
+tabs.delegate = self            // TabBar.Delegate
 tabs.reloadTabs()
 ```
 
-`SystemStyle` replicates the macOS 26 Liquid-Glass window-tab bar and is the one style driven by
-control-level decoration (`Style.controlDecoration`) rather than per-button bezel drawing: the control
-floats an `NSGlassEffectView` behind every tab, draws the hairline separators, divides the bar evenly
-down to a 120 pt minimum and then *stacks* the overflow into piles at the ends. Its behaviour is
+`SystemStyle` is the only style shipped, and the default — `TabBar()` already wears it. It
+replicates the macOS 26 Liquid-Glass window-tab bar, and is driven by control-level decoration
+(`Style.controlDecoration`) rather than per-button bezel drawing: the control floats an
+`NSGlassEffectView` behind every tab, draws the hairline separators, divides the bar evenly down to a
+120 pt minimum and then *stacks* the overflow into piles at the ends. The upstream Numbers, Chrome and
+Safari styles were removed — macOS 26 gave Safari the system tab bar, and Chrome's never had a dark
+appearance — but the `ThemedStyle` / `Theme` machinery they used is still there for a custom style. Its behaviour is
 matched against a real `NSTabBar` rather than eyeballed — see `Researchs/AppKit-NSTabBar-Insertion-Internals.md`
 for the reverse-engineered insertion / reveal path and the measurement method.
 
 **Who owns the selection.** By default the control does: closing a tab moves the selection to the tab
 on its left. A host that keeps the active tab in its own model instead — so that commands like ⌘W act
 on the model rather than on whatever the bar highlights — takes over by calling `selectItemAtIndex(_:)`
-from inside `tabsControl(_:didCloseItem:)`, and the control then stands down instead of overruling it.
+from inside `tabBar(_:didCloseItem:)`, and the control then stands down instead of overruling it.
 Without that hand-off the two disagree after every close, silently: the bar lights up one tab while the
 host's shortcut closes another, and on a *stacked* bar the disagreement is loud, because the selection
 anchors the fold and re-selecting into a pile blows that sliver up to full width. The demo
-(`TabsControlDemoViewController`) is wired the host-owned way and logs any disagreement.
+(`TabBarDemoViewController`) is wired the host-owned way and logs any disagreement.
 
-**Full guide:** `Documentations/TabsControl.md` — API, the three host-facing contracts (item identity,
+**Full guide:** `Documentations/TabBar.md` — API, the three host-facing contracts (item identity,
 selection ownership, what a reload animates), the measured `SystemStyle` geometry, the stacking and
 scrolling models, and the known divergences from the system bar.
 
 Wiring:
-- `traits: [..., .trait(name: "TabsControl")]` in `Package.swift`
-- Every source file under `Sources/UIFoundationAppKit/TabsControl/**/*.swift` is wrapped in `#if TabsControl && os(macOS) … #endif`
+- `traits: [..., .trait(name: "TabBar")]` in `Package.swift`
+- Every source file under `Sources/UIFoundationAppKit/TabBar/**/*.swift` is wrapped in `#if TabBar && os(macOS) … #endif`
 - macOS-only; the file-level `#if` additionally requires `os(macOS)`, so the trait compiles to nothing on UIKit / Catalyst / tvOS / visionOS / watchOS
-- PDF template glyphs live in `Sources/UIFoundationAppKit/TabsControl/Templates/` and are bundled via `.copy("TabsControl/Templates")` (always copied, harmless when the trait is off); loaded with `Bundle.module.url(forResource:withExtension:subdirectory:)`
-- Per the unique-basename rule (see Code Style Notes), feature-scoped files are prefixed `TabsControl+…` (e.g. the ported `Helpers.swift` became `TabsControl+Geometry.swift`, `Style.swift` → `TabsControl+Style.swift`); distinctive names such as `TabButton.swift` / `TabButtonCell.swift` keep their name, and per-class extensions stay `NSClassName+TabsControl.swift`
+- PDF template glyphs live in `Sources/UIFoundationAppKit/TabBar/Templates/` and are bundled via `.copy("TabBar/Templates")` (always copied, harmless when the trait is off); loaded with `Bundle.module.url(forResource:withExtension:subdirectory:)`
+- Per the unique-basename rule (see Code Style Notes), feature-scoped files are prefixed `TabBar+…` (e.g. the ported `Helpers.swift` became `TabBar+Geometry.swift`, `Style.swift` → `TabBar+Style.swift`); distinctive names such as `TabButton.swift` / `TabButtonCell.swift` keep their name, and per-class extensions stay `NSClassName+TabBar.swift`
 
-**Namespace convention (key difference from upstream):** to avoid polluting the umbrella module's top-level namespace with generic names, the entire public API is **nested under the `TabsControl` class** — Swift ≥ 6.3 (Swift 5 language mode included) permits nesting protocols inside types, which this relies on. Only `TabsControl` and `TabButton` stay top-level. Map: `Style`/`ThemedStyle`/`Theme` → `TabsControl.Style`/`.ThemedStyle`/`.Theme`; `TabButtonTheme`/`TabsControlTheme` → `TabsControl.ButtonTheme`/`.ControlTheme`; `TabsControlDataSource`/`TabsControlDelegate` → `TabsControl.DataSource`/`.Delegate`; `TabPosition`/`ClosePosition`/`TabWidth`/`TabSelectionState` → `TabsControl.TabPosition`/`.ClosePosition`/`.TabWidth`/`.SelectionState`; `DefaultStyle`/`ChromeStyle`/`SafariStyle` (+ matching themes) → nested; `Offset`/`IconFrames`/`TitleEditorSettings`/`BorderMask`/`TitleDefaults` → nested; the old global `TabsControlSelectionDidChangeNotification` string is now `TabsControl.selectionDidChangeNotification` (`Notification.Name`). Files whose content is a protocol default-impl extension (`extension TabsControl.ThemedStyle`, `extension TabsControl.Theme`) are **not** lexically inside `TabsControl`, so sibling nested types there must be fully qualified as `TabsControl.X`; declaration files using `extension TabsControl { … }` resolve short names.
+**Namespace convention (key difference from upstream):** to avoid polluting the umbrella module's top-level namespace with generic names, the entire public API is **nested under the `TabBar` class** — Swift ≥ 6.3 (Swift 5 language mode included) permits nesting protocols inside types, which this relies on. Only `TabBar` and `TabButton` stay top-level. Map: `Style`/`ThemedStyle`/`Theme` → `TabBar.Style`/`.ThemedStyle`/`.Theme`; `TabButtonTheme`/`TabBarTheme` → `TabBar.ButtonTheme`/`.ControlTheme`; `TabBarDataSource`/`TabBarDelegate` → `TabBar.DataSource`/`.Delegate`; `TabPosition`/`ClosePosition`/`TabWidth`/`TabSelectionState` → `TabBar.TabPosition`/`.ClosePosition`/`.TabWidth`/`.SelectionState`; `SystemStyle` (+ its theme) → nested; `Offset`/`IconFrames`/`TitleEditorSettings`/`BorderMask`/`TitleDefaults` → nested; the old global `TabBarSelectionDidChangeNotification` string is now `TabBar.selectionDidChangeNotification` (`Notification.Name`). Files whose content is a protocol default-impl extension (`extension TabBar.ThemedStyle`, `extension TabBar.Theme`) are **not** lexically inside `TabBar`, so sibling nested types there must be fully qualified as `TabBar.X`; declaration files using `extension TabBar { … }` resolve short names.
 
 ### Status Item Controller (ported from `hexedbits/StatusItemController`)
 
-A subclassable "view controller" for `NSStatusItem`-based menu bar apps on macOS. Ships as an **opt-in SPM trait** called `StatusItemController` (default: disabled), mirroring the `FilterUI` / `QuickActionBar` / `TabsControl` pattern:
+A subclassable "view controller" for `NSStatusItem`-based menu bar apps on macOS. Ships as an **opt-in SPM trait** called `StatusItemController` (default: disabled), mirroring the `FilterUI` / `QuickActionBar` / `TabBar` pattern:
 
 ```swift
 .package(url: "…/UIFoundation", traits: ["StatusItemController"])   // SPM dependency
@@ -406,19 +408,19 @@ Structure under `UIFoundationExample-macOS/UIFoundationExample-macOS/`:
 - `AppDelegate.swift` — builds a `DemoBrowserWindowController` on launch; nothing else.
 - `Browser/` — `DemoBrowserWindowController` (code-built `NSWindow`), `DemoBrowserSplitViewController` (sidebar + `DemoDetailViewController`), `DemoSidebarViewController` (source-list `NSOutlineView`; items are a private `SidebarNode` reference type because `NSOutlineView` needs stable item identity).
 - `Catalog/` — `Demo` (a value type: `title` / `category` / `summary` / `minimumMacOS` / `makeViewController`) and `DemoCatalog.all` (the registry) + `DemoCatalog.grouped`.
-- `Demos/` — one self-contained `NSViewController` per demo (`TabsControlDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `CustomTooltipDemoViewController`).
+- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `CustomTooltipDemoViewController`).
 
 **To add a demo:** drop a new `NSViewController` file under `Demos/` and append one `Demo` to `DemoCatalog.all`. Nothing else changes.
 
 Two project facts that make this work (and matter when extending it):
 - The Xcode project's app source group is a **file-system-synchronized group** (`PBXFileSystemSynchronizedRootGroup`, Xcode 16+). Any file added under the app folder is auto-included in the target — **no `project.pbxproj` edits needed** to add/move/delete demos.
-- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabsControl` is enabled alongside `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder`); otherwise the control's symbols won't be compiled into the package and the demo won't link.
+- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabBar` is enabled alongside `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder`); otherwise the control's symbols won't be compiled into the package and the demo won't link.
 
 Build the example from the command line with `xcodebuild -project UIFoundationExample-macOS/UIFoundationExample-macOS.xcodeproj -scheme UIFoundationExample-macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build 2>&1 | xcsift`.
 
 ## Code Style Notes
 
-- **Unique basenames per target**: within a single SPM target, every source file must have a unique file*name* — SwiftPM keys compiled object files by basename, so two same-named files in one target (even in different subdirectories) fail the build with `couldn't build …o because of multiple producers`. Prefix feature-scoped files with the feature name (`QuickActionBar+Helpers.swift`, `TabsControl+Style.swift`) instead of relying on subdirectory paths to disambiguate. The `QuickActionBar/` and `TabsControl/` feature dirs follow `Feature.swift` (entry) + `Feature+Descriptor.swift` for everything else, keeping only distinctive type-named files (e.g. `TabButton.swift`) unprefixed.
+- **Unique basenames per target**: within a single SPM target, every source file must have a unique file*name* — SwiftPM keys compiled object files by basename, so two same-named files in one target (even in different subdirectories) fail the build with `couldn't build …o because of multiple producers`. Prefix feature-scoped files with the feature name (`QuickActionBar+Helpers.swift`, `TabBar+Style.swift`) instead of relying on subdirectory paths to disambiguate. The `QuickActionBar/` and `TabBar/` feature dirs follow `Feature.swift` (entry) + `Feature+Descriptor.swift` for everything else, keeping only distinctive type-named files (e.g. `TabButton.swift`) unprefixed.
 - **Private ObjC header naming** (`Sources/UIFoundationAppleInternalObjC/include/`): the convention has two shapes, picked by whether AppKit ships a public header for the class.
   - `<Class>_Private.h` — for **public** AppKit/CoreAnimation classes where we re-open with `@interface ClassName ()` to add private methods. Examples: `NSView_Private.h`, `NSScrollView_Private.h`, `CALayer_Private.h`, `NSColor_Private.h`.
   - `<Class>.h` — for **fully private** classes that have no public AppKit header (their symbols only appear in the framework's `.tbd`). We declare the entire `@interface ClassName : NSObject` ourselves. Examples: `NSScene.h`, `CABackdropLayer.h`, `NSToolTip.h`, **`NSToolTipManager.h`** (despite the public Apple docs page, `NSToolTipManager` has no entry in any SDK header — verify with `grep "interface NSToolTipManager" $(xcrun --sdk macosx --show-sdk-path)/System/Library/Frameworks/AppKit.framework/Headers/*.h` before assuming a class is public).

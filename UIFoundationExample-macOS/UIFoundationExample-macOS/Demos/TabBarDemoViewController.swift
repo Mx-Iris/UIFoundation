@@ -1,15 +1,15 @@
 //
-//  TabsControlDemoViewController.swift
+//  TabBarDemoViewController.swift
 //  UIFoundationExample-macOS
 //
-//  Showcases TabsControl: style switching, add / close / reorder / rename,
+//  Showcases TabBar: add / close / reorder / rename, overflow stacking,
 //  and a live event log driven by the data source & delegate.
 //
 
 import AppKit
 import UIFoundation
 
-final class TabsControlDemoViewController: NSViewController {
+final class TabBarDemoViewController: NSViewController {
 
     /// Backing model for a single tab. A reference type so the control's data
     /// source / delegate can hand the same identity back and forth.
@@ -30,15 +30,14 @@ final class TabsControlDemoViewController: NSViewController {
     /// A real host keeps the selection in its own model and pushes it into the control, rather than
     /// reading it back out: the tab bar is one of several views onto that model, and commands like
     /// ⌘W act on the model. The control learns about it through `selectItemAtIndex(_:)`, and every
-    /// user-driven change comes back through `tabsControlDidChangeSelection`.
+    /// user-driven change comes back through `tabBarDidChangeSelection`.
     private var activeTabIndex = 0
 
     /// Set while a model-driven snapshot is being pushed into the control, so the selection the
     /// control reports back is not mistaken for the user picking a tab.
     private var isApplyingSnapshot = false
 
-    private let tabsControl = TabsControl()
-    private let styleSwitcher = NSSegmentedControl()
+    private let tabBar = TabBar()
     private let eventLogTextView = NSTextView()
 
     override func loadView() {
@@ -49,9 +48,8 @@ final class TabsControlDemoViewController: NSViewController {
         super.viewDidLoad()
         buildUserInterface()
 
-        tabsControl.dataSource = self
-        tabsControl.delegate = self
-        tabsControl.style = TabsControl.DefaultStyle()
+        tabBar.dataSource = self
+        tabBar.delegate = self
         applySnapshot(animated: false)
 
         log("loaded \(tabs.count) tabs")
@@ -60,30 +58,20 @@ final class TabsControlDemoViewController: NSViewController {
     // MARK: - UI
 
     private func buildUserInterface() {
-        styleSwitcher.segmentCount = 4
-        styleSwitcher.setLabel("Default", forSegment: 0)
-        styleSwitcher.setLabel("Chrome", forSegment: 1)
-        styleSwitcher.setLabel("Safari", forSegment: 2)
-        styleSwitcher.setLabel("System", forSegment: 3)
-        styleSwitcher.trackingMode = .selectOne
-        styleSwitcher.selectedSegment = 0
-        styleSwitcher.target = self
-        styleSwitcher.action = #selector(changeStyle(_:))
-
         let addButton = NSButton(title: "Add Tab", target: self, action: #selector(addTab(_:)))
         addButton.bezelStyle = .rounded
 
-        let hintLabel = NSTextField(labelWithString: "⌘T new tab · ⌘W close tab · double-click to rename · drag to reorder · try “System” for Liquid Glass")
+        let hintLabel = NSTextField(labelWithString: "⌘T new tab · ⌘W close tab · double-click to rename · drag to reorder · keep adding to see the overflow stack")
         hintLabel.font = .systemFont(ofSize: 11)
         hintLabel.textColor = .tertiaryLabelColor
 
-        let toolbar = NSStackView(views: [styleSwitcher, addButton, hintLabel])
+        let toolbar = NSStackView(views: [addButton, hintLabel])
         toolbar.orientation = .horizontal
         toolbar.spacing = 12
         toolbar.alignment = .centerY
         toolbar.translatesAutoresizingMaskIntoConstraints = false
 
-        tabsControl.translatesAutoresizingMaskIntoConstraints = false
+        tabBar.translatesAutoresizingMaskIntoConstraints = false
 
         let logLabel = NSTextField(labelWithString: "Event log")
         logLabel.font = .systemFont(ofSize: 11, weight: .semibold)
@@ -101,7 +89,7 @@ final class TabsControlDemoViewController: NSViewController {
         logScrollView.documentView = eventLogTextView
 
         view.addSubview(toolbar)
-        view.addSubview(tabsControl)
+        view.addSubview(tabBar)
         view.addSubview(logLabel)
         view.addSubview(logScrollView)
 
@@ -110,12 +98,12 @@ final class TabsControlDemoViewController: NSViewController {
             toolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             toolbar.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -16),
 
-            tabsControl.topAnchor.constraint(equalTo: toolbar.bottomAnchor, constant: 16),
-            tabsControl.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tabsControl.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tabsControl.heightAnchor.constraint(equalToConstant: 26),
+            tabBar.topAnchor.constraint(equalTo: toolbar.bottomAnchor, constant: 16),
+            tabBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            tabBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            tabBar.heightAnchor.constraint(equalToConstant: TabBar.SystemStyle().tabBarRecommendedHeight),
 
-            logLabel.topAnchor.constraint(equalTo: tabsControl.bottomAnchor, constant: 20),
+            logLabel.topAnchor.constraint(equalTo: tabBar.bottomAnchor, constant: 20),
             logLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
 
             logScrollView.topAnchor.constraint(equalTo: logLabel.bottomAnchor, constant: 6),
@@ -126,23 +114,6 @@ final class TabsControlDemoViewController: NSViewController {
     }
 
     // MARK: - Actions
-
-    @objc private func changeStyle(_ sender: NSSegmentedControl) {
-        switch sender.selectedSegment {
-        case 1:
-            tabsControl.style = TabsControl.ChromeStyle()
-            log("style → Chrome")
-        case 2:
-            tabsControl.style = TabsControl.SafariStyle()
-            log("style → Safari")
-        case 3:
-            tabsControl.style = TabsControl.SystemStyle()
-            log("style → System")
-        default:
-            tabsControl.style = TabsControl.DefaultStyle()
-            log("style → Default")
-        }
-    }
 
     /// ⌘T and ⌘W. Both reach this demo wherever the focus is, because the browser's split view
     /// controller nominates it — see `DemoBrowserSplitViewController.supplementalTarget(forAction:sender:)`.
@@ -192,9 +163,9 @@ final class TabsControlDemoViewController: NSViewController {
     /// selection.
     private func applySnapshot(animated: Bool) {
         isApplyingSnapshot = true
-        tabsControl.reloadTabs(animated: animated)
+        tabBar.reloadTabs(animated: animated)
         if tabs.indices.contains(activeTabIndex) {
-            tabsControl.selectItemAtIndex(activeTabIndex)
+            tabBar.selectItemAtIndex(activeTabIndex)
         }
         isApplyingSnapshot = false
     }
@@ -204,8 +175,8 @@ final class TabsControlDemoViewController: NSViewController {
     /// turn later, once every follow-up selection has settled.
     private func verifySelectionAgreement() {
         DispatchQueue.main.async { [self] in
-            guard tabsControl.selectedButtonIndex != activeTabIndex else { return }
-            log("⚠️ bar highlights \(title(at: tabsControl.selectedButtonIndex)), model says \(title(at: activeTabIndex))")
+            guard tabBar.selectedButtonIndex != activeTabIndex else { return }
+            log("⚠️ bar highlights \(title(at: tabBar.selectedButtonIndex)), model says \(title(at: activeTabIndex))")
         }
     }
 
@@ -224,35 +195,35 @@ final class TabsControlDemoViewController: NSViewController {
     }
 }
 
-// MARK: - TabsControl.DataSource
+// MARK: - TabBar.DataSource
 
-extension TabsControlDemoViewController: TabsControl.DataSource {
-    func tabsControlNumberOfTabs(_ control: TabsControl) -> Int {
+extension TabBarDemoViewController: TabBar.DataSource {
+    func tabBarNumberOfTabs(_ tabBar: TabBar) -> Int {
         tabs.count
     }
 
-    func tabsControl(_ control: TabsControl, itemAtIndex index: Int) -> Any {
+    func tabBar(_ tabBar: TabBar, itemAtIndex index: Int) -> Any {
         tabs[index]
     }
 
-    func tabsControl(_ control: TabsControl, titleForItem item: Any) -> String {
+    func tabBar(_ tabBar: TabBar, titleForItem item: Any) -> String {
         (item as? TabModel)?.title ?? ""
     }
 
-    func tabsControl(_ control: TabsControl, closeIconForItem item: Any) -> NSImage? {
+    func tabBar(_ tabBar: TabBar, closeIconForItem item: Any) -> NSImage? {
         NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Close tab")
     }
 
-    func tabsControl(_ control: TabsControl, closePositionForItem item: Any) -> TabsControl.ClosePosition {
+    func tabBar(_ tabBar: TabBar, closePositionForItem item: Any) -> TabBar.ClosePosition {
         // The system window-tab bar puts the close button on the leading edge.
         .left
     }
 }
 
-// MARK: - TabsControl.Delegate
+// MARK: - TabBar.Delegate
 
-extension TabsControlDemoViewController: TabsControl.Delegate {
-    func tabsControlDidChangeSelection(_ control: TabsControl, item: Any?) {
+extension TabBarDemoViewController: TabBar.Delegate {
+    func tabBarDidChangeSelection(_ tabBar: TabBar, item: Any?) {
         guard !isApplyingSnapshot else { return }
         if let model = item as? TabModel, let index = tabs.firstIndex(where: { $0 === model }) {
             activeTabIndex = index
@@ -260,15 +231,15 @@ extension TabsControlDemoViewController: TabsControl.Delegate {
         log("selected: \((item as? TabModel)?.title ?? "none")")
     }
 
-    func tabsControl(_ control: TabsControl, canSelectItem item: Any) -> Bool {
+    func tabBar(_ tabBar: TabBar, canSelectItem item: Any) -> Bool {
         true
     }
 
-    func tabsControl(_ control: TabsControl, canReorderItem item: Any) -> Bool {
+    func tabBar(_ tabBar: TabBar, canReorderItem item: Any) -> Bool {
         true
     }
 
-    func tabsControl(_ control: TabsControl, didReorderItems items: [Any]) {
+    func tabBar(_ tabBar: TabBar, didReorderItems items: [Any]) {
         // The active tab keeps its identity across a reorder, not its index.
         let activeModel = tabs.indices.contains(activeTabIndex) ? tabs[activeTabIndex] : nil
         tabs = items.compactMap { $0 as? TabModel }
@@ -278,20 +249,20 @@ extension TabsControlDemoViewController: TabsControl.Delegate {
         log("reordered: \(tabs.map(\.title).joined(separator: ", "))")
     }
 
-    func tabsControl(_ control: TabsControl, canEditTitleOfItem item: Any) -> Bool {
+    func tabBar(_ tabBar: TabBar, canEditTitleOfItem item: Any) -> Bool {
         true
     }
 
-    func tabsControl(_ control: TabsControl, setTitle newTitle: String, forItem item: Any) {
+    func tabBar(_ tabBar: TabBar, setTitle newTitle: String, forItem item: Any) {
         (item as? TabModel)?.title = newTitle
         log("renamed → \(newTitle)")
     }
 
-    func tabsControl(_ control: TabsControl, canCloseItem item: Any) -> Bool {
+    func tabBar(_ tabBar: TabBar, canCloseItem item: Any) -> Bool {
         tabs.count > 1
     }
 
-    func tabsControl(_ control: TabsControl, didCloseItem item: Any) {
+    func tabBar(_ tabBar: TabBar, didCloseItem item: Any) {
         guard let model = item as? TabModel, let index = tabs.firstIndex(where: { $0 === model }) else { return }
         closeTab(at: index)
     }

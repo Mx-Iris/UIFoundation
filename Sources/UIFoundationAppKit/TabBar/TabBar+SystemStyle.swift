@@ -1,32 +1,32 @@
 //
-//  TabsControl+SystemStyle.swift
+//  TabBar+SystemStyle.swift
 //  UIFoundation
 //
 //  Replicates the macOS 26 (Solarium / Liquid Glass) system window-tab appearance.
 //  Reverse-engineered from AppKit 26.5 (NSTabBar / NSTabButton / NSTabBarViewButton).
 //
 
-#if TabsControl && os(macOS)
+#if TabBar && os(macOS)
 
 import AppKit
 
-extension TabsControl {
+extension TabBar {
     /// The macOS 26 system tab style, reproducing the Liquid-Glass window-tab bar.
     ///
     /// Unlike the classic bezel styles (Numbers, Safari, Chrome), this style draws **no** per-button
-    /// bezel. Instead it opts into ``TabsControl``'s control-level decoration path via
-    /// ``TabsControl/Style/controlDecoration``: the control floats a real `NSGlassEffectView` behind
+    /// bezel. Instead it opts into ``TabBar``'s control-level decoration path via
+    /// ``TabBar/Style/controlDecoration``: the control floats a real `NSGlassEffectView` behind
     /// *every* tab (frosted for non-selected tabs, lit for the selected one — matching AppKit's own
     /// per-tab glass configuration), highlights the hovered tab, and draws hairline separators
     /// between tabs. The tab buttons only render their titles on top. On systems earlier than
     /// macOS 26 the glass degrades to `NSVisualEffectView` and then a plain layer fill.
     ///
     /// Geometry mirrors the system: 12 pt pill corner radius, tabs dividing the bar evenly down to a
-    /// 120 pt minimum (see ``systemTabButtonWidth``), and titles coloured by ``TabsControl/SystemTheme``.
+    /// 120 pt minimum (see ``systemTabButtonWidth``), and titles coloured by ``TabBar/SystemTheme``.
     public struct SystemStyle: ThemedStyle {
         public let theme: Theme
         public let tabButtonWidth: TabWidth
-        public let tabsControlRecommendedHeight: CGFloat = 30.0
+        public let tabBarRecommendedHeight: CGFloat = 30.0
 
         private let decoration: ControlDecoration
 
@@ -62,7 +62,7 @@ extension TabsControl {
 
         /// The bar itself is transparent; the surrounding surface (toolbar / window content) shows
         /// through, matching the system window-tab bar.
-        public func drawTabsControlBezel(frame: NSRect) {}
+        public func drawTabBarBezel(frame: NSRect) {}
 
         // MARK: Metrics
 
@@ -192,7 +192,7 @@ extension TabsControl {
 
         public func tabButtonBorderMask(_ position: TabPosition) -> BorderMask? { nil }
 
-        public func tabsControlBorderMask() -> BorderMask? { nil }
+        public func tabBarBorderMask() -> BorderMask? { nil }
     }
 }
 

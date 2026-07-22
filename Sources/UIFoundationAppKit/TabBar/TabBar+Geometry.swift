@@ -9,16 +9,16 @@
 //  MIT License — Copyright (c) 2014-2016 Cédric Foellmi
 //
 
-#if TabsControl && os(macOS)
+#if TabBar && os(macOS)
 
 import AppKit
 
-extension TabsControl {
+extension TabBar {
     /// `Offset` is a simple `NSPoint` typealias used to increase readability in layout maths.
     public typealias Offset = NSPoint
 }
 
-extension TabsControl.Offset {
+extension TabBar.Offset {
     init(x: CGFloat) {
         self.init()
         self.x = x
@@ -32,8 +32,8 @@ extension TabsControl.Offset {
     }
 }
 
-/// Addition operator for an `NSPoint` and a ``TabsControl/Offset``.
-func + (lhs: NSPoint, rhs: TabsControl.Offset) -> NSPoint {
+/// Addition operator for an `NSPoint` and a ``TabBar/Offset``.
+func + (lhs: NSPoint, rhs: TabBar.Offset) -> NSPoint {
     return NSPoint(x: lhs.x + rhs.x, y: lhs.y + rhs.y)
 }
 

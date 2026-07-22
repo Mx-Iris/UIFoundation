@@ -74,7 +74,7 @@ let package = Package(
         .trait(name: "NSAttributedStringBuilder"),
         .trait(name: "QuickActionBar"),
         .trait(name: "StatusItemController"),
-        .trait(name: "TabsControl"),
+        .trait(name: "TabBar"),
     ],
     dependencies: [
         .package(
@@ -124,7 +124,7 @@ let package = Package(
                 .process("Filter/Resources/MoreSymbols.xcassets"),
                 .process("Filter/Resources/Localization"),
                 .process("Filter/Resources/Documentation.docc"),
-                .copy("TabsControl/Templates"),
+                .copy("TabBar/Templates"),
             ],
             swiftSettings: swiftSettings,
         ),

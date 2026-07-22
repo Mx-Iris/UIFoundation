@@ -1,5 +1,5 @@
 //
-//  TabsControlDelegateInterceptor.swift
+//  TabBarDelegateInterceptor.swift
 //  UIFoundation
 //
 //  Ported into UIFoundation from KPCTabsControl
@@ -9,11 +9,11 @@
 //  MIT License — Copyright (c) 2014-2016 Cédric Foellmi
 //
 
-#if TabsControl && os(macOS)
+#if TabBar && os(macOS)
 
 import Foundation
 
-final class TabsControlDelegateInterceptor: NSObject {
+final class TabBarDelegateInterceptor: NSObject {
     weak var receiver: NSObject?
 
     override func forwardingTarget(for aSelector: Selector) -> Any? {

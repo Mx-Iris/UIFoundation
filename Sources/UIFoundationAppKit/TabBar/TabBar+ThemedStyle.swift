@@ -1,5 +1,5 @@
 //
-//  TabsControl+DefaultStyle.swift
+//  TabBar+ThemedStyle.swift
 //  UIFoundation
 //
 //  Ported into UIFoundation from KPCTabsControl
@@ -9,11 +9,11 @@
 //  MIT License — Copyright (c) 2014-2016 Cédric Foellmi
 //
 
-#if TabsControl && os(macOS)
+#if TabBar && os(macOS)
 
 import AppKit
 
-extension TabsControl {
+extension TabBar {
     public enum TitleDefaults {
         static let alignment = NSTextAlignment.center
         static let lineBreakMode = NSLineBreakMode.byTruncatingMiddle
@@ -22,20 +22,20 @@ extension TabsControl {
 
 // MARK: - Default implementation of ThemedStyle
 
-extension TabsControl.ThemedStyle {
+extension TabBar.ThemedStyle {
     // MARK: Tab Buttons
 
-    public func tabButtonOffset(position: TabsControl.TabPosition) -> TabsControl.Offset {
+    public func tabButtonOffset(position: TabBar.TabPosition) -> TabBar.Offset {
         return NSPoint()
     }
 
-    public func tabButtonBorderMask(_ position: TabsControl.TabPosition) -> TabsControl.BorderMask? {
-        return TabsControl.BorderMask.all()
+    public func tabButtonBorderMask(_ position: TabBar.TabPosition) -> TabBar.BorderMask? {
+        return TabBar.BorderMask.all()
     }
 
     // MARK: Close Button
 
-    public func closeButtonFrame(tabRect rect: NSRect, atPosition position: TabsControl.ClosePosition) -> NSRect {
+    public func closeButtonFrame(tabRect rect: NSRect, atPosition position: TabBar.ClosePosition) -> NSRect {
         let verticalPadding: CGFloat = 4.0
         let paddedHeight = rect.height - 2 * verticalPadding
         switch position {
@@ -48,7 +48,7 @@ extension TabsControl.ThemedStyle {
 
     // MARK: Tab Button Titles
 
-    public func iconFrames(tabRect rect: NSRect, closePosition: TabsControl.ClosePosition?) -> TabsControl.IconFrames {
+    public func iconFrames(tabRect rect: NSRect, closePosition: TabBar.ClosePosition?) -> TabBar.IconFrames {
         let verticalPadding: CGFloat = 4.0
         let paddedHeight = rect.height - 2 * verticalPadding
         let x = rect.width / 2.0 - paddedHeight / 2.0
@@ -65,7 +65,7 @@ extension TabsControl.ThemedStyle {
         )
     }
 
-    public func titleRect(title: NSAttributedString, inBounds bounds: NSRect, showingIcon: Bool, showingMenu: Bool, closePosition: TabsControl.ClosePosition?) -> NSRect {
+    public func titleRect(title: NSAttributedString, inBounds bounds: NSRect, showingIcon: Bool, showingMenu: Bool, closePosition: TabBar.ClosePosition?) -> NSRect {
         let titleSize = title.size()
         let fullWidthRect = NSRect(
             x: bounds.minX,
@@ -77,7 +77,7 @@ extension TabsControl.ThemedStyle {
         return paddedRectForIcon(fullWidthRect, inBounds: bounds, showingIcon: showingIcon, showingMenu: showingMenu, closePosition: closePosition)
     }
 
-    private func paddedRectForIcon(_ rect: NSRect, inBounds bounds: NSRect, showingIcon: Bool, showingMenu: Bool, closePosition: TabsControl.ClosePosition?) -> NSRect {
+    private func paddedRectForIcon(_ rect: NSRect, inBounds bounds: NSRect, showingIcon: Bool, showingMenu: Bool, closePosition: TabBar.ClosePosition?) -> NSRect {
         if !showingIcon, closePosition == nil {
             return rect
         }
@@ -121,20 +121,20 @@ extension TabsControl.ThemedStyle {
         return rect.offsetBy(dx: leftPadding, dy: 0.0).shrinkBy(dx: leftPadding + rightPadding, dy: 0.0)
     }
 
-    public func titleEditorSettings() -> TabsControl.TitleEditorSettings {
+    public func titleEditorSettings() -> TabBar.TitleEditorSettings {
         return (
             textColor: NSColor(calibratedWhite: 1.0 / 6, alpha: 1.0),
             font: theme.tabButtonTheme.titleFont,
-            alignment: TabsControl.TitleDefaults.alignment
+            alignment: TabBar.TitleDefaults.alignment
         )
     }
 
-    public func attributedTitle(content: String, selectionState: TabsControl.SelectionState) -> NSAttributedString {
+    public func attributedTitle(content: String, selectionState: TabBar.SelectionState) -> NSAttributedString {
         let activeTheme = theme.tabButtonTheme(fromSelectionState: selectionState)
 
         let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.alignment = TabsControl.TitleDefaults.alignment
-        paragraphStyle.lineBreakMode = TabsControl.TitleDefaults.lineBreakMode
+        paragraphStyle.alignment = TabBar.TitleDefaults.alignment
+        paragraphStyle.lineBreakMode = TabBar.TitleDefaults.lineBreakMode
 
         let attributes = [NSAttributedString.Key.foregroundColor: activeTheme.titleColor,
                           NSAttributedString.Key.font: activeTheme.titleFont,
@@ -143,7 +143,7 @@ extension TabsControl.ThemedStyle {
         return NSAttributedString(string: content, attributes: attributes)
     }
 
-    public func popupRectWithFrame(_ cellFrame: NSRect, closePosition: TabsControl.ClosePosition?) -> NSRect {
+    public func popupRectWithFrame(_ cellFrame: NSRect, closePosition: TabBar.ClosePosition?) -> NSRect {
         var popupRect = NSRect.zero
         popupRect.size = TabButtonCell.popupImage().size
         if let closePosition, closePosition == .right {
@@ -154,23 +154,23 @@ extension TabsControl.ThemedStyle {
         return popupRect
     }
 
-    // MARK: Tabs Control
+    // MARK: Tab Bar
 
-    public func tabsControlBorderMask() -> TabsControl.BorderMask? {
-        return TabsControl.BorderMask.top.union(TabsControl.BorderMask.bottom)
+    public func tabBarBorderMask() -> TabBar.BorderMask? {
+        return TabBar.BorderMask.top.union(TabBar.BorderMask.bottom)
     }
 
     // MARK: Drawing
 
-    public func drawTabsControlBezel(frame: NSRect) {
-        theme.tabsControlTheme.backgroundColor.setFill()
+    public func drawTabBarBezel(frame: NSRect) {
+        theme.tabBarTheme.backgroundColor.setFill()
         frame.fill()
 
-        let borderDrawing = BorderDrawing.fromMask(frame, borderMask: tabsControlBorderMask())
-        drawBorder(borderDrawing, color: theme.tabsControlTheme.borderColor)
+        let borderDrawing = BorderDrawing.fromMask(frame, borderMask: tabBarBorderMask())
+        drawBorder(borderDrawing, color: theme.tabBarTheme.borderColor)
     }
 
-    public func drawTabButtonBezel(frame: NSRect, position: TabsControl.TabPosition, isSelected: Bool) {
+    public func drawTabButtonBezel(frame: NSRect, position: TabBar.TabPosition, isSelected: Bool) {
         let activeTheme = isSelected ? theme.selectedTabButtonTheme : theme.tabButtonTheme
         activeTheme.backgroundColor.setFill()
         frame.fill()
@@ -195,7 +195,7 @@ private enum BorderDrawing {
     case empty
     case draw(borderRects: [NSRect])
 
-    fileprivate static func fromMask(_ sourceRect: NSRect, borderMask: TabsControl.BorderMask?) -> BorderDrawing {
+    fileprivate static func fromMask(_ sourceRect: NSRect, borderMask: TabBar.BorderMask?) -> BorderDrawing {
         guard let mask = borderMask else { return .empty }
 
         var outputCount = 0
@@ -222,23 +222,6 @@ private enum BorderDrawing {
         guard outputCount > 0 else { return .empty }
 
         return .draw(borderRects: borderRects)
-    }
-}
-
-// MARK: -
-
-extension TabsControl {
-    /// The default tabs-control style. Combined with ``TabsControl/DefaultTheme`` it provides an
-    /// experience similar to Apple's Numbers.app.
-    public struct DefaultStyle: ThemedStyle {
-        public let theme: Theme
-        public let tabButtonWidth: TabWidth
-        public let tabsControlRecommendedHeight: CGFloat = 24.0
-
-        public init(theme: Theme = DefaultTheme(), tabButtonWidth: TabWidth = .flexible(min: 50, max: 150)) {
-            self.theme = theme
-            self.tabButtonWidth = tabButtonWidth
-        }
     }
 }
 

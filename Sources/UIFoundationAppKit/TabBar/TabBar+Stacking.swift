@@ -1,5 +1,5 @@
 //
-//  TabsControl+Stacking.swift
+//  TabBar+Stacking.swift
 //  UIFoundation
 //
 //  Reimplementation of the macOS system window-tab bar's tab *stacking* behaviour, reverse-engineered
@@ -16,12 +16,12 @@
 //  bunch up near an edge the tabs visually collapse into slivers.
 //
 
-#if TabsControl && os(macOS)
+#if TabBar && os(macOS)
 
 import AppKit
 import Foundation
 
-extension TabsControl {
+extension TabBar {
     /// The piles that currently exist in the bar. Clicking one scrolls the bar to expand it.
     ///
     /// Mirrors AppKit's internal 4-bit stacking-region mask.
@@ -49,7 +49,7 @@ extension TabsControl {
     /// horizontal scrolling, mirroring `-[NSTabBarClipView shouldChangeNextScrollFromVerticalToHorizontal]`.
     /// Trackpad gestures keep their precise deltas and are passed straight through, so a genuine
     /// two-finger horizontal swipe still scrolls natively.
-    final class TabsScrollView: NSScrollView {
+    final class TabBarScrollView: NSScrollView {
         override func scrollWheel(with event: NSEvent) {
             let verticalDelta = event.scrollingDeltaY
             let horizontalDelta = event.scrollingDeltaX

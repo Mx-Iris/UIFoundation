@@ -43,7 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func installNewTabMenuItem() {
         guard let mainMenu = NSApp.mainMenu, let (fileMenu, closeItemIndex) = windowCloseMenuLocation() else { return }
         releaseKeyEquivalent("t", in: mainMenu)
-        let newTabItem = NSMenuItem(title: "New Tab", action: #selector(TabsControlDemoViewController.newTab(_:)), keyEquivalent: "t")
+        let newTabItem = NSMenuItem(title: "New Tab", action: #selector(TabBarDemoViewController.newTab(_:)), keyEquivalent: "t")
         newTabItem.keyEquivalentModifierMask = [.command]
         fileMenu.insertItem(newTabItem, at: closeItemIndex)
     }

@@ -53,28 +53,32 @@ SOFTWARE.
 
 ---
 
-## KPCTabsControl — `TabsControl` trait
+## KPCTabsControl — `TabBar` trait
 
 - Upstream: https://github.com/onekiloparsec/KPCTabsControl
 - Authors: Cédric Foellmi, Christian Tietze
 - License: MIT
-- Location in this repo: `Sources/UIFoundationAppKit/TabsControl/`
+- Location in this repo: `Sources/UIFoundationAppKit/TabBar/`
 - Modifications:
-  - The public API was nested under the `TabsControl` namespace to avoid
+  - The public API was nested under the `TabBar` namespace to avoid
     polluting the umbrella module's top-level namespace
-    (`Style` → `TabsControl.Style`, `Theme` → `TabsControl.Theme`,
-    `DefaultStyle` → `TabsControl.DefaultStyle`, `TabsControlDataSource` →
-    `TabsControl.DataSource`, `TabsControlDelegate` → `TabsControl.Delegate`,
-    etc.). `TabsControl` and `TabButton` remain top-level types.
+    (`Style` → `TabBar.Style`, `Theme` → `TabBar.Theme`,
+    `TabBarDataSource` →
+    `TabBar.DataSource`, `TabBarDelegate` → `TabBar.Delegate`,
+    etc.). `TabBar` and `TabButton` remain top-level types.
   - The `KPC` prefix was dropped from the bundled PDF template resources
     (`KPCPullDownTemplate.pdf` → `PullDownTemplate.pdf`, …) and resource
     lookups now use `Bundle.module` exclusively (the `#if SwiftPackage`
     CocoaPods branch was removed).
+  - The upstream Numbers, Chrome and Safari styles (and their themes) were
+    removed in favour of a single `TabBar.SystemStyle` replicating the
+    macOS 26 window tab bar. The `ThemedStyle` / `Theme` machinery they were
+    built on is retained for anyone writing a style of their own.
   - `macOS 10.13`/`10.14` availability fallbacks were dropped since the package
     targets macOS 10.15+; the now-unused `NSColor.darkerColor()` helper and the
     unused `Error.swift` were removed.
-  - Wrapped every source file in `#if TabsControl && os(macOS) … #endif` so the
-    feature is gated behind the `TabsControl` SPM trait.
+  - Wrapped every source file in `#if TabBar && os(macOS) … #endif` so the
+    feature is gated behind the `TabBar` SPM trait.
 
 ### License
 

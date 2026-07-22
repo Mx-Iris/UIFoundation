@@ -188,29 +188,28 @@ if actionBar.resumePresentation() {
 
 `resumePresentation()` returns `true` only while the existing panel is dismissing. Its fade and transform animations continue from their current presentation values, allowing repeated shortcut presses to reverse the transition smoothly.
 
-### Tabs Control
+### Tab Bar
 
-Enable the `TabsControl` trait for a multi-tab control with `Default`, `Chrome`, `Safari` and `System` styles:
+Enable the `TabBar` trait for a multi-tab control styled after the macOS 26 window tab bar:
 
 ```swift
 .package(
     url: "https://github.com/Mx-Iris/UIFoundation",
     from: "0.13.0",
-    traits: ["TabsControl"]
+    traits: ["TabBar"]
 )
 ```
 
 ```swift
-let tabsControl = TabsControl()
-tabsControl.dataSource = self
-tabsControl.delegate = self
-tabsControl.style = TabsControl.SystemStyle()
-tabsControl.reloadTabs()
+let tabBar = TabBar()
+tabBar.dataSource = self
+tabBar.delegate = self
+tabBar.reloadTabs()
 ```
 
-`SystemStyle` replicates the macOS 26 window tab bar: a Liquid-Glass pill per tab, hairline separators, and overflow that folds into compressed piles at both ends rather than shrinking past 120 pt. Its geometry and animation are matched against a live `NSTabBar`.
+`SystemStyle` — the default — replicates the macOS 26 window tab bar: a Liquid-Glass pill per tab, hairline separators, and overflow that folds into compressed piles at both ends rather than shrinking past 120 pt. Its geometry and animation are matched against a live `NSTabBar`.
 
-See [`Documentations/TabsControl.md`](Documentations/TabsControl.md) for the full guide — the data source and delegate, how items are matched across a reload, which side owns the selection, and the stacking and scrolling models.
+See [`Documentations/TabBar.md`](Documentations/TabBar.md) for the full guide — the data source and delegate, how items are matched across a reload, which side owns the selection, and the stacking and scrolling models.
 
 ### Cross-Platform Typealias
 

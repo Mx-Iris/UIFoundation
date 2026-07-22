@@ -15,10 +15,10 @@ import AppKit
 enum DemoCatalog {
     static let all: [Demo] = [
         Demo(
-            title: "Tabs Control",
+            title: "Tab Bar",
             category: "Controls",
-            summary: "Numbers.app-style tabs — switch Default / Chrome / Safari styles, add, close, drag to reorder, double-click to rename.",
-            makeViewController: { TabsControlDemoViewController() }
+            summary: "The macOS 26 window tab bar — ⌘T / ⌘W, drag to reorder, double-click to rename, and overflow that folds into piles once the tabs stop fitting.",
+            makeViewController: { TabBarDemoViewController() }
         ),
         Demo(
             title: "Layer Background",

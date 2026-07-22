@@ -9,7 +9,7 @@
 //  MIT License — Copyright (c) 2014-2016 Cédric Foellmi
 //
 
-#if TabsControl && os(macOS)
+#if TabBar && os(macOS)
 
 import AppKit
 
@@ -22,7 +22,7 @@ open class TabButton: NSButton {
     private var tabButtonCell: TabButtonCell { cell as! TabButtonCell }
 
     /// The owning control, used to report hover changes so it can drive its Liquid-Glass decoration.
-    weak var tabsControl: TabsControl?
+    weak var tabBar: TabBar?
 
     /// Whether the close button is currently revealed, so repeated mouse-moved events don't restart
     /// its fade animation.
@@ -37,7 +37,7 @@ open class TabButton: NSButton {
         set { cell?.representedObject = newValue }
     }
 
-    open var style: TabsControl.Style {
+    open var style: TabBar.Style {
         didSet { tabButtonCell.style = style }
     }
 
@@ -52,7 +52,7 @@ open class TabButton: NSButton {
     }
 
     /// See ``TabButtonCell/titleLayoutAnchor``.
-    var titleLayoutAnchor: TabsControl.TitleAnchor {
+    var titleLayoutAnchor: TabBar.TitleAnchor {
         get { tabButtonCell.titleLayoutAnchor }
         set {
             guard tabButtonCell.titleLayoutAnchor != newValue else { return }
@@ -64,7 +64,7 @@ open class TabButton: NSButton {
     /// The button is aware of its last known index in the tab bar.
     var index: Int
 
-    open var buttonPosition: TabsControl.TabPosition {
+    open var buttonPosition: TabBar.TabPosition {
         get { tabButtonCell.buttonPosition }
         set { tabButtonCell.buttonPosition = newValue }
     }
@@ -83,7 +83,7 @@ open class TabButton: NSButton {
 
     var closeAction: Selector?
 
-    open var closePosition: TabsControl.ClosePosition? {
+    open var closePosition: TabBar.ClosePosition? {
         didSet { tabButtonCell.closePosition = closePosition }
     }
 
@@ -147,7 +147,7 @@ open class TabButton: NSButton {
         fatalError("init(coder:) has not been implemented")
     }
 
-    init(index: Int, item: Any?, target: AnyObject?, action: Selector?, style: TabsControl.Style) {
+    init(index: Int, item: Any?, target: AnyObject?, action: Selector?, style: TabBar.Style) {
         self.index = index
         self.style = style
         let tabButtonCell = TabButtonCell(textCell: "", style: style)
@@ -247,8 +247,8 @@ open class TabButton: NSButton {
     /// Hover affordances are decided by the owning control, which knows whether the pointer is over a
     /// stacking pile (where the tab underneath must stay inert). Standalone buttons decide for themselves.
     private func updateHover(_ isHovered: Bool) {
-        if let tabsControl {
-            tabsControl.tabButton(self, didChangeHover: isHovered)
+        if let tabBar {
+            tabBar.tabButton(self, didChangeHover: isHovered)
         } else {
             setShowsCloseButton(isHovered)
         }

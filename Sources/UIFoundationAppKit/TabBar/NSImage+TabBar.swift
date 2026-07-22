@@ -1,5 +1,5 @@
 //
-//  NSImage+TabsControl.swift
+//  NSImage+TabBar.swift
 //  UIFoundation
 //
 //  Ported into UIFoundation from KPCTabsControl
@@ -9,7 +9,7 @@
 //  MIT License — Copyright (c) 2014-2016 Cédric Foellmi
 //
 
-#if TabsControl && os(macOS)
+#if TabBar && os(macOS)
 
 import AppKit
 

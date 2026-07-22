@@ -1,9 +1,9 @@
 //
-//  TabsControl+SystemDecoration.swift
+//  TabBar+SystemDecoration.swift
 //  UIFoundation
 //
-//  Control-level Liquid-Glass decoration for ``TabsControl/SystemStyle`` (macOS 26 look).
-//  These views are floated *behind* the tab buttons by ``TabsControl`` so real glass can sit under
+//  Control-level Liquid-Glass decoration for ``TabBar/SystemStyle`` (macOS 26 look).
+//  These views are floated *behind* the tab buttons by ``TabBar`` so real glass can sit under
 //  the cell-drawn titles without covering them.
 //
 //  To match the system window-tab bar exactly, this reproduces AppKit's own per-tab glass config
@@ -14,7 +14,7 @@
 //  guarded, `responds(to:)`-checked selector calls; anything unavailable degrades gracefully.
 //
 
-#if TabsControl && os(macOS)
+#if TabBar && os(macOS)
 
 import AppKit
 
@@ -96,7 +96,7 @@ private extension NSGlassEffectView {
     }
 }
 
-extension TabsControl {
+extension TabBar {
     /// The per-tab glass background. On macOS 26 it hosts a real `NSGlassEffectView` configured with
     /// the system's private tab knobs; on earlier systems it degrades to `NSVisualEffectView` (only
     /// visible for the selected tab) and finally a plain rounded fill.
@@ -163,9 +163,9 @@ extension TabsControl {
         /// scale with their superlayer's bounds, so a container-only animation would leave the glass
         /// at its final size throughout. ``layout()`` is the backstop that keeps the two in step for
         /// any resize that does not come through here.
-        func apply(frame newFrame: NSRect, animated: Bool, growingFrom anchor: TabsControl.GrowthAnchor) {
+        func apply(frame newFrame: NSRect, animated: Bool, growingFrom anchor: TabBar.GrowthAnchor) {
             // A glass that has never been placed is opened *out of nothing*, the same way its button
-            // is (see ``TabsControl/place(_:at:animated:)``): seeded to zero width on `anchor`, then
+            // is (see ``TabBar/place(_:at:animated:)``): seeded to zero width on `anchor`, then
             // sprung out to full size. It cannot simply be dropped at its final frame — the pill is
             // the only part of a system tab anyone can actually see, so a glass that lands full-size
             // on the first frame reads as "the tab appeared with no animation" even while the button
@@ -173,22 +173,22 @@ extension TabsControl {
             // *subview* of `NSTabButton`, so it cannot help but grow with it, whereas ours is floated
             // behind the button and has to be driven.
             guard animated, frame.isEmpty else {
-                TabsControl.setFrame(newFrame, of: self, animated: animated)
+                TabBar.setFrame(newFrame, of: self, animated: animated)
                 if let effectView {
-                    TabsControl.setFrame(NSRect(origin: .zero, size: newFrame.size), of: effectView, animated: animated)
+                    TabBar.setFrame(NSRect(origin: .zero, size: newFrame.size), of: effectView, animated: animated)
                 }
                 return
             }
 
             // Seeded and grown in one go, and — like the button it backs — never carried along with a
             // reveal scroll: it had no on-screen position before this pass to be carried from.
-            TabsControl.ignoringScrollTranslation {
-                let seed = TabsControl.collapsedFrame(for: newFrame, growingFrom: anchor)
-                TabsControl.setFrame(seed, of: self, animated: false)
-                TabsControl.setFrame(newFrame, of: self, animated: true)
+            TabBar.ignoringScrollTranslation {
+                let seed = TabBar.collapsedFrame(for: newFrame, growingFrom: anchor)
+                TabBar.setFrame(seed, of: self, animated: false)
+                TabBar.setFrame(newFrame, of: self, animated: true)
                 if let effectView {
-                    TabsControl.setFrame(NSRect(origin: .zero, size: seed.size), of: effectView, animated: false)
-                    TabsControl.setFrame(NSRect(origin: .zero, size: newFrame.size), of: effectView, animated: true)
+                    TabBar.setFrame(NSRect(origin: .zero, size: seed.size), of: effectView, animated: false)
+                    TabBar.setFrame(NSRect(origin: .zero, size: newFrame.size), of: effectView, animated: true)
                 }
             }
         }
@@ -378,14 +378,14 @@ extension TabsControl {
     }
 
     /// Owns and positions the per-tab Liquid-Glass backgrounds and the inter-tab separators that
-    /// stand in for per-button bezel drawing when a ``TabsControl/Style`` opts into
-    /// ``TabsControl/Style/controlDecoration``.
+    /// stand in for per-button bezel drawing when a ``TabBar/Style`` opts into
+    /// ``TabBar/Style/controlDecoration``.
     ///
     /// Decoration views sit just behind their own tab button, so overlapping stacked tabs read correctly.
     final class SystemTabDecorator {
         private unowned let container: NSView
 
-        /// Decoration keyed by the tab that owns it — see ``TabsControl/TabLayoutInfo/button``.
+        /// Decoration keyed by the tab that owns it — see ``TabBar/TabLayoutInfo/button``.
         private var tabGlasses: [ObjectIdentifier: TabGlassView] = [:]
         private var separators: [ObjectIdentifier: TabSeparatorView] = [:]
 
@@ -404,13 +404,13 @@ extension TabsControl {
 
         /// Repositions and reconfigures all decoration to match the layout the control just computed.
         ///
-        /// Decoration is moved with the same ``TabsControl/setFrame(_:of:animated:)`` the tab buttons
+        /// Decoration is moved with the same ``TabBar/setFrame(_:of:animated:)`` the tab buttons
         /// use, so the two travel in lockstep instead of one snapping ahead of the other.
         func update(
             layouts: [TabLayoutInfo],
             selectedIndex: Int?,
             hoveredIndex: Int?,
-            decoration: TabsControl.ControlDecoration,
+            decoration: TabBar.ControlDecoration,
             animated: Bool
         ) {
             updateTabGlasses(layouts: layouts, selectedIndex: selectedIndex, hoveredIndex: hoveredIndex, decoration: decoration, animated: animated)
@@ -423,7 +423,7 @@ extension TabsControl {
             layouts: [TabLayoutInfo],
             selectedIndex: Int?,
             hoveredIndex: Int?,
-            decoration: TabsControl.ControlDecoration,
+            decoration: TabBar.ControlDecoration,
             animated: Bool
         ) {
             var liveKeys: Set<ObjectIdentifier> = []
@@ -485,7 +485,7 @@ extension TabsControl {
             layouts: [TabLayoutInfo],
             selectedIndex: Int?,
             hoveredIndex: Int?,
-            decoration: TabsControl.ControlDecoration,
+            decoration: TabBar.ControlDecoration,
             animated: Bool
         ) {
             guard decoration.drawsSeparators, layouts.count > 1 else {
@@ -539,7 +539,7 @@ extension TabsControl {
                 // Moved before the visibility change, and only animated from a position it was
                 // actually seen at: a separator revealed for the first time would otherwise fly in
                 // from the origin.
-                TabsControl.setFrame(separatorFrame, of: separator, animated: animated && !separator.isHidden)
+                TabBar.setFrame(separatorFrame, of: separator, animated: animated && !separator.isHidden)
                 separator.isHidden = isHidden
             }
 

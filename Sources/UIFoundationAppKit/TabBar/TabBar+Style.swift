@@ -1,5 +1,5 @@
 //
-//  TabsControl+Style.swift
+//  TabBar+Style.swift
 //  UIFoundation
 //
 //  Ported into UIFoundation from KPCTabsControl
@@ -9,19 +9,19 @@
 //  MIT License — Copyright (c) 2014-2016 Cédric Foellmi
 //
 
-#if TabsControl && os(macOS)
+#if TabBar && os(macOS)
 
 import AppKit
 
-extension TabsControl {
+extension TabBar {
     public typealias IconFrames = (iconFrame: NSRect, alternativeTitleIconFrame: NSRect)
 
     public typealias TitleEditorSettings = (textColor: NSColor, font: NSFont, alignment: NSTextAlignment)
 
-    /// Describes the control-level decoration a ``TabsControl/Style`` wants the control to render
+    /// Describes the control-level decoration a ``TabBar/Style`` wants the control to render
     /// *behind* its tab buttons, instead of drawing a bezel per tab button.
     ///
-    /// A style that returns a non-`nil` ``TabsControl/Style/controlDecoration`` opts into the
+    /// A style that returns a non-`nil` ``TabBar/Style/controlDecoration`` opts into the
     /// macOS-26-style rendering path: the control floats a single Liquid-Glass selection pill (and,
     /// optionally, a hover pill and inter-tab separators) below the tab buttons, while the buttons
     /// themselves draw only their titles. This keeps the classic per-button bezel styles (Numbers,
@@ -107,7 +107,7 @@ extension TabsControl {
         }
     }
 
-    /// The `Style` protocol defines everything needed to let a ``TabsControl`` draw itself with tabs.
+    /// The `Style` protocol defines everything needed to let a ``TabBar`` draw itself with tabs.
     public protocol Style {
         // Tab Buttons
         var tabButtonWidth: TabWidth { get }
@@ -132,13 +132,13 @@ extension TabsControl {
         func titleEditorSettings() -> TitleEditorSettings
         func attributedTitle(content: String, selectionState: SelectionState) -> NSAttributedString
 
-        // Tabs Control
-        var tabsControlRecommendedHeight: CGFloat { get }
-        func tabsControlBorderMask() -> BorderMask?
+        // Tab Bar
+        var tabBarRecommendedHeight: CGFloat { get }
+        func tabBarBorderMask() -> BorderMask?
 
         // Drawing
         func drawTabButtonBezel(frame: NSRect, position: TabPosition, isSelected: Bool)
-        func drawTabsControlBezel(frame: NSRect)
+        func drawTabBarBezel(frame: NSRect)
 
         // Control-level decoration (macOS 26 Liquid-Glass path)
         /// When non-`nil`, the control floats a Liquid-Glass selection pill (and optional hover pill
@@ -156,9 +156,9 @@ extension TabsControl {
 
 // MARK: - Default control decoration
 
-extension TabsControl.Style {
+extension TabBar.Style {
     /// Classic bezel-drawing styles opt out of control-level decoration by default.
-    public var controlDecoration: TabsControl.ControlDecoration? { nil }
+    public var controlDecoration: TabBar.ControlDecoration? { nil }
 
     /// Styles that pin the icon to a fixed slot ignore the title context.
     public func iconFrames(
@@ -166,8 +166,8 @@ extension TabsControl.Style {
         title: NSAttributedString,
         showingIcon: Bool,
         showingMenu: Bool,
-        closePosition: TabsControl.ClosePosition?
-    ) -> TabsControl.IconFrames {
+        closePosition: TabBar.ClosePosition?
+    ) -> TabBar.IconFrames {
         iconFrames(tabRect: rect, closePosition: closePosition)
     }
 }

@@ -349,7 +349,7 @@
 				FilterUI,
 				IDEIcons,
 				NSAttributedStringBuilder,
-				TabsControl,
+				TabBar,
 			);
 		};
 /* End XCLocalSwiftPackageReference section */

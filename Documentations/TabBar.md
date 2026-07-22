@@ -1,10 +1,10 @@
-# TabsControl
+# TabBar
 
 > A multi-tab control for macOS, ported from [KPCTabsControl](https://github.com/onekiloparsec/KPCTabsControl)
-> and extended with `SystemStyle` — a replication of the macOS 26 (Liquid Glass) window tab bar,
+> and rebuilt around `SystemStyle` — a replication of the macOS 26 (Liquid Glass) window tab bar,
 > matched against a live `NSTabBar` rather than eyeballed.
 >
-> Ships behind the opt-in SPM trait `TabsControl`. macOS only.
+> Ships behind the opt-in SPM trait `TabBar`. macOS only.
 
 ---
 
@@ -34,25 +34,24 @@
 .package(
     url: "https://github.com/Mx-Iris/UIFoundation",
     from: "0.13.0",
-    traits: ["TabsControl"]
+    traits: ["TabBar"]
 )
 ```
 
 ```bash
-swift build --traits TabsControl
-swift test  --traits TabsControl
+swift build --traits TabBar
+swift test  --traits TabBar
 ```
 
 ```swift
-let tabsControl = TabsControl()
-tabsControl.dataSource = self          // TabsControl.DataSource
-tabsControl.delegate = self            // TabsControl.Delegate
-tabsControl.style = TabsControl.SystemStyle()
-tabsControl.reloadTabs()
-tabsControl.selectItemAtIndex(0)
+let tabBar = TabBar()
+tabBar.dataSource = self          // TabBar.DataSource
+tabBar.delegate = self            // TabBar.Delegate
+tabBar.reloadTabs()
+tabBar.selectItemAtIndex(0)
 ```
 
-`SystemStyle.tabsControlRecommendedHeight` is 30 pt. The control scrolls and folds internally, so it
+`SystemStyle.tabBarRecommendedHeight` is 30 pt. The control scrolls and folds internally, so it
 only needs a width; give it the full width available and let it divide itself.
 
 | Member | Notes |
@@ -64,34 +63,34 @@ only needs a width; give it the full width available and let it divide itself.
 | `editTabAtIndex(_:)` | Starts an inline rename, as a double-click would. |
 | `isStacking: Bool` | Whether the overflow is currently folded into piles. |
 | `currentTabWidth() -> CGFloat` | The width tabs are currently laid out at. |
-| `TabsControl.selectionDidChangeNotification` | Posted on every selection change, including programmatic ones. |
+| `TabBar.selectionDidChangeNotification` | Posted on every selection change, including programmatic ones. |
 
 ## 2. Data source and delegate
 
 Both protocols are `@objc`, so the `item` passed around is `Any` — the same shape `NSOutlineView` uses.
 Only the first three data-source methods are required.
 
-**`TabsControl.DataSource`**
+**`TabBar.DataSource`**
 
 | Method | Purpose |
 | --- | --- |
-| `tabsControlNumberOfTabs(_:)` | Tab count. |
-| `tabsControl(_:itemAtIndex:)` | The item backing a tab — see [3.1](#31-items-are-matched-by-identity-not-position). |
-| `tabsControl(_:titleForItem:)` | Tab title. |
-| `tabsControl(_:iconForItem:)` | Leading icon. |
-| `tabsControl(_:menuForItem:)` | Contextual menu; configure its target and action before returning. |
-| `tabsControl(_:closeIconForItem:)` / `closePositionForItem:` | The close button's image and edge (`.left` matches the system bar). |
-| `tabsControl(_:titleAlternativeIconForItem:)` | Drawn in place of a title too narrow to fit. |
+| `tabBarNumberOfTabs(_:)` | Tab count. |
+| `tabBar(_:itemAtIndex:)` | The item backing a tab — see [3.1](#31-items-are-matched-by-identity-not-position). |
+| `tabBar(_:titleForItem:)` | Tab title. |
+| `tabBar(_:iconForItem:)` | Leading icon. |
+| `tabBar(_:menuForItem:)` | Contextual menu; configure its target and action before returning. |
+| `tabBar(_:closeIconForItem:)` / `closePositionForItem:` | The close button's image and edge (`.left` matches the system bar). |
+| `tabBar(_:titleAlternativeIconForItem:)` | Drawn in place of a title too narrow to fit. |
 
-**`TabsControl.Delegate`**
+**`TabBar.Delegate`**
 
 | Method | Purpose |
 | --- | --- |
-| `tabsControl(_:canSelectItem:)` | Gates selection. |
-| `tabsControlDidChangeSelection(_:item:)` | Fires for user *and* programmatic selection — guard against your own writes. |
-| `tabsControl(_:canReorderItem:)` / `didReorderItems:` | Drag reorder. Store the new order, or the tabs snap back. |
-| `tabsControl(_:canEditTitleOfItem:)` / `setTitle:forItem:` | Inline rename. |
-| `tabsControl(_:canCloseItem:)` / `didCloseItem:` | Close. See [3.2](#32-who-owns-the-selection). |
+| `tabBar(_:canSelectItem:)` | Gates selection. |
+| `tabBarDidChangeSelection(_:item:)` | Fires for user *and* programmatic selection — guard against your own writes. |
+| `tabBar(_:canReorderItem:)` / `didReorderItems:` | Drag reorder. Store the new order, or the tabs snap back. |
+| `tabBar(_:canEditTitleOfItem:)` / `setTitle:forItem:` | Inline rename. |
+| `tabBar(_:canCloseItem:)` / `didCloseItem:` | Close. See [3.2](#32-who-owns-the-selection). |
 
 ## 3. Contracts a host has to know
 
@@ -134,11 +133,11 @@ By default the **control** owns it: closing a tab moves the selection to the tab
 
 A host that keeps the active tab in its own model — so that commands like ⌘W act on the model rather
 than on whatever the bar highlights — takes over by calling `selectItemAtIndex(_:)` from inside
-`tabsControl(_:didCloseItem:)`. The control notices the hand-off and stands down instead of overruling
+`tabBar(_:didCloseItem:)`. The control notices the hand-off and stands down instead of overruling
 it:
 
 ```swift
-func tabsControl(_ control: TabsControl, didCloseItem item: Any) {
+func tabBar(_ control: TabBar, didCloseItem item: Any) {
     guard let index = index(of: item) else { return }
     tabs.remove(at: index)
     activeTabIndex = min(index, tabs.count - 1)   // right neighbour, like Safari
@@ -166,18 +165,18 @@ at the tab that closed.
 
 ## 4. Styles
 
-| Style | Look |
-| --- | --- |
-| `DefaultStyle` | Numbers.app. |
-| `ChromeStyle` | Chrome. |
-| `SafariStyle` | Safari. |
-| `SystemStyle` | The macOS 26 window tab bar. |
+`SystemStyle` is the only style shipped, and the default — `TabBar()` is already wearing it.
+The Numbers, Chrome and Safari styles inherited from KPCTabsControl are gone: macOS 26 gave Safari
+the system tab bar, which left that style with nothing of its own to show, and Chrome's never had a
+dark appearance.
 
-The first three draw a bezel per tab button. `SystemStyle` instead returns a non-`nil`
-`Style.controlDecoration`, which opts into control-level rendering: the control floats one
-`NSGlassEffectView` behind each tab, draws the hairline separators and the bar track, and the buttons
-draw only their content. Classic styles are untouched by any of it — they return `nil` and keep
-drawing bezels.
+A style renders in one of two ways, and the fork is `Style.controlDecoration`:
+
+- **`nil`** — the classic path, where each tab button draws its own bezel. Nothing ships on it any
+  more, but the whole `ThemedStyle` / `Theme` machinery is still there for anyone writing one.
+- **non-`nil`** — control-level decoration, which `SystemStyle` uses: the control floats one
+  `NSGlassEffectView` behind each tab and draws the hairline separators and the bar track, while the
+  buttons draw only their content. Overflow stacking lives on this path too.
 
 `ControlDecoration` is what a decorating style is configured through:
 
@@ -252,25 +251,25 @@ trailing tab never pins — nothing would slide under the pointer to be clicked 
 ## 6. Namespace convention
 
 To keep generic names out of the umbrella module, the entire public API is nested inside the
-`TabsControl` class. Only `TabsControl` and `TabButton` are top level.
+`TabBar` class. Only `TabBar` and `TabButton` are top level.
 
 | Upstream | Here |
 | --- | --- |
-| `TabsControlDataSource` / `TabsControlDelegate` | `TabsControl.DataSource` / `.Delegate` |
-| `Style` / `ThemedStyle` / `Theme` | `TabsControl.Style` / `.ThemedStyle` / `.Theme` |
-| `TabButtonTheme` / `TabsControlTheme` | `TabsControl.ButtonTheme` / `.ControlTheme` |
-| `TabPosition` / `ClosePosition` / `TabWidth` / `TabSelectionState` | `TabsControl.TabPosition` / `.ClosePosition` / `.TabWidth` / `.SelectionState` |
-| `DefaultStyle` / `ChromeStyle` / `SafariStyle` | nested |
-| `TabsControlSelectionDidChangeNotification` (string) | `TabsControl.selectionDidChangeNotification` (`Notification.Name`) |
+| `TabBarDataSource` / `TabBarDelegate` | `TabBar.DataSource` / `.Delegate` |
+| `Style` / `ThemedStyle` / `Theme` | `TabBar.Style` / `.ThemedStyle` / `.Theme` |
+| `TabButtonTheme` / `TabBarTheme` | `TabBar.ButtonTheme` / `.ControlTheme` |
+| `TabPosition` / `ClosePosition` / `TabWidth` / `TabSelectionState` | `TabBar.TabPosition` / `.ClosePosition` / `.TabWidth` / `.SelectionState` |
+| `SystemStyle` | nested |
+| `TabBarSelectionDidChangeNotification` (string) | `TabBar.selectionDidChangeNotification` (`Notification.Name`) |
 
-Files whose content is a protocol default-implementation extension (`extension TabsControl.ThemedStyle`)
-are not lexically inside `TabsControl`, so sibling nested types there need qualifying.
+Files whose content is a protocol default-implementation extension (`extension TabBar.ThemedStyle`)
+are not lexically inside `TabBar`, so sibling nested types there need qualifying.
 
 ## 7. How this is verified
 
 `SystemStyle` is checked against a real `NSTabBar` running in the same process, driven through
 `NSWindow.tabbingMode = .preferred`. Standalone probes compile the real sources with
-`swiftc -D TabsControl` plus a small shim, put our control and the system's side by side, and compare
+`swiftc -D TabBar` plus a small shim, put our control and the system's side by side, and compare
 frames — augmented by IDA Pro decompilation of AppKit when a number needs explaining rather than just
 matching. `Researchs/AppKit-NSTabBar-Insertion-Internals.md` records the reverse-engineered insertion
 and reveal path, the ivar map, and the measurement method, including two traps that produce convincing
@@ -284,7 +283,7 @@ Two habits are worth copying when extending this:
   only compares before and after.
 - **Sample in screen space.** Document-space frames hide every problem that involves the viewport moving.
 
-The demo (`UIFoundationExample-macOS` → Tabs Control) is wired the host-owned way described in
+The demo (`UIFoundationExample-macOS` → Tab Bar) is wired the host-owned way described in
 [3.2](#32-who-owns-the-selection): it keeps its own active index, opens tabs next to it, activates the
 right neighbour on close, takes ⌘T / ⌘W off the responder chain, and logs a warning whenever the bar
 and the model name different tabs.

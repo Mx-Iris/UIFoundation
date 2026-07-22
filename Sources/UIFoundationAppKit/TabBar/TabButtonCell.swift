@@ -9,7 +9,7 @@
 //  MIT License — Copyright (c) 2014-2016 Cédric Foellmi
 //
 
-#if TabsControl && os(macOS)
+#if TabBar && os(macOS)
 
 import AppKit
 
@@ -20,7 +20,7 @@ final class TabButtonCell: NSButtonCell {
 
     var isSelected: Bool { state == .on }
 
-    var selectionState: TabsControl.SelectionState {
+    var selectionState: TabBar.SelectionState {
         isEnabled == false ? .unselectable : (isSelected ? .selected : .normal)
     }
 
@@ -28,11 +28,11 @@ final class TabButtonCell: NSButtonCell {
 
     var showsMenu: Bool { (menu?.items.count ?? 0) > 0 }
 
-    var buttonPosition: TabsControl.TabPosition = .middle {
+    var buttonPosition: TabBar.TabPosition = .middle {
         didSet { controlView?.needsDisplay = true }
     }
 
-    var closePosition: TabsControl.ClosePosition?
+    var closePosition: TabBar.ClosePosition?
 
     /// The width the title and icon are laid out against, when the tab is narrower than that.
     ///
@@ -50,13 +50,13 @@ final class TabButtonCell: NSButtonCell {
     /// piled up after it to its trailing edge. Measured with the sixth of fourteen tabs selected, the
     /// title sits at +59.5, +57.5, +54.5, +51.5 through the leading pile and at −58.0, −56.5, −16.5
     /// through the trailing one — pushed out of sight on the side each pile folds towards.
-    var titleLayoutAnchor: TabsControl.TitleAnchor = .center
+    var titleLayoutAnchor: TabBar.TitleAnchor = .center
 
-    var style: TabsControl.Style
+    var style: TabBar.Style
 
     // MARK: - Initializers & Copy
 
-    init(textCell string: String, style: TabsControl.Style) {
+    init(textCell string: String, style: TabBar.Style) {
         self.style = style
         super.init(textCell: string)
 
@@ -88,7 +88,7 @@ final class TabButtonCell: NSButtonCell {
     static func popupImage() -> NSImage {
         guard let url = Bundle.module.url(forResource: "PullDownTemplate", withExtension: "pdf", subdirectory: "Templates"),
               let image = NSImage(contentsOf: url) else {
-            assertionFailure("TabsControl: missing bundled resource PullDownTemplate.pdf")
+            assertionFailure("TabBar: missing bundled resource PullDownTemplate.pdf")
             return NSImage()
         }
         return image.imageWithTint(NSColor.darkGray)

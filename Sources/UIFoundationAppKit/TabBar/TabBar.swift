@@ -1,5 +1,5 @@
 //
-//  TabsControl.swift
+//  TabBar.swift
 //  UIFoundation
 //
 //  Ported into UIFoundation from KPCTabsControl
@@ -9,28 +9,28 @@
 //  MIT License — Copyright (c) 2014-2016 Cédric Foellmi
 //
 
-#if TabsControl && os(macOS)
+#if TabBar && os(macOS)
 
 import AppKit
 
-/// `TabsControl` is the main class of the component, and is designed to suffice for implementing tabs in your app.
+/// `TabBar` is the main class of the component, and is designed to suffice for implementing tabs in your app.
 /// The only necessary thing for it to work is an implementation of its `dataSource`.
-open class TabsControl: NSControl, NSTextDelegate {
-    private var delegateInterceptor = TabsControlDelegateInterceptor()
+open class TabBar: NSControl, NSTextDelegate {
+    private var delegateInterceptor = TabBarDelegateInterceptor()
 
-    private lazy var scrollView = TabsScrollView(frame: bounds)
+    private lazy var scrollView = TabBarScrollView(frame: bounds)
     private lazy var tabsView = NSView(frame: scrollView.bounds)
 
     private var editingTab: (title: String, button: TabButton)?
 
-    private lazy var tabsControlCell = TabsControlCell(textCell: "")
+    private lazy var tabBarCell = TabBarCell(textCell: "")
 
     /// The Liquid-Glass decoration manager, created only while the current ``style`` opts into
-    /// ``TabsControl/Style/controlDecoration`` (e.g. ``TabsControl/SystemStyle``).
+    /// ``TabBar/Style/controlDecoration`` (e.g. ``TabBar/SystemStyle``).
     private var decorator: SystemTabDecorator?
 
     /// The capsule-shaped Liquid-Glass bar background, created only while the current ``style``
-    /// requests it via ``TabsControl/ControlDecoration/showsBarTrack``.
+    /// requests it via ``TabBar/ControlDecoration/showsBarTrack``.
     private var barTrackView: SystemBarTrackView?
 
     /// The index of the tab currently under the mouse, used to drive the hover pill and to hide
@@ -67,7 +67,7 @@ open class TabsControl: NSControl, NSTextDelegate {
     /// The evenly divided tab width the last unpinned layout produced, reused while a close is pinned.
     private var heldButtonWidth: CGFloat?
 
-    /// Set while ``TabsControl/Delegate/tabsControl(_:didCloseItem:)`` is being delivered, so a host
+    /// Set while ``TabBar/Delegate/tabBar(_:didCloseItem:)`` is being delivered, so a host
     /// that moves the selection from inside that callback is noticed.
     private var isNotifyingDelegateOfClose = false
 
@@ -116,10 +116,10 @@ open class TabsControl: NSControl, NSTextDelegate {
 
     // MARK: - Data Source & Delegate
 
-    /// The data source of the tabs control, providing all the necessary information for the class to build the tabs.
+    /// The data source of the tab bar, providing all the necessary information for the class to build the tabs.
     @IBOutlet open weak var dataSource: DataSource?
 
-    /// The delegate of the tabs control, providing additional possibilities for customization and precise behavior.
+    /// The delegate of the tab bar, providing additional possibilities for customization and precise behavior.
     @IBOutlet open weak var delegate: Delegate? {
         get { delegateInterceptor.receiver as? Delegate }
         set { delegateInterceptor.receiver = newValue as? NSObject }
@@ -127,9 +127,9 @@ open class TabsControl: NSControl, NSTextDelegate {
 
     // MARK: - Styling
 
-    open var style: Style = DefaultStyle() {
+    open var style: Style = SystemStyle() {
         didSet {
-            tabsControlCell.style = style
+            tabBarCell.style = style
             tabButtons.forEach { $0.style = self.style }
             configureDecorator()
             updateTabs()
@@ -204,8 +204,11 @@ open class TabsControl: NSControl, NSTextDelegate {
     private func setup() {
         wantsLayer = true
         translatesAutoresizingMaskIntoConstraints = false
-        cell = tabsControlCell
+        cell = tabBarCell
         configureSubviews()
+        // The default style decorates, and a stored property's initial value never runs `didSet` —
+        // so without this the glass and the bar track would appear only once a style was assigned.
+        configureDecorator()
     }
 
     private func configureSubviews() {
@@ -238,7 +241,7 @@ open class TabsControl: NSControl, NSTextDelegate {
 
     // MARK: - Data Source
 
-    /// Reloads all tabs of the tabs control. Used when the `dataSource` has changed for instance.
+    /// Reloads all tabs of the tab bar. Used when the `dataSource` has changed for instance.
     open func reloadTabs() {
         reloadTabs(animated: false)
     }
@@ -270,8 +273,8 @@ open class TabsControl: NSControl, NSTextDelegate {
     open func reloadTabs(animated: Bool) {
         guard let dataSource = dataSource else { return }
 
-        let itemCount = dataSource.tabsControlNumberOfTabs(self)
-        let items = (0 ..< itemCount).map { dataSource.tabsControl(self, itemAtIndex: $0) }
+        let itemCount = dataSource.tabBarNumberOfTabs(self)
+        let items = (0 ..< itemCount).map { dataSource.tabBar(self, itemAtIndex: $0) }
 
         // Work out which existing button belongs to which item *before* touching anything. Matching
         // by position instead would hand button `k` to an item inserted at `k` and leave the button
@@ -326,7 +329,7 @@ open class TabsControl: NSControl, NSTextDelegate {
                 index: itemIndex,
                 item: items[itemIndex],
                 target: self,
-                action: #selector(TabsControl.selectTab(_:)),
+                action: #selector(TabBar.selectTab(_:)),
                 style: style
             )
             button.isNewlyInserted = true
@@ -343,27 +346,27 @@ open class TabsControl: NSControl, NSTextDelegate {
 
             button.index = i
             button.item = item
-            button.tabsControl = self
+            button.tabBar = self
 
-            button.editable = delegate?.tabsControl?(self, canEditTitleOfItem: item) == true
+            button.editable = delegate?.tabBar?(self, canEditTitleOfItem: item) == true
             button.buttonPosition = TabPosition.fromIndex(i, totalCount: itemCount)
             button.style = style
 
-            button.title = dataSource.tabsControl(self, titleForItem: item)
-            button.icon = dataSource.tabsControl?(self, iconForItem: item)
-            button.menu = dataSource.tabsControl?(self, menuForItem: item)
-            if let canClose = delegate?.tabsControl?(self, canCloseItem: item), canClose {
-                button.closeIcon = dataSource.tabsControl?(self, closeIconForItem: item)
-                button.closePosition = dataSource.tabsControl?(self, closePositionForItem: item)
+            button.title = dataSource.tabBar(self, titleForItem: item)
+            button.icon = dataSource.tabBar?(self, iconForItem: item)
+            button.menu = dataSource.tabBar?(self, menuForItem: item)
+            if let canClose = delegate?.tabBar?(self, canCloseItem: item), canClose {
+                button.closeIcon = dataSource.tabBar?(self, closeIconForItem: item)
+                button.closePosition = dataSource.tabBar?(self, closePositionForItem: item)
                 button.closeTarget = self
-                button.closeAction = #selector(TabsControl.closeTab(_:))
+                button.closeAction = #selector(TabBar.closeTab(_:))
             } else {
                 button.closeIcon = nil
                 button.closePosition = nil
                 button.closeTarget = nil
                 button.closeAction = nil
             }
-            button.alternativeTitleIcon = dataSource.tabsControl?(self, titleAlternativeIconForItem: item)
+            button.alternativeTitleIcon = dataSource.tabBar?(self, titleAlternativeIconForItem: item)
         }
 
         if let previouslySelectedButton, previouslySelectedButton.superview != nil {
@@ -732,7 +735,7 @@ open class TabsControl: NSControl, NSTextDelegate {
 
             place(button, at: buttonFrame, animated: animated)
 
-            if let selectable = delegate?.tabsControl?(self, canSelectItem: button.representedObject!) {
+            if let selectable = delegate?.tabBar?(self, canSelectItem: button.representedObject!) {
                 button.isEnabled = selectable
             }
         }
@@ -852,7 +855,7 @@ open class TabsControl: NSControl, NSTextDelegate {
 
             place(button, at: buttonFrame, animated: animated)
 
-            if let selectable = delegate?.tabsControl?(self, canSelectItem: button.representedObject!) {
+            if let selectable = delegate?.tabBar?(self, canSelectItem: button.representedObject!) {
                 button.isEnabled = selectable
             }
 
@@ -1051,7 +1054,7 @@ open class TabsControl: NSControl, NSTextDelegate {
     private func startObservingScrollView() {
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(TabsControl.scrollViewDidScroll(_:)),
+            selector: #selector(TabBar.scrollViewDidScroll(_:)),
             name: NSView.frameDidChangeNotification,
             object: scrollView
         )
@@ -1061,7 +1064,7 @@ open class TabsControl: NSControl, NSTextDelegate {
         scrollView.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(TabsControl.clipViewBoundsDidChange(_:)),
+            selector: #selector(TabBar.clipViewBoundsDidChange(_:)),
             name: NSView.boundsDidChangeNotification,
             object: scrollView.contentView
         )
@@ -1134,7 +1137,7 @@ open class TabsControl: NSControl, NSTextDelegate {
 
                     if reordered == true {
                         let items = orderedTabs.compactMap { $0.representedObject }
-                        delegate?.tabsControl?(self, didReorderItems: items)
+                        delegate?.tabBar?(self, didReorderItems: items)
                     }
 
                     reloadTabs()
@@ -1185,7 +1188,7 @@ open class TabsControl: NSControl, NSTextDelegate {
     @objc private func closeTab(_ sender: Any?) {
         guard let button = sender as? TabButton,
               let item = button.representedObject,
-              delegate?.tabsControl?(self, canCloseItem: item) == true else
+              delegate?.tabBar?(self, canCloseItem: item) == true else
         { return }
         let buttonIndex = button.index
         let closedTheTrailingTab = button === tabButtons.last
@@ -1219,7 +1222,7 @@ open class TabsControl: NSControl, NSTextDelegate {
 
             isNotifyingDelegateOfClose = true
             didDelegateSelectTabDuringClose = false
-            delegate?.tabsControl?(self, didCloseItem: item)
+            delegate?.tabBar?(self, didCloseItem: item)
             isNotifyingDelegateOfClose = false
 
             // The host owns the selection and has already placed it — see
@@ -1250,7 +1253,7 @@ open class TabsControl: NSControl, NSTextDelegate {
                 if let action, let target {
                     NSApp.sendAction(action, to: target, from: self)
                 }
-                delegate?.tabsControlDidChangeSelection?(self, item: selectedButton?.representedObject)
+                delegate?.tabBarDidChangeSelection?(self, item: selectedButton?.representedObject)
             } else if buttonIndex < currentSelectedButtonIndex {
                 // A tab before the selection was closed: shift the selection so the same tab stays
                 // selected. Assigning requests a layout through `didSet`.
@@ -1283,7 +1286,7 @@ open class TabsControl: NSControl, NSTextDelegate {
         if currentEvent.clickCount > 1 {
             editTabButton(button)
         } else if let item = button.representedObject,
-            delegate?.tabsControl?(self, canReorderItem: item) == true {
+            delegate?.tabBar?(self, canReorderItem: item) == true {
 
             guard let event = window?.nextEvent(matching: [.leftMouseUp, .leftMouseDragged], until: Date.distantFuture, inMode: .eventTracking, dequeue: false),
                   event.type == NSEvent.EventType.leftMouseDragged
@@ -1309,7 +1312,7 @@ open class TabsControl: NSControl, NSTextDelegate {
         }
 
         // `selectedButtonIndex`'s `didSet` already posts `selectionDidChangeNotification`.
-        delegate?.tabsControlDidChangeSelection?(self, item: button.representedObject)
+        delegate?.tabBarDidChangeSelection?(self, item: button.representedObject)
     }
 
     private func scrollToSelectedButton() {
@@ -1361,7 +1364,7 @@ open class TabsControl: NSControl, NSTextDelegate {
             layoutTabButtons(nil, animated: true)
             invalidateRestorableState()
 
-            NotificationCenter.default.post(name: TabsControl.selectionDidChangeNotification, object: self)
+            NotificationCenter.default.post(name: TabBar.selectionDidChangeNotification, object: self)
         }
     }
 
@@ -1395,7 +1398,7 @@ open class TabsControl: NSControl, NSTextDelegate {
 
     func editTabButton(_ tab: TabButton) {
         guard let representedObject = tab.representedObject,
-              delegate?.tabsControl?(self, canEditTitleOfItem: representedObject) == true
+              delegate?.tabBar?(self, canEditTitleOfItem: representedObject) == true
         else { return }
 
         guard let fieldEditor = window?.fieldEditor(true, for: tab)
@@ -1427,8 +1430,8 @@ open class TabsControl: NSControl, NSTextDelegate {
               newValue != editingTab?.title
         else { return }
 
-        delegate?.tabsControl?(self, setTitle: newValue, forItem: item)
-        editingTab?.button.representedObject = dataSource?.tabsControl(self, itemAtIndex: selectedButtonIndex!)
+        delegate?.tabBar?(self, setTitle: newValue, forItem: item)
+        editingTab?.button.representedObject = dataSource?.tabBar(self, itemAtIndex: selectedButtonIndex!)
     }
 
     // MARK: - Drawing

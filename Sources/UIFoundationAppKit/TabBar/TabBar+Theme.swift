@@ -1,5 +1,5 @@
 //
-//  TabsControl+Theme.swift
+//  TabBar+Theme.swift
 //  UIFoundation
 //
 //  Ported into UIFoundation from KPCTabsControl
@@ -9,11 +9,11 @@
 //  MIT License — Copyright (c) 2014-2016 Cédric Foellmi
 //
 
-#if TabsControl && os(macOS)
+#if TabBar && os(macOS)
 
 import AppKit
 
-extension TabsControl {
+extension TabBar {
     /// The theme of a single tab button.
     public protocol ButtonTheme {
         var backgroundColor: NSColor { get }
@@ -22,24 +22,24 @@ extension TabsControl {
         var titleFont: NSFont { get }
     }
 
-    /// The theme of the whole tabs-control bar.
+    /// The theme of the whole tab-bar bar.
     public protocol ControlTheme {
         var backgroundColor: NSColor { get }
         var borderColor: NSColor { get }
     }
 
-    /// The theme of a complete ``TabsControl``.
+    /// The theme of a complete ``TabBar``.
     public protocol Theme {
         var tabButtonTheme: ButtonTheme { get }
         var selectedTabButtonTheme: ButtonTheme { get }
         var unselectableTabButtonTheme: ButtonTheme { get }
-        var tabsControlTheme: ControlTheme { get }
+        var tabBarTheme: ControlTheme { get }
     }
 }
 
-extension TabsControl.Theme {
+extension TabBar.Theme {
     /// Convenience accessor that selects the per-button theme matching the given selection state.
-    public func tabButtonTheme(fromSelectionState selectionState: TabsControl.SelectionState) -> TabsControl.ButtonTheme {
+    public func tabButtonTheme(fromSelectionState selectionState: TabBar.SelectionState) -> TabBar.ButtonTheme {
         switch selectionState {
         case .normal: return tabButtonTheme
         case .selected: return selectedTabButtonTheme

@@ -1,5 +1,5 @@
 //
-//  TabsControl+Constants.swift
+//  TabBar+Constants.swift
 //  UIFoundation
 //
 //  Ported into UIFoundation from KPCTabsControl
@@ -9,15 +9,15 @@
 //  MIT License — Copyright (c) 2014-2016 Cédric Foellmi
 //
 
-#if TabsControl && os(macOS)
+#if TabBar && os(macOS)
 
 import AppKit
 
-extension TabsControl {
+extension TabBar {
     /// The name of the notification posted upon the selection of a new tab.
-    public static let selectionDidChangeNotification = Notification.Name("UIFoundation.TabsControl.selectionDidChange")
+    public static let selectionDidChangeNotification = Notification.Name("UIFoundation.TabBar.selectionDidChange")
 
-    /// The position of a tab button inside the control. Used by ``TabsControl/Style``.
+    /// The position of a tab button inside the control. Used by ``TabBar/Style``.
     ///
     /// - first:  The left-most tab button.
     /// - middle: Any middle tab button between first and last.
