@@ -275,7 +275,7 @@ Differences from upstream `DSFQuickActionBar`:
 
 ### Tabs Control (ported from `onekiloparsec/KPCTabsControl`)
 
-Numbers.app-style multi-tab control for macOS (editable / reorderable / closable tabs, with `Default`, `Chrome`, and `Safari` styles). Ships as an **opt-in SPM trait** called `TabsControl` (default: disabled), mirroring the `FilterUI` / `QuickActionBar` pattern:
+Numbers.app-style multi-tab control for macOS (editable / reorderable / closable tabs, with `Default`, `Chrome`, `Safari` and `System` styles). Ships as an **opt-in SPM trait** called `TabsControl` (default: disabled), mirroring the `FilterUI` / `QuickActionBar` pattern:
 
 ```swift
 .package(url: "…/UIFoundation", traits: ["TabsControl"])     // SPM dependency
@@ -287,9 +287,16 @@ swift test  --traits TabsControl                              // CLI
 let tabs = TabsControl()
 tabs.dataSource = self          // TabsControl.DataSource
 tabs.delegate = self            // TabsControl.Delegate
-tabs.style = TabsControl.DefaultStyle()   // or .ChromeStyle() / .SafariStyle()
+tabs.style = TabsControl.DefaultStyle()   // or .ChromeStyle() / .SafariStyle() / .SystemStyle()
 tabs.reloadTabs()
 ```
+
+`SystemStyle` replicates the macOS 26 Liquid-Glass window-tab bar and is the one style driven by
+control-level decoration (`Style.controlDecoration`) rather than per-button bezel drawing: the control
+floats an `NSGlassEffectView` behind every tab, draws the hairline separators, divides the bar evenly
+down to a 120 pt minimum and then *stacks* the overflow into piles at the ends. Its behaviour is
+matched against a real `NSTabBar` rather than eyeballed — see `Researchs/AppKit-NSTabBar-Insertion-Internals.md`
+for the reverse-engineered insertion / reveal path and the measurement method.
 
 Wiring:
 - `traits: [..., .trait(name: "TabsControl")]` in `Package.swift`
