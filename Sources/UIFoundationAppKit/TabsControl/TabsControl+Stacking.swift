@@ -320,6 +320,59 @@ extension TabsControl {
             return hit
         }
 
+        // MARK: - Revealing an inserted tab
+
+        /// Room the leading pile needs before the tab at `index` can stand at full width.
+        ///
+        /// `-[NSTabBar _effectiveLeftStackWidthForButtonAtIndex:]`. The leading tab needs none; every
+        /// other tab needs the compression ramp, plus one whole tab when the frontmost tab is behind
+        /// it, because the frontmost tab is held out at full width in front of the pile.
+        private func leadingStackWidth(forButtonAt index: Int) -> CGFloat {
+            guard index > 0 else { return 0.0 }
+            return index > (frontmostIndex ?? Int.max) ? slowingDistance + tabWidth : slowingDistance
+        }
+
+        /// Room the trailing pile needs before the tab at `index` can stand at full width.
+        ///
+        /// `-[NSTabBar _effectiveRightStackWidthForButtonAtIndex:]`, mirroring the leading side.
+        private func trailingStackWidth(forButtonAt index: Int) -> CGFloat {
+            guard index != tabCount - 1 else { return 0.0 }
+            return index < (frontmostIndex ?? Int.max) ? slowingDistance + tabWidth : slowingDistance
+        }
+
+        /// The offset the strip must scroll to for the tab at `index` to stand un-compressed in the
+        /// viewport, or `nil` if it already does.
+        ///
+        /// `-[NSTabBar _scrollToButtonAtIndex:canScrollSelectedButton:]`: it tests the tab's
+        /// *un-stacked* slot — where the tab would sit if nothing were folded — against the part of
+        /// the viewport that holds full-width tabs, and scrolls the shortest distance that brings the
+        /// slot just inside on whichever side it overflows. Testing the tab's *stacked* frame instead
+        /// would never scroll at all: folding is what keeps every tab inside the viewport, so a
+        /// collapsed tab is already "visible" by that measure, and a bar told to reveal a newly added
+        /// tab would sit still while the tab piled up at the end.
+        ///
+        /// AppKit takes the containment rectangle from `-_layoutBoundsEdgeInsetsForUnstackedButtons`,
+        /// which also allows for pinned tabs — something this control has no notion of. Using the same
+        /// stack widths the target arithmetic is built from makes the two exactly complementary, so
+        /// scrolling to the target lands the tab on the boundary and a second call is a no-op.
+        func scrollTargetForRevealing(buttonAt index: Int) -> CGFloat? {
+            guard index >= 0, index < tabCount else { return nil }
+
+            let slotMinX = tabWidth * CGFloat(index)
+            let slotMaxX = slotMinX + tabWidth
+            let leadingStack = leadingStackWidth(forButtonAt: index)
+            let trailingStack = trailingStackWidth(forButtonAt: index)
+
+            let unstackedMinX = scrollOffset + leadingStack
+            let unstackedMaxX = scrollOffset + visibleWidth - trailingStack
+            guard slotMinX < unstackedMinX || slotMaxX > unstackedMaxX else { return nil }
+
+            let target = slotMinX < unstackedMinX
+                ? slotMinX - leadingStack
+                : slotMaxX - visibleWidth + trailingStack
+            return min(max(0.0, target), maximumScrollOffset)
+        }
+
         /// The scroll offset to animate to when the given pile is clicked — a "page" in that direction.
         func scrollTarget(for region: StackingRegion) -> CGFloat {
             let page = max(tabWidth, visibleWidth - (tabWidth + slowingDistance * 2.5))

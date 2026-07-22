@@ -21,8 +21,8 @@ extension TabsControl {
     /// between tabs. The tab buttons only render their titles on top. On systems earlier than
     /// macOS 26 the glass degrades to `NSVisualEffectView` and then a plain layer fill.
     ///
-    /// Geometry mirrors the system: 12 pt pill corner radius, 120 pt minimum tab width, and titles
-    /// coloured by ``TabsControl/SystemTheme``.
+    /// Geometry mirrors the system: 12 pt pill corner radius, tabs dividing the bar evenly down to a
+    /// 120 pt minimum (see ``systemTabButtonWidth``), and titles coloured by ``TabsControl/SystemTheme``.
     public struct SystemStyle: ThemedStyle {
         public let theme: Theme
         public let tabButtonWidth: TabWidth
@@ -30,9 +30,19 @@ extension TabsControl {
 
         private let decoration: ControlDecoration
 
+        /// Tabs divide the whole bar evenly, with no upper bound.
+        ///
+        /// The system tab bar has no maximum tab width: two window tabs each take half the bar
+        /// however wide it is (measured at 739/740 pt in a 1480 pt bar), and every further tab
+        /// divides it again until the share would drop below ``ControlDecoration/minimumTabWidth``,
+        /// at which point stacking takes over and locks the width there. A maximum would leave the
+        /// tail of the bar empty *and* freeze the layout: adding a tab while the existing ones are
+        /// capped moves nothing, so the insertion has no motion to be read from at all.
+        public static let systemTabButtonWidth: TabWidth = .full
+
         public init(
             theme: Theme = SystemTheme(),
-            tabButtonWidth: TabWidth = .flexible(min: 120.0, max: 240.0),
+            tabButtonWidth: TabWidth = SystemStyle.systemTabButtonWidth,
             decoration: ControlDecoration = ControlDecoration()
         ) {
             self.theme = theme

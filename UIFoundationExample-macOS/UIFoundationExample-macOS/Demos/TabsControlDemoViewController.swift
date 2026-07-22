@@ -134,11 +134,14 @@ final class TabsControlDemoViewController: NSViewController {
     }
 
     @objc private func addTab(_ sender: Any?) {
-        tabs.append(TabModel(title: "Tab \(nextTabNumber)"))
+        // Opened next to the current tab, the way a browser opens one, rather than always at the end —
+        // which is also what exercises inserting into the middle of the strip.
+        let insertionIndex = tabsControl.selectedButtonIndex.map { $0 + 1 } ?? tabs.count
+        tabs.insert(TabModel(title: "Tab \(nextTabNumber)"), at: insertionIndex)
         nextTabNumber += 1
         tabsControl.reloadTabs(animated: true)
-        tabsControl.selectItemAtIndex(tabs.count - 1)
-        log("added tab (\(tabs.count) total)")
+        tabsControl.selectItemAtIndex(insertionIndex)
+        log("added tab at \(insertionIndex) (\(tabs.count) total)")
     }
 
     private func log(_ message: String) {

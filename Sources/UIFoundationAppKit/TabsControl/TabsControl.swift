@@ -67,6 +67,21 @@ open class TabsControl: NSControl, NSTextDelegate {
     /// The evenly divided tab width the last unpinned layout produced, reused while a close is pinned.
     private var heldButtonWidth: CGFloat?
 
+    /// Index of the earliest tab inserted since the last layout, which that layout scrolls into view.
+    ///
+    /// `_firstInsertedTabButtonIndex` in `NSTabBar`, consumed the same way: recorded on insertion and
+    /// reset by the layout pass that acts on it, so one insertion is revealed exactly once.
+    private var firstInsertedButtonIndex: Int?
+
+    /// Set while the bar scrolls itself to reveal a freshly inserted tab.
+    ///
+    /// `_isScrollingToRevealAddedTab` (bit 0x10 of the flags byte at offset 969). The reveal moves the
+    /// clip view, which would otherwise come straight back through ``clipViewBoundsDidChange(_:)`` as
+    /// a *user* scroll and lay the bar out unanimated — cancelling the very insertion animation the
+    /// scroll was preparing for. `-[NSTabBar _clipViewBoundsChanged:]` ignores the notification
+    /// wholesale while this is set, and so does this control.
+    private var isScrollingToRevealInsertedTab = false
+
     /// Set while a compound change is being applied, so the layout passes it triggers collapse into
     /// one.
     ///
@@ -189,51 +204,98 @@ open class TabsControl: NSControl, NSTextDelegate {
         reloadTabs(animated: false)
     }
 
+    /// Identity of a data-source item, when it has one.
+    ///
+    /// Items arrive as `Any`, so only class instances can be recognised across a reload. A data
+    /// source vending values gets `nil` here and falls back to positional matching, which is what
+    /// this control has always done.
+    private static func identity(of item: Any?) -> ObjectIdentifier? {
+        guard let item, type(of: item) is AnyClass else { return nil }
+        return ObjectIdentifier(item as AnyObject)
+    }
+
     /// Reloads all tabs, optionally animating the change.
     ///
-    /// When animated, existing tabs slide to their new slots and freshly inserted tabs fade in — a
-    /// newly created button has no previous frame to travel from, so animating its frame would make
-    /// it fly in from the origin.
+    /// When animated, existing tabs slide to their new slots and freshly inserted tabs open out of
+    /// nothing — see ``place(_:at:animated:)``.
     open func reloadTabs(animated: Bool) {
         guard let dataSource = dataSource else { return }
 
-        let oldItemsCount = self.tabButtons.count
-        let newItemsCount = dataSource.tabsControlNumberOfTabs(self)
+        let itemCount = dataSource.tabsControlNumberOfTabs(self)
+        let items = (0 ..< itemCount).map { dataSource.tabsControl(self, itemAtIndex: $0) }
 
-        if newItemsCount < oldItemsCount {
-            self.tabButtons.filter { $0.index >= newItemsCount }.forEach { $0.removeFromSuperview() }
+        // Work out which existing button belongs to which item *before* touching anything. Matching
+        // by position instead would hand button `k` to an item inserted at `k` and leave the button
+        // at the end looking freshly created, so the wrong tab would open out of nothing while the
+        // real new tab slid in from wherever its neighbour used to be — and every piece of
+        // decoration, which is keyed by button identity, would follow the wrong tab too. AppKit
+        // keys the same way, off the item: `_tabBarViewItemsToTabButtons` is an `NSMapTable`.
+        let existingButtons = tabButtons
+        var isClaimed = [Bool](repeating: false, count: existingButtons.count)
+        var buttonsForItems = [TabButton?](repeating: nil, count: itemCount)
+
+        var buttonIndexesForIdentities: [ObjectIdentifier: Int] = [:]
+        for (buttonIndex, button) in existingButtons.enumerated() {
+            guard let identity = Self.identity(of: button.item) else { continue }
+            // First claim wins, so a data source repeating one item still resolves deterministically.
+            if buttonIndexesForIdentities[identity] == nil {
+                buttonIndexesForIdentities[identity] = buttonIndex
+            }
+        }
+        for (itemIndex, item) in items.enumerated() {
+            guard let identity = Self.identity(of: item),
+                  let buttonIndex = buttonIndexesForIdentities[identity],
+                  !isClaimed[buttonIndex]
+            else { continue }
+            isClaimed[buttonIndex] = true
+            buttonsForItems[itemIndex] = existingButtons[buttonIndex]
         }
 
-        let tabButtons = self.tabButtons
+        // Anything left over fills the still-unmatched slots in order. For a data source of values,
+        // where nothing can be matched by identity, this is exactly the positional mapping this
+        // method used to do — button `i` to item `i`, with the tail created or removed.
+        let leftoverButtons = existingButtons.enumerated().filter { !isClaimed[$0.offset] }.map(\.element)
+        var nextLeftoverIndex = 0
+        for itemIndex in 0 ..< itemCount where buttonsForItems[itemIndex] == nil {
+            guard nextLeftoverIndex < leftoverButtons.count else { break }
+            buttonsForItems[itemIndex] = leftoverButtons[nextLeftoverIndex]
+            nextLeftoverIndex += 1
+        }
+        for button in leftoverButtons[nextLeftoverIndex...] {
+            button.removeFromSuperview()
+        }
+
+        // The selection follows its *tab*, not its index: inserting ahead of it shifts the index
+        // without changing what is selected, so the stored value is corrected silently.
+        let previouslySelectedButton = selectedButton
+
         var insertedButtons: [TabButton] = []
-        for i in 0 ..< newItemsCount {
-            let item = dataSource.tabsControl(self, itemAtIndex: i)
+        for itemIndex in 0 ..< itemCount where buttonsForItems[itemIndex] == nil {
+            let button = TabButton(
+                index: itemIndex,
+                item: items[itemIndex],
+                target: self,
+                action: #selector(TabsControl.selectTab(_:)),
+                style: style
+            )
+            button.isNewlyInserted = true
+            button.wantsLayer = true
+            button.state = .off
+            tabsView.addSubview(button)
 
-            var button: TabButton
-            if i >= oldItemsCount {
-                button = TabButton(
-                    index: i,
-                    item: item,
-                    target: self,
-                    action: #selector(TabsControl.selectTab(_:)),
-                    style: style
-                )
-                button.isNewlyInserted = true
-                insertedButtons.append(button)
+            insertedButtons.append(button)
+            buttonsForItems[itemIndex] = button
+        }
 
-                button.wantsLayer = true
-                button.state = .off
-                tabsView.addSubview(button)
-            } else {
-                button = tabButtons[i]
-            }
+        for (i, item) in items.enumerated() {
+            guard let button = buttonsForItems[i] else { continue }
 
             button.index = i
             button.item = item
             button.tabsControl = self
 
             button.editable = delegate?.tabsControl?(self, canEditTitleOfItem: item) == true
-            button.buttonPosition = TabPosition.fromIndex(i, totalCount: newItemsCount)
+            button.buttonPosition = TabPosition.fromIndex(i, totalCount: itemCount)
             button.style = style
 
             button.title = dataSource.tabsControl(self, titleForItem: item)
@@ -253,6 +315,10 @@ open class TabsControl: NSControl, NSTextDelegate {
             button.alternativeTitleIcon = dataSource.tabsControl?(self, titleAlternativeIconForItem: item)
         }
 
+        if let previouslySelectedButton, previouslySelectedButton.superview != nil {
+            storedSelectedButtonIndex = previouslySelectedButton.index
+        }
+
         // Adding a tab ends a run of closes: there is a new tab to make room for, so the strip has to
         // divide itself afresh rather than hold the width the closes were protecting.
         // `-[NSTabBar insertTabBarViewItem:atIndex:animated:]` clears the same flag. Keyed on an
@@ -260,6 +326,13 @@ open class TabsControl: NSControl, NSTextDelegate {
         // must not knock the pin out from under the close that is still being applied.
         if !insertedButtons.isEmpty {
             isInteractivelyClosingTabs = false
+
+            // Remembered for the layout pass to scroll to, the way `_firstInsertedTabButtonIndex`
+            // is. An index already waiting is kept: it belongs to an insertion that has not been
+            // laid out yet, and that is the one the bar promised to reveal.
+            if firstInsertedButtonIndex == nil {
+                firstInsertedButtonIndex = insertedButtons.map(\.index).min()
+            }
         }
 
         layoutTabButtons(nil, animated: animated)
@@ -267,23 +340,51 @@ open class TabsControl: NSControl, NSTextDelegate {
         invalidateRestorableState()
     }
 
+    /// The edge a tab that is opening out of nothing unfurls from.
+    ///
+    /// `-[NSTabBar _insertTabButtonWithTabViewItem:atIndex:]` creates the button with **zero width**
+    /// and picks its origin from where the tab is going: `NSMaxX` of its slot when the tab is being
+    /// appended, `round(NSMidX)` when it is being inserted between two others.
+    enum GrowthAnchor {
+        /// A tab appended to the end unfurls leftward from the trailing edge of the strip.
+        case trailingEdge
+        /// A tab inserted between two others opens symmetrically about its slot.
+        case midpoint
+    }
+
+    /// The zero-width rectangle a tab starts from when it opens out of nothing.
+    static func collapsedFrame(for frame: NSRect, growingFrom anchor: GrowthAnchor) -> NSRect {
+        let originX = anchor == .trailingEdge ? frame.maxX : frame.midX.rounded()
+        return NSRect(x: originX, y: frame.minY, width: 0.0, height: frame.height)
+    }
+
     /// Places a tab button at `frame`.
     ///
-    /// A freshly inserted tab is opened *out of nothing* — zero width at its leading edge, springing
-    /// out to full size while its neighbours make room — rather than faded in on top of the layout.
-    /// That is what the system does: a new window tab grows from a sliver to full width with no
-    /// opacity change at all.
+    /// A freshly inserted tab is opened *out of nothing* — zero width, springing out to full size
+    /// while its neighbours make room — rather than faded in on top of the layout. That is what the
+    /// system does: a new window tab grows from a sliver to full width with no opacity change at all.
     private func place(_ button: TabButton, at frame: NSRect, animated: Bool) {
         guard animated, !button.isHidden else {
             Self.setFrame(frame, of: button, animated: false)
             return
         }
 
-        if button.isNewlyInserted {
-            let closed = NSRect(x: frame.minX, y: frame.minY, width: 0.0, height: frame.height)
-            Self.setFrame(closed, of: button, animated: false)
+        guard button.isNewlyInserted else {
+            Self.setFrame(frame, of: button, animated: true)
+            return
         }
-        Self.setFrame(frame, of: button, animated: true)
+
+        // A tab that did not exist a moment ago has no on-screen position to preserve, so it is not
+        // carried along with a reveal scroll — it opens out of nothing exactly where it is going.
+        Self.ignoringScrollTranslation {
+            Self.setFrame(Self.collapsedFrame(for: frame, growingFrom: growthAnchor(for: button)),
+                          of: button, animated: false)
+            Self.setFrame(frame, of: button, animated: true)
+        }
+    }
+
+    private func growthAnchor(for button: TabButton) -> GrowthAnchor {
+        button.index >= tabButtons.count - 1 ? .trailingEdge : .midpoint
     }
 
     // MARK: - Frame Animation
@@ -324,6 +425,29 @@ open class TabsControl: NSControl, NSTextDelegate {
         return animation
     }
 
+    /// How far the scroll offset has just jumped, for the duration of the layout pass that follows it.
+    ///
+    /// Every frame this control publishes lives in the scrolling document's space, while what the user
+    /// sees is that space minus the scroll offset. When a reveal scroll moves the offset in one step,
+    /// a view that must not appear to move has to travel exactly that far through the document — so
+    /// the animation has to *start* that far along, or the whole strip leaps sideways and spends the
+    /// animation walking back. Measured against a real `NSTabBar` across an append that scrolls
+    /// 120 pt: on the first frame after the insertion every existing tab is still within a couple of
+    /// points of where it was, and each one then travels a single slot deeper into its pile.
+    ///
+    /// Written only around one synchronous layout pass, which is why it can be shared: layout never
+    /// interleaves between controls.
+    private static var pendingScrollTranslation: CGFloat = 0.0
+
+    /// Runs `body` with any pending reveal-scroll translation suspended, for views that had no
+    /// on-screen position before this pass and so have nothing to be carried along from.
+    static func ignoringScrollTranslation<Result>(_ body: () -> Result) -> Result {
+        let saved = pendingScrollTranslation
+        pendingScrollTranslation = 0.0
+        defer { pendingScrollTranslation = saved }
+        return body()
+    }
+
     /// Moves `view` to `newFrame`, animating the motion when asked.
     ///
     /// The frame is always published with implicit animation switched **off**, and the motion is then
@@ -334,12 +458,19 @@ open class TabsControl: NSControl, NSTextDelegate {
     /// changes, so the button simply never moves and is left stranded behind its own decoration.
     /// Everything the control positions goes through here, so buttons and decoration travel together.
     static func setFrame(_ newFrame: NSRect, of view: NSView, animated: Bool) {
-        guard view.frame != newFrame else { return }
+        let scrollTranslation = pendingScrollTranslation
+        // A view whose document frame is unchanged still has to move on screen when the offset jumps,
+        // so the usual early-out cannot apply while a translation is pending.
+        guard view.frame != newFrame || (animated && scrollTranslation != 0.0) else { return }
 
         // Re-target from where the view currently *appears* to be, so a layout pass that interrupts
         // an in-flight animation carries on smoothly instead of snapping back to the model value.
         let layer = view.layer
-        let originPosition = layer.map { $0.presentation()?.position ?? $0.position }
+        let originPosition = layer.map { layer -> CGPoint in
+            var position = layer.presentation()?.position ?? layer.position
+            position.x += scrollTranslation
+            return position
+        }
         let originBounds = layer.map { $0.presentation()?.bounds ?? $0.bounds }
 
         NSAnimationContext.runAnimationGroup { context in
@@ -398,9 +529,23 @@ open class TabsControl: NSControl, NSTextDelegate {
         isLayingOutTabButtons = true
         defer {
             isLayingOutTabButtons = false
+            Self.pendingScrollTranslation = 0.0
             // The tabs have just moved under a pointer that did not, so hover has to be re-decided
             // from where the pointer actually is.
             updateHoverForCurrentMouseLocation()
+        }
+
+        // A freshly inserted tab is scrolled into view *before* the pass that animates, never after:
+        // the reveal is an unanimated jump, and laying out afterwards means the tabs spring straight
+        // to their final places instead of chasing a viewport that is still moving.
+        // `-[NSTabBar _reallyUpdateButtonsAndLayOutAnimated:isSelectingButton:]` does the same, and
+        // skips the reveal — but still consumes the index — while a close is pinned, where moving the
+        // strip would pull the next close button out from under the pointer.
+        if let insertedIndex = firstInsertedButtonIndex {
+            firstInsertedButtonIndex = nil
+            if !isInteractivelyClosingTabs {
+                Self.pendingScrollTranslation = revealButton(atIndex: insertedIndex)
+            }
         }
 
         // Laying out resizes the document view, which can make the clip view re-constrain its bounds
@@ -502,7 +647,13 @@ open class TabsControl: NSControl, NSTextDelegate {
             }
         }
 
-        // The document is always the full un-stacked width so the scroll range stays correct.
+        updateDocumentFrame(for: geometry)
+        applyDecoration(layouts: layouts, animated: animated)
+    }
+
+    /// Sizes the scrolling document to the full un-stacked strip, so the scroll range stays correct.
+    private func updateDocumentFrame(for geometry: StackingGeometry) {
+        let contentInset = style.controlDecoration?.barContentInset ?? 0.0
         let viewFrame = CGRect(
             x: 0.0,
             y: 0.0,
@@ -512,8 +663,35 @@ open class TabsControl: NSControl, NSTextDelegate {
         if tabsView.frame != viewFrame {
             tabsView.frame = viewFrame
         }
+    }
 
-        applyDecoration(layouts: layouts, animated: animated)
+    /// Scrolls the strip so a freshly inserted tab stands at full width rather than folded into a pile.
+    ///
+    /// Returns how far the offset moved, which the layout that follows uses to keep every existing tab
+    /// where it appears to be — see ``pendingScrollTranslation``.
+    private func revealButton(atIndex index: Int) -> CGFloat {
+        // Only a stacked bar can hide a tab; an evenly divided one shows every tab already.
+        // `-_scrollToButtonAtIndex:canScrollSelectedButton:` returns immediately unless
+        // `_isStackingButtons` is set.
+        guard let geometry = makeStackingGeometry(for: tabButtons) else { return 0.0 }
+
+        // The document has to be big enough to hold the new offset before the clip view is asked to
+        // move there, or the move is clamped back to the old end of a strip that has since grown.
+        // AppKit updates its container frames ahead of the scroll for the same reason.
+        updateDocumentFrame(for: geometry)
+
+        guard let target = geometry.scrollTargetForRevealing(buttonAt: index) else { return 0.0 }
+
+        let clipView = scrollView.contentView
+        let delta = target - clipView.bounds.origin.x
+        guard delta != 0.0 else { return 0.0 }
+
+        isScrollingToRevealInsertedTab = true
+        defer { isScrollingToRevealInsertedTab = false }
+
+        clipView.setBoundsOrigin(NSPoint(x: target, y: clipView.bounds.origin.y))
+        scrollView.reflectScrolledClipView(clipView)
+        return delta
     }
 
     /// Hands the freshly computed layout to the decoration and remembers it, so a later hover change
@@ -808,6 +986,12 @@ open class TabsControl: NSControl, NSTextDelegate {
     }
 
     @objc private func clipViewBoundsDidChange(_ notification: Notification) {
+        // Not the user scrolling — the bar moving itself to reveal a tab it has just been given. The
+        // layout that follows is already computed against this offset, and treating it as a scroll
+        // here would lay the bar out unanimated and cancel the insertion.
+        // `-[NSTabBar _clipViewBoundsChanged:]` ignores the notification entirely under the same flag.
+        guard !isScrollingToRevealInsertedTab else { return }
+
         // Scrolling ends a run of closes. The tabs have moved out from under the pointer anyway, so
         // the pinned width is protecting nothing — and leaving it pinned would freeze the stacked
         // geometry against a scroll offset that has since moved, making the bar stop responding.
@@ -1017,6 +1201,12 @@ open class TabsControl: NSControl, NSTextDelegate {
     }
 
     private func scrollToSelectedButton() {
+        // A stacked bar never scrolls to its selection. Folding is what keeps every tab inside the
+        // viewport, so there is nothing for `scrollToVisible` to reveal — but a tab collapsed to zero
+        // width against an edge still drags the offset a few points sideways as it tries. The system
+        // scrolls only to reveal an *inserted* tab; selecting one leaves the strip exactly where it
+        // is, measured on a real `NSTabBar` as an unchanged offset across a mid-strip selection.
+        guard !isStacking else { return }
         guard let selectedButton = selectedButton else { return }
 
         NSAnimationContext.runAnimationGroup({ context in
@@ -1030,8 +1220,20 @@ open class TabsControl: NSControl, NSTextDelegate {
         return tabButtons.first(where: { $0.index == index })
     }
 
+    /// Backing store for ``selectedButtonIndex``.
+    ///
+    /// Written directly only when a reload *renumbers* the tabs without changing which one is
+    /// selected — inserting ahead of the selection shifts its index by one, and that is a
+    /// bookkeeping correction, not a selection change, so none of the follow-up below may run.
+    /// `-[NSTabBar insertTabBarViewItem:atIndex:animated:]` adjusts `_selectedTabButtonIndex` the
+    /// same way, as a plain increment.
+    private var storedSelectedButtonIndex: Int?
+
     public private(set) var selectedButtonIndex: Int? {
-        didSet {
+        get { storedSelectedButtonIndex }
+        set {
+            storedSelectedButtonIndex = newValue
+
             // Not while a close is being folded into a single pass. The system only ever scrolls the
             // bar to reveal a freshly *inserted* tab (`_firstInsertedTabButtonIndex`); scrolling
             // because a close moved the selection would drag the whole strip out from under the
