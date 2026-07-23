@@ -15,7 +15,17 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
 
     public let textFinder = NSTextFinder()
 
+    /// Materialized index used by the synchronous data-source walk (and the
+    /// on-demand collapsed-subtree expansion).
     let indexStore = TextIndexStore()
+
+    /// Host-installed index (`installExternalIndex(_:)`), used when the data
+    /// source opts into external index building. Takes precedence over
+    /// `indexStore` while installed; cleared on invalidation.
+    private(set) var externalIndexStorage: PooledTextIndexStore?
+
+    /// The storage the `NSTextFinderClient` methods read from.
+    var activeIndexStorage: any TextFinderIndexStorage { externalIndexStorage ?? indexStore }
 
     public var searchScope: OutlineViewSearchScope
 
@@ -131,6 +141,7 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
         // next rebuild lands.
         textFinder.noteClientStringWillChange()
         indexStore.removeAll()
+        externalIndexStorage = nil
         indexedCollapsedItems.removeAll()
         pendingCollapsedItems.removeAll()
         currentMatchRange = NSRange(location: 0, length: 0)
@@ -138,6 +149,24 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
 
         if let findBarContainer = textFinder.findBarContainer, findBarContainer.isFindBarVisible {
             rebuildIndex()
+        }
+    }
+
+    /// Install a host-built external index. Main thread only. Replaces any
+    /// current storage (materialized or external) and, if the find bar is
+    /// visible, re-triggers the search so the user sees results immediately.
+    public func installExternalIndex(_ externalIndex: OutlineViewExternalTextIndex) {
+        textFinder.noteClientStringWillChange()
+        indexStore.removeAll()
+        indexedCollapsedItems.removeAll()
+        pendingCollapsedItems.removeAll()
+        currentMatchRange = NSRange(location: 0, length: 0)
+        externalIndexStorage = externalIndex.makeStore()
+        indexIsDirty = false
+        if activeIndexStorage.totalLength > 0,
+           let findBarContainer = textFinder.findBarContainer,
+           findBarContainer.isFindBarVisible {
+            textFinder.performAction(.nextMatch)
         }
     }
 
@@ -169,11 +198,22 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
         // the chunked index is being rebuilt.
         textFinder.noteClientStringWillChange()
         indexStore.removeAll()
+        externalIndexStorage = nil
         indexedCollapsedItems.removeAll()
         pendingCollapsedItems.removeAll()
         currentMatchRange = NSRange(location: 0, length: 0)
 
         guard let outlineView, let dataSource else { return }
+
+        // External mode: the host owns index construction — request a build
+        // and wait for `installExternalIndex(_:)`. `indexIsDirty` stays
+        // cleared so repeated find actions do not re-kick the build; a new
+        // `invalidateIndex()` re-arms it.
+        if dataSource.textFinderClientBuildsIndexExternally(self) {
+            dataSource.textFinderClientNeedsExternalIndexRebuild(self)
+            return
+        }
+
         let numberOfColumns = dataSource.numberOfSearchableColumns(in: self)
         let numberOfRows = outlineView.numberOfRows
         guard numberOfRows > 0 else { return }
@@ -366,7 +406,7 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
     public var isSelectable: Bool { false }
 
     public func string(at characterIndex: Int, effectiveRange outRange: NSRangePointer, endsWithSearchBoundary outFlag: UnsafeMutablePointer<ObjCBool>) -> String {
-        let token = indexStore.token(at: characterIndex)
+        let token = activeIndexStorage.token(at: characterIndex)
         let range = NSRange(location: token.globalIndex, length: token.string.utf16.count)
         outRange.pointee = range
         outFlag.pointee = true
@@ -374,20 +414,20 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
     }
 
     public func stringLength() -> Int {
-        indexStore.totalLength
+        activeIndexStorage.totalLength
     }
 
     public var firstSelectedRange: NSRange {
         // If the saved match range is out of bounds (e.g. the index shrunk on
         // rebuild), fall back to the start of the document.
-        guard currentMatchRange.location <= indexStore.totalLength,
-              NSMaxRange(currentMatchRange) <= indexStore.totalLength else {
+        guard currentMatchRange.location <= activeIndexStorage.totalLength,
+              NSMaxRange(currentMatchRange) <= activeIndexStorage.totalLength else {
             // On-demand scope: try expanding first in case the position is
             // inside a yet-to-be-indexed subtree.
             if searchScope == .onDemand && !pendingCollapsedItems.isEmpty {
                 expandIndexOnDemand()
-                if currentMatchRange.location <= indexStore.totalLength,
-                   NSMaxRange(currentMatchRange) <= indexStore.totalLength {
+                if currentMatchRange.location <= activeIndexStorage.totalLength,
+                   NSMaxRange(currentMatchRange) <= activeIndexStorage.totalLength {
                     return currentMatchRange
                 }
             }
@@ -398,6 +438,29 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
 
     // MARK: - NSTextFinderClient — Scrolling & Content View
 
+    /// Absolute outline row for a token. Materialized tokens either carry an
+    /// item (resolved via `row(forItem:)`) or already store the outline row.
+    /// External tokens store **top-level row indices** — identical to outline
+    /// rows in the flat case, otherwise found by walking to the n-th level-0
+    /// row (expanded children shift absolute rows).
+    func resolveOutlineRow(for token: TextIndexStore.Token) -> Int {
+        guard let outlineView else { return -1 }
+        if let externalIndexStorage {
+            if outlineView.numberOfRows == externalIndexStorage.numberOfRows { return token.row }
+            var topLevelRowCount = 0
+            for outlineRowIndex in 0 ..< outlineView.numberOfRows {
+                guard outlineView.level(forRow: outlineRowIndex) == 0 else { continue }
+                if topLevelRowCount == token.row { return outlineRowIndex }
+                topLevelRowCount += 1
+            }
+            return -1
+        }
+        if let item = token.item {
+            return outlineView.row(forItem: item)
+        }
+        return token.row
+    }
+
     public func scrollRangeToVisible(_ range: NSRange) {
         // Remember the match so `firstSelectedRange` reflects NSTextFinder's
         // current position — this is what makes Find Next advance past the
@@ -405,19 +468,19 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
         currentMatchRange = range
 
         guard let outlineView else { return }
-        let token = indexStore.token(at: range.location)
+        let token = activeIndexStorage.token(at: range.location)
         // Expand parent chain if needed
         if let item = token.item {
             expandParentChain(for: item)
         }
-        let resolvedRow = token.item.flatMap { outlineView.row(forItem: $0) } ?? token.row
+        let resolvedRow = resolveOutlineRow(for: token)
         if resolvedRow >= 0 {
             outlineView.scrollRowToVisible(resolvedRow)
         }
     }
 
     public func contentView(at index: Int, effectiveCharacterRange outRange: NSRangePointer) -> NSView {
-        let token = indexStore.token(at: index)
+        let token = activeIndexStorage.token(at: index)
         outRange.pointee = NSRange(location: token.globalIndex, length: token.string.utf16.count)
 
         // Auto-expand parent chain so the cell becomes visible
@@ -442,12 +505,7 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
 
     func resolveTextField(for token: TextIndexStore.Token) -> NSTextField? {
         guard let outlineView else { return nil }
-        let row: Int
-        if let item = token.item {
-            row = outlineView.row(forItem: item)
-        } else {
-            row = token.row
-        }
+        let row = resolveOutlineRow(for: token)
         guard row >= 0 else { return nil }
         if let providedTextField = dataSource?.textFinderClient(self, textFieldForRow: row, column: token.column) {
             return providedTextField
@@ -461,7 +519,7 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
     // MARK: - NSTextFinderClient — Highlight Rects
 
     public func rects(forCharacterRange range: NSRange) -> [NSValue]? {
-        let token = indexStore.token(at: range.location)
+        let token = activeIndexStorage.token(at: range.location)
         let localLocation = range.location - token.globalIndex
         let localRange = NSRange(location: localLocation, length: range.length)
         guard let textField = resolveTextField(for: token) else { return nil }
@@ -469,7 +527,7 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
     }
 
     public func drawCharacters(in range: NSRange, forContentView view: NSView) {
-        let token = indexStore.token(at: range.location)
+        let token = activeIndexStorage.token(at: range.location)
         let localLocation = range.location - token.globalIndex
         let localRange = NSRange(location: localLocation, length: range.length)
         guard let textRange = makeTextRange(from: localRange),

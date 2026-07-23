@@ -375,4 +375,80 @@ struct RunLengthTextIndexStoreTests {
     }
 }
 
+@Suite("PooledTextIndexStore")
+struct PooledTextIndexStoreTests {
+
+    private static func makeStore(rows: [[String]]) -> PooledTextIndexStore {
+        var externalIndex = OutlineViewExternalTextIndex(numberOfColumns: rows[0].count)
+        for row in rows {
+            externalIndex.appendRow(columnStrings: row)
+        }
+        return externalIndex.makeStore()
+    }
+
+    @Test("Tokens decode row, column, globalIndex, and string from the pool")
+    func tokensDecodeFromPool() {
+        let rows = [
+            ["ab", "cde"],
+            ["fg", "hij"],
+        ]
+        let store = Self.makeStore(rows: rows)
+        #expect(store.totalLength == 10)
+        #expect(store.numberOfRows == 2)
+
+        let firstToken = store.token(at: 0)
+        #expect(firstToken.row == 0)
+        #expect(firstToken.column == 0)
+        #expect(firstToken.globalIndex == 0)
+        #expect(firstToken.string == "ab")
+        #expect(firstToken.item == nil)
+
+        // Character 6 = second row (starts at 5), offset 1 → still column 0.
+        let secondRowToken = store.token(at: 6)
+        #expect(secondRowToken.row == 1)
+        #expect(secondRowToken.column == 0)
+        #expect(secondRowToken.globalIndex == 5)
+        #expect(secondRowToken.string == "fg")
+
+        let lastToken = store.token(at: 9)
+        #expect(lastToken.row == 1)
+        #expect(lastToken.column == 1)
+        #expect(lastToken.globalIndex == 7)
+        #expect(lastToken.string == "hij")
+    }
+
+    @Test("Empty cells never own characters")
+    func emptyCellsAreSkipped() {
+        let rows = [
+            ["", "abcd", ""],
+            ["", "", "efgh"],
+        ]
+        let store = Self.makeStore(rows: rows)
+        #expect(store.totalLength == 8)
+
+        let firstRowToken = store.token(at: 2)
+        #expect(firstRowToken.row == 0)
+        #expect(firstRowToken.column == 1)
+        #expect(firstRowToken.globalIndex == 0)
+        #expect(firstRowToken.string == "abcd")
+
+        let secondRowToken = store.token(at: 4)
+        #expect(secondRowToken.row == 1)
+        #expect(secondRowToken.column == 2)
+        #expect(secondRowToken.globalIndex == 4)
+        #expect(secondRowToken.string == "efgh")
+    }
+
+    @Test("UTF-16 surrogate pairs round-trip through the pool")
+    func surrogatePairsRoundTrip() {
+        let rows = [["héllo", "🌍🚀"]]
+        let store = Self.makeStore(rows: rows)
+        #expect(store.totalLength == 9)
+        let emojiToken = store.token(at: 6)
+        #expect(emojiToken.column == 1)
+        #expect(emojiToken.globalIndex == 5)
+        #expect(emojiToken.string == "🌍🚀")
+    }
+}
+
 #endif

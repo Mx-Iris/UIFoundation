@@ -91,14 +91,26 @@ private final class GridLengthsTableTextFinderDataSource: NSObject, NSTableViewD
 }
 
 /// Outline flavor of the recording data source — flat list of string items.
+/// `buildsIndexExternally` opts into the external-index contract and records
+/// rebuild requests.
 private final class RecordingOutlineTextFinderDataSource: NSObject, NSOutlineViewDataSource, OutlineViewTextFinderDataSource {
     let rootItems: [String]
+    var buildsIndexExternally = false
 
     private(set) var offMainThreadCallbackCount = 0
     private(set) var stringCallbackCount = 0
+    private(set) var externalRebuildRequestCount = 0
 
     init(rootItems: [String]) {
         self.rootItems = rootItems
+    }
+
+    func textFinderClientBuildsIndexExternally(_ client: OutlineViewTextFinderClient) -> Bool {
+        buildsIndexExternally
+    }
+
+    func textFinderClientNeedsExternalIndexRebuild(_ client: OutlineViewTextFinderClient) {
+        externalRebuildRequestCount += 1
     }
 
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
@@ -319,6 +331,52 @@ struct TextFinderClientRunLengthPathTests {
         }
         // Each sampled token materialized its cell string on demand.
         #expect(dataSource.stringCallbackCount > 0)
+    }
+
+    @Test("External data source routes rebuilds through the host and uses the installed index")
+    func externalIndexFlow() async throws {
+        let rootItems = ["alpha", "beta"]
+        let dataSource = RecordingOutlineTextFinderDataSource(rootItems: rootItems)
+        dataSource.buildsIndexExternally = true
+        let outlineView = NSOutlineView()
+        outlineView.dataSource = dataSource
+        outlineView.reloadData()
+        let client = OutlineViewTextFinderClient(outlineView: outlineView)
+        client.dataSource = dataSource
+
+        // First find interaction: no synchronous walk, one host rebuild request.
+        client.prepareIndexIfNeeded()
+        #expect(dataSource.externalRebuildRequestCount == 1)
+        #expect(dataSource.stringCallbackCount == 0)
+        #expect(client.indexingTaskForTesting == nil)
+        #expect(client.stringLength() == 0)
+
+        // A repeated find action while the host build is in flight must not
+        // re-kick the build (index is no longer dirty).
+        client.prepareIndexIfNeeded()
+        #expect(dataSource.externalRebuildRequestCount == 1)
+
+        // Host completes the build and installs the index.
+        var externalIndex = OutlineViewExternalTextIndex(numberOfColumns: 2)
+        externalIndex.appendRow(columnStrings: ["alpha", "one"])
+        externalIndex.appendRow(columnStrings: ["beta", "two"])
+        client.installExternalIndex(externalIndex)
+
+        // "alpha" + "one" + "beta" + "two" = 5 + 3 + 4 + 3.
+        #expect(client.stringLength() == 15)
+        var effectiveRange = NSRange(location: 0, length: 0)
+        var endsWithBoundary = ObjCBool(false)
+        let firstString = client.string(at: 0, effectiveRange: &effectiveRange, endsWithSearchBoundary: &endsWithBoundary)
+        #expect(firstString == "alpha")
+        #expect(effectiveRange == NSRange(location: 0, length: 5))
+        let secondRowString = client.string(at: 8, effectiveRange: &effectiveRange, endsWithSearchBoundary: &endsWithBoundary)
+        #expect(secondRowString == "beta")
+
+        // Invalidation re-arms the external rebuild for the next interaction.
+        client.invalidateIndex()
+        #expect(client.stringLength() == 0)
+        client.prepareIndexIfNeeded()
+        #expect(dataSource.externalRebuildRequestCount == 2)
     }
 
     @Test("A nil lengths row falls the whole build back to the materialized index")

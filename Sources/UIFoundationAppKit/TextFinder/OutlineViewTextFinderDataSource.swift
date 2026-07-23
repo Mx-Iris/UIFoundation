@@ -41,6 +41,26 @@ public protocol OutlineViewTextFinderDataSource: AnyObject {
     /// assign its text field to `NSTableCellView.textField`. Return `nil` to fall
     /// back to the default lookup (`cellView.textField`).
     func textFinderClient(_ client: OutlineViewTextFinderClient, textFieldForRow row: Int, column: Int) -> NSTextField?
+
+    /// Return `true` when the host builds the find index externally — via
+    /// `OutlineViewTextFinderClient.installExternalIndex(_:)` — instead of
+    /// the synchronous data-source walk. Use this for content whose row
+    /// strings cannot be produced on demand on the main thread (e.g.
+    /// viewport-windowed rows that require background fetching).
+    ///
+    /// When `true`, a stale index is not rebuilt in place: the client clears
+    /// its storage and calls
+    /// `textFinderClientNeedsExternalIndexRebuild(_:)`, and the host is
+    /// expected to build an `OutlineViewExternalTextIndex` (typically on a
+    /// background task) and install it when done. Defaults to `false`.
+    func textFinderClientBuildsIndexExternally(_ client: OutlineViewTextFinderClient) -> Bool
+
+    /// Kick off the host's external index build. Called on the main thread
+    /// whenever the (externally built) index is stale and a find interaction
+    /// needs it — the host should cancel-replace any build already in
+    /// flight, then call `installExternalIndex(_:)` on the main thread when
+    /// the build completes. Defaults to a no-op.
+    func textFinderClientNeedsExternalIndexRebuild(_ client: OutlineViewTextFinderClient)
 }
 
 @available(macOS 12.0, *)
@@ -48,6 +68,12 @@ public extension OutlineViewTextFinderDataSource {
     func textFinderClient(_ client: OutlineViewTextFinderClient, textFieldForRow row: Int, column: Int) -> NSTextField? {
         nil
     }
+
+    func textFinderClientBuildsIndexExternally(_ client: OutlineViewTextFinderClient) -> Bool {
+        false
+    }
+
+    func textFinderClientNeedsExternalIndexRebuild(_ client: OutlineViewTextFinderClient) {}
 }
 
 #endif
