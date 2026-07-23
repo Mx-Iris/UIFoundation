@@ -12,8 +12,8 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 @interface NSImage (NSSystemSymbols)
-+ (nullable instancetype)imageWithPrivateSystemSymbolName:(NSString *)name;
-+ (nullable instancetype)imageWithPrivateSystemSymbolName:(NSString *)name accessibilityDescription:(nullable NSString *)description;
++ (nullable instancetype)imageWithPrivateSystemSymbolName:(NSString *)name API_AVAILABLE(macos(11.0));
++ (nullable instancetype)imageWithPrivateSystemSymbolName:(NSString *)name accessibilityDescription:(nullable NSString *)description API_AVAILABLE(macos(11.0));
 + (nullable instancetype)imageWithPrivateSystemSymbolName:(NSString *)name variableValue:(double)value API_AVAILABLE(macos(13.0));
 + (nullable instancetype)imageWithPrivateSystemSymbolName:(NSString *)name variableValue:(double)value accessibilityDescription:(nullable NSString *)description API_AVAILABLE(macos(13.0));
 @end
