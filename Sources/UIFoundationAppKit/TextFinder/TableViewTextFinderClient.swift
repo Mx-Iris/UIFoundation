@@ -10,12 +10,15 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
     public weak var tableView: NSTableView?
 
     public weak var dataSource: TableViewTextFinderDataSource? {
-        didSet { rebuildIndex() }
+        didSet { invalidateIndex() }
     }
 
     public let textFinder = NSTextFinder()
 
-    let indexStore = TextIndexStore()
+    /// Active index storage. Materialized per-cell tokens by default; a
+    /// run-length compressed layout when the data source implements
+    /// `textFinderClient(_:searchStringLengthsForRow:)`.
+    var indexStorage: any TextFinderIndexStorage = TextIndexStore()
 
     // MARK: - TextKit 2 Stack (shared, reused for highlight rect calculation)
 
@@ -33,8 +36,13 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
     // MARK: - Incremental Indexing
 
     /// Number of rows whose strings are gathered per main-actor chunk before
-    /// yielding back to the run loop.
-    private static let indexingChunkRowCount = 2048
+    /// yielding back to the run loop (materialized path).
+    private static let materializedIndexingChunkRowCount = 2048
+
+    /// Number of rows whose search-string lengths are gathered per main-actor
+    /// chunk (run-length path). Much larger than the materialized chunk size
+    /// because length callbacks are O(1) with no string work.
+    private static let lengthsIndexingChunkRowCount = 65536
 
     /// Single-slot cancel-replace task that gathers cell strings on the main
     /// actor in fixed-size chunks.
@@ -48,6 +56,12 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
     /// Accessed only on the main thread.
     private var indexingGeneration: UInt = 0
 
+    /// `true` while the index no longer reflects the table content. Set by
+    /// `invalidateIndex()`, cleared when a rebuild is kicked off. The rebuild
+    /// itself is deferred until the next find interaction so that consumers
+    /// who never use the find bar never pay for index construction.
+    private(set) var indexIsDirty = true
+
     // MARK: - Initialization
 
     public init(tableView: NSTableView) {
@@ -56,7 +70,6 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
         textFinder.client = self
         textFinder.findBarContainer = tableView.enclosingScrollView
         setupTextKit()
-        rebuildIndex()
     }
 
     private func setupTextKit() {
@@ -68,9 +81,44 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
 
     // MARK: - Index Management
 
-    /// Rebuild the entire index from scratch. Call after data changes.
+    /// Mark the index stale after a data change. The expensive rebuild is
+    /// deferred until the next find interaction (`performTextFinderAction(_:)`
+    /// or `prepareIndexIfNeeded()`) — except when the find bar is currently
+    /// visible, in which case the index rebuilds immediately so on-screen
+    /// search results stay live.
     public func invalidateIndex() {
+        // Bump generation so any in-flight indexing task discards its results.
+        indexingGeneration &+= 1
+        indexingTask?.cancel()
+        indexingTask = nil
+
+        // Clear immediately so NSTextFinder sees an empty string until the
+        // next rebuild lands.
+        textFinder.noteClientStringWillChange()
+        indexStorage = TextIndexStore()
+        currentMatchRange = NSRange(location: 0, length: 0)
+        indexIsDirty = true
+
+        if let findBarContainer = textFinder.findBarContainer, findBarContainer.isFindBarVisible {
+            rebuildIndex()
+        }
+    }
+
+    /// Rebuild the index now if it is stale. Called automatically by
+    /// `performTextFinderAction(_:)`; exposed for hosts that drive
+    /// `textFinder` directly.
+    public func prepareIndexIfNeeded() {
+        guard indexIsDirty else { return }
         rebuildIndex()
+    }
+
+    /// Forward a find action to the underlying `NSTextFinder`, rebuilding the
+    /// lazily invalidated index first. Prefer this over calling
+    /// `textFinder.performAction(_:)` directly — the direct call skips the
+    /// lazy rebuild and may search a stale (empty) document.
+    public func performTextFinderAction(_ action: NSTextFinder.Action) {
+        prepareIndexIfNeeded()
+        textFinder.performAction(action)
     }
 
     func rebuildIndex() {
@@ -78,11 +126,12 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
         indexingGeneration &+= 1
         let generation = indexingGeneration
         indexingTask?.cancel()
+        indexIsDirty = false
 
         // Clear immediately so NSTextFinder sees an empty string while
         // the chunked index is being rebuilt.
         textFinder.noteClientStringWillChange()
-        indexStore.removeAll()
+        indexStorage = TextIndexStore()
         currentMatchRange = NSRange(location: 0, length: 0)
 
         guard let tableView, let dataSource else { return }
@@ -98,6 +147,49 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
         // tokens). Yielding between fixed-size chunks keeps large tables from
         // stalling the run loop.
         indexingTask = Task { @MainActor [weak self] in
+            // Fast path: run-length index built from data-source-provided
+            // string lengths — no cell strings are materialized. A `nil` from
+            // any row opts out and falls back to the materialized build.
+            var probedFirstRowLengths: [Int]?
+            do {
+                guard let self, !Task.isCancelled, self.indexingGeneration == generation else { return }
+                probedFirstRowLengths = self.dataSource?.textFinderClient(self, searchStringLengthsForRow: 0)
+            }
+
+            var lengthsPathFailed = false
+            if let firstRowLengths = probedFirstRowLengths, firstRowLengths.count == numberOfColumns {
+                var runLengthBuilder = RunLengthTextIndexStore.Builder()
+                runLengthBuilder.appendRow(columnLengths: firstRowLengths)
+
+                var rowIndex = 1
+                lengthsGatheringLoop: while rowIndex < numberOfRows {
+                    guard let self, !Task.isCancelled, self.indexingGeneration == generation,
+                          let dataSource = self.dataSource,
+                          self.tableView?.numberOfRows == numberOfRows else { return }
+                    let chunkUpperBound = min(rowIndex + Self.lengthsIndexingChunkRowCount, numberOfRows)
+                    while rowIndex < chunkUpperBound {
+                        guard let columnLengths = dataSource.textFinderClient(self, searchStringLengthsForRow: rowIndex),
+                              columnLengths.count == numberOfColumns else {
+                            lengthsPathFailed = true
+                            break lengthsGatheringLoop
+                        }
+                        runLengthBuilder.appendRow(columnLengths: columnLengths)
+                        rowIndex += 1
+                    }
+                    await Task.yield()
+                }
+
+                if !lengthsPathFailed {
+                    guard let self, !Task.isCancelled, self.indexingGeneration == generation else { return }
+                    let builtStorage = runLengthBuilder.build { [weak self] row, column in
+                        guard let self else { return "" }
+                        return self.resolveString(forRow: row, column: column)
+                    }
+                    self.finishRebuild(installing: builtStorage)
+                    return
+                }
+            }
+
             var tokenStrings: [(row: Int, column: Int, string: String)] = []
             tokenStrings.reserveCapacity(numberOfRows * numberOfColumns)
 
@@ -106,7 +198,7 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
                 guard let self, !Task.isCancelled, self.indexingGeneration == generation,
                       let dataSource = self.dataSource,
                       self.tableView?.numberOfRows == numberOfRows else { return }
-                let chunkUpperBound = min(rowIndex + Self.indexingChunkRowCount, numberOfRows)
+                let chunkUpperBound = min(rowIndex + Self.materializedIndexingChunkRowCount, numberOfRows)
                 while rowIndex < chunkUpperBound {
                     for columnIndex in 0 ..< numberOfColumns {
                         let string = dataSource.textFinderClient(self, stringForRow: rowIndex, column: columnIndex) ?? ""
@@ -118,22 +210,28 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
             }
 
             guard let self, !Task.isCancelled, self.indexingGeneration == generation else { return }
-            self.textFinder.noteClientStringWillChange()
-            self.indexStore.removeAll()
+            let materializedStore = TextIndexStore()
             for tokenString in tokenStrings {
-                self.indexStore.appendToken(
+                materializedStore.appendToken(
                     row: tokenString.row,
                     column: tokenString.column,
                     string: tokenString.string
                 )
             }
-            // If the find bar is visible, re-trigger search so the user
-            // sees results immediately instead of a stale "Not Found".
-            if self.indexStore.totalLength > 0,
-               let findBarContainer = self.textFinder.findBarContainer,
-               findBarContainer.isFindBarVisible {
-                self.textFinder.performAction(.nextMatch)
-            }
+            self.finishRebuild(installing: materializedStore)
+        }
+    }
+
+    /// Install a freshly built index and, if the find bar is visible,
+    /// re-trigger the search so the user sees results immediately instead of
+    /// a stale "Not Found".
+    private func finishRebuild(installing storage: any TextFinderIndexStorage) {
+        textFinder.noteClientStringWillChange()
+        indexStorage = storage
+        if indexStorage.totalLength > 0,
+           let findBarContainer = textFinder.findBarContainer,
+           findBarContainer.isFindBarVisible {
+            textFinder.performAction(.nextMatch)
         }
     }
 
@@ -165,7 +263,7 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
     public var isSelectable: Bool { false }
 
     public func string(at characterIndex: Int, effectiveRange outRange: NSRangePointer, endsWithSearchBoundary outFlag: UnsafeMutablePointer<ObjCBool>) -> String {
-        let token = indexStore.token(at: characterIndex)
+        let token = indexStorage.token(at: characterIndex)
         let range = NSRange(location: token.globalIndex, length: token.string.utf16.count)
         outRange.pointee = range
         outFlag.pointee = true
@@ -173,12 +271,12 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
     }
 
     public func stringLength() -> Int {
-        indexStore.totalLength
+        indexStorage.totalLength
     }
 
     public var firstSelectedRange: NSRange {
-        guard currentMatchRange.location <= indexStore.totalLength,
-              NSMaxRange(currentMatchRange) <= indexStore.totalLength else {
+        guard currentMatchRange.location <= indexStorage.totalLength,
+              NSMaxRange(currentMatchRange) <= indexStorage.totalLength else {
             return NSRange(location: 0, length: 0)
         }
         return currentMatchRange
@@ -192,12 +290,12 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
         // current match instead of rematching it.
         currentMatchRange = range
         guard let tableView else { return }
-        let token = indexStore.token(at: range.location)
+        let token = indexStorage.token(at: range.location)
         tableView.scrollRowToVisible(token.row)
     }
 
     public func contentView(at index: Int, effectiveCharacterRange outRange: NSRangePointer) -> NSView {
-        let token = indexStore.token(at: index)
+        let token = indexStorage.token(at: index)
         outRange.pointee = NSRange(location: token.globalIndex, length: token.string.utf16.count)
         return resolveTextField(for: token) ?? NSView()
     }
@@ -217,7 +315,7 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
     // MARK: - NSTextFinderClient — Highlight Rects
 
     public func rects(forCharacterRange range: NSRange) -> [NSValue]? {
-        let token = indexStore.token(at: range.location)
+        let token = indexStorage.token(at: range.location)
         let localLocation = range.location - token.globalIndex
         let localRange = NSRange(location: localLocation, length: range.length)
         guard let textField = resolveTextField(for: token) else { return nil }
@@ -225,7 +323,7 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
     }
 
     public func drawCharacters(in range: NSRange, forContentView view: NSView) {
-        let token = indexStore.token(at: range.location)
+        let token = indexStorage.token(at: range.location)
         let localLocation = range.location - token.globalIndex
         let localRange = NSRange(location: localLocation, length: range.length)
         guard let textRange = makeTextRange(from: localRange),

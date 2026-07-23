@@ -10,7 +10,7 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
     public weak var outlineView: NSOutlineView?
 
     public weak var dataSource: OutlineViewTextFinderDataSource? {
-        didSet { rebuildIndex() }
+        didSet { invalidateIndex() }
     }
 
     public let textFinder = NSTextFinder()
@@ -44,6 +44,10 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
     /// yielding back to the run loop.
     private static let indexingChunkRowCount = 2048
 
+    /// Number of collapsed subtrees indexed per main-actor chunk during
+    /// `.all`-scope builds before yielding back to the run loop.
+    private static let collapsedSubtreeChunkCount = 64
+
     /// Single-slot cancel-replace task that gathers cell strings on the main
     /// actor in fixed-size chunks.
     private var indexingTask: Task<Void, Never>?
@@ -55,6 +59,13 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
     /// Monotonically increasing counter used to discard stale indexing work.
     /// Accessed only on the main thread.
     private var indexingGeneration: UInt = 0
+
+    /// `true` while the index no longer reflects the outline content. Set by
+    /// `invalidateIndex()`, cleared when a rebuild is kicked off. The rebuild
+    /// itself is deferred until the next find interaction so that consumers
+    /// who never use the find bar never pay for index construction — expand /
+    /// collapse notifications in particular become cheap invalidation marks.
+    private(set) var indexIsDirty = true
 
     // MARK: - Notifications
 
@@ -71,7 +82,6 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
         textFinder.findBarContainer = outlineView.enclosingScrollView
         setupTextKit()
         observeExpandCollapse()
-        rebuildIndex()
     }
 
     deinit {
@@ -106,8 +116,46 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
 
     // MARK: - Index Management
 
+    /// Mark the index stale after a data or expand-state change. The
+    /// expensive rebuild is deferred until the next find interaction
+    /// (`performTextFinderAction(_:)` or `prepareIndexIfNeeded()`) — except
+    /// when the find bar is currently visible, in which case the index
+    /// rebuilds immediately so on-screen search results stay live.
     public func invalidateIndex() {
+        // Bump generation so any in-flight indexing task discards its results.
+        indexingGeneration &+= 1
+        indexingTask?.cancel()
+        indexingTask = nil
+
+        // Clear immediately so NSTextFinder sees an empty string until the
+        // next rebuild lands.
+        textFinder.noteClientStringWillChange()
+        indexStore.removeAll()
+        indexedCollapsedItems.removeAll()
+        pendingCollapsedItems.removeAll()
+        currentMatchRange = NSRange(location: 0, length: 0)
+        indexIsDirty = true
+
+        if let findBarContainer = textFinder.findBarContainer, findBarContainer.isFindBarVisible {
+            rebuildIndex()
+        }
+    }
+
+    /// Rebuild the index now if it is stale. Called automatically by
+    /// `performTextFinderAction(_:)`; exposed for hosts that drive
+    /// `textFinder` directly.
+    public func prepareIndexIfNeeded() {
+        guard indexIsDirty else { return }
         rebuildIndex()
+    }
+
+    /// Forward a find action to the underlying `NSTextFinder`, rebuilding the
+    /// lazily invalidated index first. Prefer this over calling
+    /// `textFinder.performAction(_:)` directly — the direct call skips the
+    /// lazy rebuild and may search a stale (empty) document.
+    public func performTextFinderAction(_ action: NSTextFinder.Action) {
+        prepareIndexIfNeeded()
+        textFinder.performAction(action)
     }
 
     func rebuildIndex() {
@@ -115,6 +163,7 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
         indexingGeneration &+= 1
         let generation = indexingGeneration
         indexingTask?.cancel()
+        indexIsDirty = false
 
         // Clear immediately so NSTextFinder sees an empty string while
         // the chunked index is being rebuilt.
@@ -180,54 +229,45 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
                 await Task.yield()
             }
 
-            guard let self, !Task.isCancelled, self.indexingGeneration == generation else { return }
-            self.textFinder.noteClientStringWillChange()
-            self.indexStore.removeAll()
-            for token in tokenData {
-                self.indexStore.appendToken(
-                    row: token.row,
-                    column: token.column,
-                    string: token.string,
-                    item: token.item
-                )
+            do {
+                guard let self, !Task.isCancelled, self.indexingGeneration == generation else { return }
+                self.textFinder.noteClientStringWillChange()
+                self.indexStore.removeAll()
+                for token in tokenData {
+                    self.indexStore.appendToken(
+                        row: token.row,
+                        column: token.column,
+                        string: token.string,
+                        item: token.item
+                    )
+                }
+                self.pendingCollapsedItems = collapsedItems
             }
-            self.pendingCollapsedItems = collapsedItems
 
+            // Full-tree scope: index collapsed subtrees in fixed-size chunks,
+            // yielding between chunks so deep trees do not stall the run loop.
             if capturedSearchScope == .all {
-                self.indexAllCollapsedSubtrees(numberOfColumns: numberOfColumns)
+                var processedSubtreeCount = 0
+                while true {
+                    guard let self, !Task.isCancelled, self.indexingGeneration == generation else { return }
+                    guard !self.pendingCollapsedItems.isEmpty else { break }
+                    self.textFinder.noteClientStringWillChange()
+                    self.indexNextCollapsedSubtree(numberOfColumns: numberOfColumns)
+                    processedSubtreeCount += 1
+                    if processedSubtreeCount.isMultiple(of: Self.collapsedSubtreeChunkCount) {
+                        await Task.yield()
+                    }
+                }
             }
 
             // If the find bar is visible, re-trigger search so the user
             // sees results immediately instead of a stale "Not Found".
+            guard let self, !Task.isCancelled, self.indexingGeneration == generation else { return }
             if self.indexStore.totalLength > 0,
                let findBarContainer = self.textFinder.findBarContainer,
                findBarContainer.isFindBarVisible {
                 self.textFinder.performAction(.nextMatch)
             }
-        }
-    }
-
-    func indexRow(_ row: Int, item: Any?, numberOfColumns: Int) {
-        guard let outlineView else { return }
-        for columnIndex in 0 ..< numberOfColumns {
-            let cellString = resolveString(forItem: item, row: row, column: columnIndex)
-            indexStore.appendToken(
-                row: row,
-                column: columnIndex,
-                string: cellString,
-                item: item
-            )
-        }
-
-        // Track collapsed items with children for potential on-demand indexing
-        if let item, outlineView.isExpandable(item), !outlineView.isItemExpanded(item) {
-            pendingCollapsedItems.append(item)
-        }
-    }
-
-    func indexAllCollapsedSubtrees(numberOfColumns: Int) {
-        while !pendingCollapsedItems.isEmpty {
-            indexNextCollapsedSubtree(numberOfColumns: numberOfColumns)
         }
     }
 

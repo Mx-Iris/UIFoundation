@@ -140,7 +140,7 @@ class TextFinderDemoViewController: NSViewController {
         } else {
             tag = NSTextFinder.Action.showFindInterface.rawValue
         }
-        textFinderClient.textFinder.performAction(NSTextFinder.Action(rawValue: tag) ?? .showFindInterface)
+        textFinderClient.performTextFinderAction(NSTextFinder.Action(rawValue: tag) ?? .showFindInterface)
     }
 }
 

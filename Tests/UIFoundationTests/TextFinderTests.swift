@@ -251,4 +251,128 @@ struct OutlineViewSearchScopeTests {
     }
 }
 
+@Suite("RunLengthTextIndexStore")
+struct RunLengthTextIndexStoreTests {
+
+    /// Reference strings whose UTF-16 lengths drive the builder; the provider
+    /// serves them back so token strings can be checked verbatim.
+    private static func makeStore(rows: [[String]]) -> RunLengthTextIndexStore {
+        var builder = RunLengthTextIndexStore.Builder()
+        for row in rows {
+            builder.appendRow(columnLengths: row.map { $0.utf16.count })
+        }
+        return builder.build { rowIndex, columnIndex in
+            rows[rowIndex][columnIndex]
+        }
+    }
+
+    @Test("Uniform rows collapse into a single run with correct positions")
+    func uniformRowsSingleRun() {
+        let rows = [
+            ["ab", "cde"],
+            ["fg", "hij"],
+            ["kl", "mno"],
+        ]
+        let store = Self.makeStore(rows: rows)
+        #expect(store.totalLength == 15)
+
+        let firstToken = store.token(at: 0)
+        #expect(firstToken.row == 0)
+        #expect(firstToken.column == 0)
+        #expect(firstToken.globalIndex == 0)
+        #expect(firstToken.string == "ab")
+
+        // Character 7 = second row (starts at 5), offset 2 → column 1 (starts at 7).
+        let middleToken = store.token(at: 7)
+        #expect(middleToken.row == 1)
+        #expect(middleToken.column == 1)
+        #expect(middleToken.globalIndex == 7)
+        #expect(middleToken.string == "hij")
+
+        let lastToken = store.token(at: 14)
+        #expect(lastToken.row == 2)
+        #expect(lastToken.column == 1)
+        #expect(lastToken.globalIndex == 12)
+        #expect(lastToken.string == "mno")
+    }
+
+    @Test("A shorter final row starts a second run")
+    func shorterFinalRowStartsNewRun() {
+        let rows = [
+            ["aaaa", "bbbb"],
+            ["cccc", "dddd"],
+            ["ee", ""],
+        ]
+        let store = Self.makeStore(rows: rows)
+        #expect(store.totalLength == 18)
+
+        let finalRowToken = store.token(at: 17)
+        #expect(finalRowToken.row == 2)
+        #expect(finalRowToken.column == 0)
+        #expect(finalRowToken.globalIndex == 16)
+        #expect(finalRowToken.string == "ee")
+    }
+
+    @Test("Zero-length columns are skipped when resolving the containing cell")
+    func zeroLengthColumnsAreSkipped() {
+        let rows = [
+            ["", "abcd"],
+            ["", "efgh"],
+        ]
+        let store = Self.makeStore(rows: rows)
+        #expect(store.totalLength == 8)
+
+        let token = store.token(at: 4)
+        #expect(token.row == 1)
+        #expect(token.column == 1)
+        #expect(token.globalIndex == 4)
+        #expect(token.string == "efgh")
+    }
+
+    @Test("Rows with zero total length own no characters and break run contiguity")
+    func zeroLengthRowsAreSkipped() {
+        let rows = [
+            ["ab", "cd"],
+            ["", ""],
+            ["ef", "gh"],
+        ]
+        let store = Self.makeStore(rows: rows)
+        #expect(store.totalLength == 8)
+
+        let beforeGapToken = store.token(at: 3)
+        #expect(beforeGapToken.row == 0)
+        #expect(beforeGapToken.column == 1)
+        #expect(beforeGapToken.string == "cd")
+
+        let afterGapToken = store.token(at: 4)
+        #expect(afterGapToken.row == 2)
+        #expect(afterGapToken.column == 0)
+        #expect(afterGapToken.globalIndex == 4)
+        #expect(afterGapToken.string == "ef")
+    }
+
+    @Test("UTF-16 lengths drive positions for non-ASCII content")
+    func utf16LengthsDrivePositions() {
+        let rows = [
+            ["héllo", "🌍"],
+            ["wörld", "🚀"],
+        ]
+        let store = Self.makeStore(rows: rows)
+        // "héllo" = 5 UTF-16 units, "🌍" = 2 (surrogate pair) → 7 per row.
+        #expect(store.totalLength == 14)
+
+        let emojiToken = store.token(at: 5)
+        #expect(emojiToken.row == 0)
+        #expect(emojiToken.column == 1)
+        #expect(emojiToken.globalIndex == 5)
+        #expect(emojiToken.string == "🌍")
+
+        let secondRowToken = store.token(at: 7)
+        #expect(secondRowToken.row == 1)
+        #expect(secondRowToken.column == 0)
+        #expect(secondRowToken.globalIndex == 7)
+        #expect(secondRowToken.string == "wörld")
+    }
+}
+
 #endif

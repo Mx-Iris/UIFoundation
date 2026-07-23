@@ -2,8 +2,19 @@
 
 import AppKit
 
+/// Abstraction over the character-index → cell mapping consumed by the
+/// `NSTextFinderClient` methods of the text finder clients. Implemented by
+/// `TextIndexStore` (materialized per-cell tokens) and
+/// `RunLengthTextIndexStore` (length-only compressed layout with on-demand
+/// string materialization).
 @available(macOS 12.0, *)
-class TextIndexStore {
+protocol TextFinderIndexStorage: AnyObject {
+    var totalLength: Int { get }
+    func token(at characterIndex: Int) -> TextIndexStore.Token
+}
+
+@available(macOS 12.0, *)
+class TextIndexStore: TextFinderIndexStorage {
 
     struct Token {
         let row: Int
