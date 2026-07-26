@@ -118,7 +118,7 @@ final class TabBarDemoViewController: NSViewController {
     /// ⌘T and ⌘W. Both reach this demo wherever the focus is, because the browser's split view
     /// controller nominates it — see `DemoBrowserSplitViewController.supplementalTarget(forAction:sender:)`.
     /// Closing the last tab hands `performClose(_:)` back to the window, the way Safari does.
-    @objc func newTab(_ sender: Any?) {
+    @IBAction func newTab(_ sender: Any?) {
         addTab(sender)
     }
 
