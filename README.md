@@ -211,6 +211,28 @@ tabBar.reloadTabs()
 
 See [`Documentations/TabBar.md`](Documentations/TabBar.md) for the full guide — the data source and delegate, how items are matched across a reload, which side owns the selection, and the stacking and scrolling models.
 
+### System HUD
+
+Enable the `SystemHUD` trait for the volume-HUD-shaped floating panel — a vibrancy backdrop with an optional glyph above a single line of text:
+
+```swift
+.package(
+    url: "https://github.com/Mx-Iris/UIFoundation",
+    from: "0.13.0",
+    traits: ["SystemHUD"]
+)
+```
+
+```swift
+SystemHUD.default.configuration.image = NSImage(named: "Build")
+SystemHUD.default.configuration.title = "Build Succeeded"
+SystemHUD.default.show(delay: 1.0)
+```
+
+The panel sizes itself to its content — never below `minimumSize`, never wider than the screen, truncating an over-long title instead — and re-centres on the active screen every time it is shown. It ignores mouse events and shows over full-screen windows, so it is safe to raise from anywhere. Showing again during the fade-out stops that fade and restores full opacity.
+
+See [`Documentations/SystemHUD.md`](Documentations/SystemHUD.md) for the full guide.
+
 ### Cross-Platform Typealias
 
 `UIFoundationTypealias` provides `NSUI`-prefixed aliases (`NSUIView`, `NSUIColor`, `NSUIFont`, etc.) enabling cross-platform code without `#if canImport` branching:

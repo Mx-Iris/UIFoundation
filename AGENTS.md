@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+This file provides guidance to coding agents when working with code in this repository.
 
 ## Overview
 
@@ -368,6 +368,36 @@ Differences from upstream `hexedbits/StatusItemController`:
 
 Files: `Sources/UIFoundationAppKit/StatusItemController/StatusItemController.swift` + `StatusItemController+Helpers.swift`. Licensed under MIT; see `THIRD_PARTY_LICENSES.md` for the full attribution.
 
+### System HUD (ported from `Mx-Iris/SystemHUD`)
+
+The volume-HUD-shaped floating panel for macOS: a vibrancy backdrop hosting an optional glyph above a single line of text, shown below the centre of the active screen and faded out after a delay. Ships as an **opt-in SPM trait** called `SystemHUD` (default: disabled), mirroring the `TabBar` / `QuickActionBar` / `StatusItemController` pattern:
+
+```swift
+.package(url: "…/UIFoundation", traits: ["SystemHUD"])   // SPM dependency
+swift build --traits SystemHUD                           // CLI
+```
+
+```swift
+SystemHUD.default.configuration.image = NSImage(named: "Build")
+SystemHUD.default.configuration.title = "Build Succeeded"
+SystemHUD.default.show(delay: 1.0)
+```
+
+Wiring:
+- `traits: [..., .trait(name: "SystemHUD")]` in `Package.swift`
+- Every source file under `Sources/UIFoundationAppKit/SystemHUD/**/*.swift` is wrapped in `#if SystemHUD && os(macOS) … #endif`
+- No resources, ObjC headers, or external dependencies — pure AppKit
+
+Public API surface (one top-level symbol): `SystemHUD` (`@MainActor public final class`) with `default`, `init(configuration:)`, `configuration`, and `show(delay:)`. `SystemHUD.Configuration` carries `image` / `imageSpacing` / `title` / `titleFontSize` / `titleFontWeight` / `titleColor` / `titleAlignment` / `offset` / `minimumSize` / `contentInsets` / `cornerRadius` / `dismissAnimationDuration`. The internal `ContentView` (an `NSVisualEffectView` subclass), `Window`, and `AlphaAnimation` are nested under `SystemHUD`.
+
+**Sizing contract.** The panel measures its content and clamps: never below `minimumSize` (default 200 × 200), never wider than the visible screen width less a 20 pt margin per side — an over-long title truncates at the tail instead of running the panel off the display. Both size and origin are recomputed on **every** `show(delay:)` and on every `configuration` assignment, against `NSScreen.main`, so a long-lived HUD follows the user between displays. `offset` moves the content inside the panel (positive `y` = up), not the panel itself.
+
+**Fade contract.** `show(delay:)` schedules a one-shot `Timer` in `.common` run loop mode (so a HUD raised during menu tracking still dismisses). The fade itself is the upstream implementation, kept deliberately: `SystemHUD.AlphaAnimation`, an `NSAnimation` subclass that maps `currentProgress` onto `window.alphaValue`, started `.nonblocking` on an ease-in curve. A `show` during a fade calls `stop()` on the in-flight animation and resets `alphaValue` to 1. The panel is left ordered in at zero opacity rather than ordered out (it ignores mouse events, so it costs nothing). There is no public `dismiss()`. **Do not replace this with `NSAnimationContext`** — the timing was matched to the original and a swap changes the feel.
+
+Differences from the original `Mx-Iris/SystemHUD` package: internal types nested under `SystemHUD` (`ContentView` / `Window` / `AlphaAnimation`); `dismissAnimateDuration` renamed to `dismissAnimationDuration`; `minimumSize` / `contentInsets` / `cornerRadius` added (the corner radius was hard-coded to 15); the fixed 200 × 200 window and init-time-only positioning replaced by the sizing contract above; corners rounded with `NSVisualEffectView.maskImage` instead of `layer.cornerRadius` (the mask also clips the backdrop material); `ignoresMouseEvents = true` and `collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]` added; the dismiss timer moved to `.common` run loop mode; the content layout guide is now sized explicitly (the original had no width constraint and a reversed pair of `lessThanOrEqualTo` title constraints).
+
+**Full guide:** `Documentations/SystemHUD.md`.
+
 ### Custom Tooltip (`UIFoundationAppleInternal/Tooltip/`)
 
 macOS-only customizable replacement for the `NSToolTipManager` pipeline. Lives in `UIFoundationAppleInternal` (private API; not App-Store-safe). No SPM trait — this ships unconditionally with the `AppleInternal` trait.
@@ -408,13 +438,13 @@ Structure under `UIFoundationExample-macOS/UIFoundationExample-macOS/`:
 - `AppDelegate.swift` — builds a `DemoBrowserWindowController` on launch; nothing else.
 - `Browser/` — `DemoBrowserWindowController` (code-built `NSWindow`), `DemoBrowserSplitViewController` (sidebar + `DemoDetailViewController`), `DemoSidebarViewController` (source-list `NSOutlineView`; items are a private `SidebarNode` reference type because `NSOutlineView` needs stable item identity).
 - `Catalog/` — `Demo` (a value type: `title` / `category` / `summary` / `minimumMacOS` / `makeViewController`) and `DemoCatalog.all` (the registry) + `DemoCatalog.grouped`.
-- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `CustomTooltipDemoViewController`).
+- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `CustomTooltipDemoViewController`).
 
 **To add a demo:** drop a new `NSViewController` file under `Demos/` and append one `Demo` to `DemoCatalog.all`. Nothing else changes.
 
 Two project facts that make this work (and matter when extending it):
 - The Xcode project's app source group is a **file-system-synchronized group** (`PBXFileSystemSynchronizedRootGroup`, Xcode 16+). Any file added under the app folder is auto-included in the target — **no `project.pbxproj` edits needed** to add/move/delete demos.
-- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabBar` is enabled alongside `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder`); otherwise the control's symbols won't be compiled into the package and the demo won't link.
+- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabBar` and `SystemHUD` are enabled alongside `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder`); otherwise the control's symbols won't be compiled into the package and the demo won't link.
 
 Build the example from the command line with `xcodebuild -project UIFoundationExample-macOS/UIFoundationExample-macOS.xcodeproj -scheme UIFoundationExample-macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build 2>&1 | xcsift`.
 
