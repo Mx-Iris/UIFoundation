@@ -349,6 +349,9 @@
 				FilterUI,
 				IDEIcons,
 				NSAttributedStringBuilder,
+				QuickActionBar,
+				StatusItemController,
+				SystemHUD,
 				TabBar,
 			);
 		};

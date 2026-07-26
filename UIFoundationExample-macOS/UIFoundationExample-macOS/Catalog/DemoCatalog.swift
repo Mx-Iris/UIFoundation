@@ -39,6 +39,12 @@ enum DemoCatalog {
             makeViewController: { TextFinderDemoViewController() }
         ),
         Demo(
+            title: "System HUD",
+            category: "Controls",
+            summary: "The volume-HUD-shaped floating panel — live glyph / title / geometry editing, plus the over-long-title and interrupted-fade cases.",
+            makeViewController: { SystemHUDDemoViewController() }
+        ),
+        Demo(
             title: "Custom Tooltip",
             category: "AppKit Private",
             summary: "CustomToolTipManager playground — live color/slider editing, per-view override, plus an unmodified system control for visual comparison.",
