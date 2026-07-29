@@ -199,6 +199,25 @@ Property wrappers using `_enclosingInstance` subscript: on **get**, calls `loadV
 
 `TableViewProtocol` / `OutlineViewProtocol` provide `scrollableTableView()` / `scrollableSingleColumnOutlineView()` static factories returning `(NSScrollView, Self)` tuples.
 
+### Self-Sizing Row Views
+
+Three classes under `Base/` let a table or a tree size itself to its rows instead of scrolling inside a fixed frame — drop one into a stack view and it reports the height it needs:
+
+- **`SelfSizingScrollView`** (`ScrollView.swift`) — mirrors its document view's intrinsic size, clamped by `minimumContentSize` / `maximumContentSize`. Past the cap the built-in scrollers take over. Useless on its own: the document view has to report an intrinsic size, which is what the other two do.
+- **`SelfSizingTableView`** (`TableView.swift`) — a `SingleColumnTableView` whose intrinsic height is the sum of its rows.
+- **`SelfSizingOutlineView`** (`OutlineView.swift`) — the same for a tree, so it grows and shrinks with every disclosure.
+
+Both row views measure through the same internal `NSTableView.selfSizingRowsContentSize`: an outline view *is* a table view, but the two inherit from different UIFoundation bases, so a shared extension is the only way for them to agree. It reads `rect(ofRow:)` rather than multiplying `rowHeight`, because the first row's `minY` already carries the top inset a `.inset` / `.sourceList` style reserves and the last row's `maxY` already folds in the intercell spacing; the bottom inset is symmetric, so mirroring the top one completes the height. Both also override `invalidateIntrinsicContentSize()` to invalidate the enclosing scroll view — nothing else tells it to ask again.
+
+**A disclosure does not animate, by default and on purpose.** A self-sizing outline view has two things to move at once and AppKit drives only one of them: `expandItem(_:expandChildren:)` slides the new rows in over `NSAnimationContext`'s default 0.25s duration, while the height the view reports travels through Auto Layout on its own schedule. The two timelines never line up, and it reads as a jitter. `SelfSizingOutlineView` wraps the whole disclosure in a zero-duration grouping, which also covers whatever a delegate does from `outlineViewItemDidExpand` — that notification is posted from *inside* the call. `animatesExpansionAndCollapse = true` hands the animation back, which only makes sense when the host's height does not follow the row count.
+
+Two findings behind that implementation, both measured rather than assumed:
+
+- **Overriding `expandItem(_:expandChildren:)` catches every path.** The programmatic `expandItem(_:)` forwards to it, and so does the user clicking the disclosure triangle — that triangle is a real `NSButton` targeting the outline view, and its `_outlineControlClicked:` action routes through the overridable method (verified by clicking it and watching the override run).
+- **`insertRows(at:withAnimation:)` is not an option.** `NSOutlineView` marks it unavailable (`cannot override 'insertRows' which has been marked unavailable`), so the animation options cannot be changed at the row-insertion level.
+
+> **Testing note.** The animation itself is not observable in a test process — with no display, rows land at their final position either way and the row views are not even layer-backed. `SelfSizingRowViewsTests` therefore asserts on the *animation context* the disclosure runs in (`NSAnimationContext.current.duration`, read from the delegate callback), and pairs it with a plain `OutlineView` control that reads 0.25. Without that control the assertion would pass against an implementation that does nothing.
+
 ### NSAttributedStringBuilder (ported from `ethanhuang13/NSAttributedStringBuilder`)
 
 SwiftUI-style `@resultBuilder` for composing `NSAttributedString`. Ships as part of `UIFoundationShared` behind an **opt-in SPM trait** called `NSAttributedStringBuilder` (default: disabled), mirroring the `FilterUI` / `IDEIcons` pattern:
