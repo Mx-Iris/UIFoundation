@@ -120,6 +120,32 @@ A working demo lives at `UIFoundationExample-macOS/UIFoundationExample-macOS/Dem
 - `NSView.shadow` is a stored property on `NSView`; protocol-extension dispatch is shadowed by the class-hierarchy lookup. If you want `view.shadow = nsShadow` to fan out to `shadowColor` / `shadowOffset` / `shadowRadius`, override `shadow` explicitly on the conformer (mirroring `LayerBackgroundRenderer.shadow`).
 - Conformers that already define their own `backgroundColor` (e.g. `NSTextField`, `NSTableView`) will collide with the protocol default. Don't conform those classes — they were never the target of this pipeline.
 
+### Semantic Context (`AppleInternal` trait)
+
+`NSView_Private.h` declares `NSViewSemanticContext` — the private hint that tells AppKit controls
+what surface they sit on. Its most useful value is `NSViewSemanticContextForm`, which produces the
+System Settings grouped-form look: a pop-up button drops its bezel and shrinks to a label plus a
+chevron. There is no public equivalent; SwiftUI's `Form` reaches for this same property.
+
+```objc
+view._semanticContext = NSViewSemanticContextForm;   // whole subtree follows
+```
+
+Three things to know before using it:
+
+- **Inheritance is built in.** `_semanticContext` is a view's own value (`0` = unset);
+  `_effectiveSemanticContext` is what is actually in force after walking up superviews, then the
+  window. Set it once on the container holding a group of controls, not on each control.
+- **It is read at draw time.** Changing it on a live hierarchy needs a redraw. Setting it during
+  view setup needs nothing extra.
+- **Only `Form` is a stable name and number.** It comes from WebKit's SPI header, is macOS 13+, and
+  WebKit still hardcodes it. Every other member name in our enum is ours, recovered from the binary;
+  the numbering has demonstrably shifted across OS releases, so re-verify before relying on one.
+
+Full write-up — the whole enum, the AppKit call site that pins each value, the inheritance
+algorithm, the `NSCell` fallback used when drawing without a view, and how WebKit consumes it:
+[`Researchs/AppKit-NSView-SemanticContext.md`](Researchs/AppKit-NSView-SemanticContext.md).
+
 ### `.box` Namespace Extensions
 
 All extensions on framework types go through the `.box` namespace (from FrameworkToolbox) to avoid naming collisions:
