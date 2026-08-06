@@ -125,7 +125,6 @@ let package = Package(
                 .process("Filter/Resources/MoreSymbols.xcassets"),
                 .process("Filter/Resources/Localization"),
                 .process("Filter/Resources/Documentation.docc"),
-                .copy("TabBar/Templates"),
             ],
             swiftSettings: swiftSettings,
         ),

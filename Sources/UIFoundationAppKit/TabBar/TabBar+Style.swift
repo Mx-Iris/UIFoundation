@@ -123,12 +123,11 @@ extension TabBar {
         /// Title-aware variant of ``iconFrames(tabRect:closePosition:)``, called by ``TabButton``.
         ///
         /// A style that lays the icon out relative to the title — rather than pinning it to a fixed
-        /// slot — needs the same inputs ``titleRect(title:inBounds:showingIcon:showingMenu:closePosition:)``
+        /// slot — needs the same inputs ``titleRect(title:inBounds:showingIcon:closePosition:)``
         /// gets, otherwise the two placements cannot agree. Defaults to discarding the extra context
         /// and calling ``iconFrames(tabRect:closePosition:)``, so classic styles need not implement it.
-        func iconFrames(tabRect rect: NSRect, title: NSAttributedString, showingIcon: Bool, showingMenu: Bool, closePosition: ClosePosition?) -> IconFrames
-        func popupRectWithFrame(_ cellFrame: NSRect, closePosition: ClosePosition?) -> NSRect
-        func titleRect(title: NSAttributedString, inBounds rect: NSRect, showingIcon: Bool, showingMenu: Bool, closePosition: ClosePosition?) -> NSRect
+        func iconFrames(tabRect rect: NSRect, title: NSAttributedString, showingIcon: Bool, closePosition: ClosePosition?) -> IconFrames
+        func titleRect(title: NSAttributedString, inBounds rect: NSRect, showingIcon: Bool, closePosition: ClosePosition?) -> NSRect
         func titleEditorSettings() -> TitleEditorSettings
         func attributedTitle(content: String, selectionState: SelectionState) -> NSAttributedString
 
@@ -165,7 +164,6 @@ extension TabBar.Style {
         tabRect rect: NSRect,
         title: NSAttributedString,
         showingIcon: Bool,
-        showingMenu: Bool,
         closePosition: TabBar.ClosePosition?
     ) -> TabBar.IconFrames {
         iconFrames(tabRect: rect, closePosition: closePosition)

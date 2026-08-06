@@ -101,14 +101,12 @@ extension TabBar {
             tabRect rect: NSRect,
             title: NSAttributedString,
             showingIcon: Bool,
-            showingMenu: Bool,
             closePosition: ClosePosition?
         ) -> IconFrames {
             let layout = contentLayout(
                 tabRect: rect,
                 title: title,
                 showingIcon: showingIcon,
-                showingMenu: showingMenu,
                 closePosition: closePosition
             )
             // The alternative icon replaces the title outright when it no longer fits, so it is
@@ -126,14 +124,12 @@ extension TabBar {
             title: NSAttributedString,
             inBounds bounds: NSRect,
             showingIcon: Bool,
-            showingMenu: Bool,
             closePosition: ClosePosition?
         ) -> NSRect {
             contentLayout(
                 tabRect: bounds,
                 title: title,
                 showingIcon: showingIcon,
-                showingMenu: showingMenu,
                 closePosition: closePosition
             ).titleFrame
         }
@@ -144,7 +140,6 @@ extension TabBar {
             tabRect rect: NSRect,
             title: NSAttributedString,
             showingIcon: Bool,
-            showingMenu: Bool,
             closePosition: ClosePosition?
         ) -> (iconFrame: NSRect, titleFrame: NSRect) {
             let titleSize = title.size()
@@ -153,10 +148,7 @@ extension TabBar {
             // trailing edge, which is what keeps the system's titles optically centred.
             let reservedSlotWidth = closePosition == nil ? 0.0 : Self.controlSide
             let leadingLimit = rect.minX + Self.edgeInset + reservedSlotWidth
-            var trailingLimit = rect.maxX - Self.edgeInset - reservedSlotWidth
-            if showingMenu {
-                trailingLimit -= popupRectWithFrame(rect, closePosition: closePosition).width + titleMargin
-            }
+            let trailingLimit = rect.maxX - Self.edgeInset - reservedSlotWidth
             let availableWidth = max(0.0, trailingLimit - leadingLimit)
 
             let iconBlockWidth = showingIcon ? Self.controlSide + Self.iconTitleSpacing : 0.0

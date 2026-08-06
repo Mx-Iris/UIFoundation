@@ -65,7 +65,7 @@ extension TabBar.ThemedStyle {
         )
     }
 
-    public func titleRect(title: NSAttributedString, inBounds bounds: NSRect, showingIcon: Bool, showingMenu: Bool, closePosition: TabBar.ClosePosition?) -> NSRect {
+    public func titleRect(title: NSAttributedString, inBounds bounds: NSRect, showingIcon: Bool, closePosition: TabBar.ClosePosition?) -> NSRect {
         let titleSize = title.size()
         let fullWidthRect = NSRect(
             x: bounds.minX,
@@ -74,10 +74,10 @@ extension TabBar.ThemedStyle {
             height: titleSize.height
         )
 
-        return paddedRectForIcon(fullWidthRect, inBounds: bounds, showingIcon: showingIcon, showingMenu: showingMenu, closePosition: closePosition)
+        return paddedRectForIcon(fullWidthRect, inBounds: bounds, showingIcon: showingIcon, closePosition: closePosition)
     }
 
-    private func paddedRectForIcon(_ rect: NSRect, inBounds bounds: NSRect, showingIcon: Bool, showingMenu: Bool, closePosition: TabBar.ClosePosition?) -> NSRect {
+    private func paddedRectForIcon(_ rect: NSRect, inBounds bounds: NSRect, showingIcon: Bool, closePosition: TabBar.ClosePosition?) -> NSRect {
         if !showingIcon, closePosition == nil {
             return rect
         }
@@ -87,17 +87,9 @@ extension TabBar.ThemedStyle {
             let iconRect = iconFrames(tabRect: bounds, closePosition: closePosition).iconFrame
             leftPadding = iconRect.maxX + titleMargin
             if let closePosition, closePosition == .right {
-                if showingMenu {
-                    rightPadding = popupRectWithFrame(bounds, closePosition: .right).width + closeButtonFrame(tabRect: bounds, atPosition: .right).width + titleMargin * 3
-                } else {
-                    rightPadding = closeButtonFrame(tabRect: bounds, atPosition: .right).width + titleMargin * 2
-                }
+                rightPadding = closeButtonFrame(tabRect: bounds, atPosition: .right).width + titleMargin * 2
             } else {
-                if showingMenu {
-                    rightPadding = popupRectWithFrame(bounds, closePosition: closePosition).width + titleMargin * 2
-                } else {
-                    rightPadding = closeButtonFrame(tabRect: bounds, atPosition: .left).width + titleMargin * 2
-                }
+                rightPadding = closeButtonFrame(tabRect: bounds, atPosition: .left).width + titleMargin * 2
             }
         } else if let closePosition {
             let closeButtonFrame = closeButtonFrame(tabRect: bounds, atPosition: closePosition)
@@ -105,15 +97,9 @@ extension TabBar.ThemedStyle {
             case .left:
                 leftPadding = closeButtonFrame.maxX + titleMargin
                 rightPadding = leftPadding
-                if showingMenu {
-                    rightPadding += popupRectWithFrame(bounds, closePosition: closePosition).width + titleMargin
-                }
             case .right:
                 rightPadding = closeButtonFrame.width + titleMargin * 2
                 leftPadding = rightPadding
-                if showingMenu {
-                    rightPadding += popupRectWithFrame(bounds, closePosition: closePosition).width + titleMargin
-                }
             }
         } else {
             return rect
@@ -141,17 +127,6 @@ extension TabBar.ThemedStyle {
                           NSAttributedString.Key.paragraphStyle: paragraphStyle]
 
         return NSAttributedString(string: content, attributes: attributes)
-    }
-
-    public func popupRectWithFrame(_ cellFrame: NSRect, closePosition: TabBar.ClosePosition?) -> NSRect {
-        var popupRect = NSRect.zero
-        popupRect.size = TabButtonCell.popupImage().size
-        if let closePosition, closePosition == .right {
-            popupRect.origin = NSPoint(x: closeButtonFrame(tabRect: cellFrame, atPosition: .right).minX - popupRect.width - 5, y: cellFrame.midY - popupRect.height / 2)
-        } else {
-            popupRect.origin = NSPoint(x: cellFrame.maxX - popupRect.width - 5, y: cellFrame.midY - popupRect.height / 2)
-        }
-        return popupRect
     }
 
     // MARK: Tab Bar

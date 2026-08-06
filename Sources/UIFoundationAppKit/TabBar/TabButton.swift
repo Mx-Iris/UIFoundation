@@ -297,7 +297,6 @@ open class TabButton: NSButton {
             tabRect: tabButtonCell.contentLayoutRect(forBounds: bounds),
             title: style.attributedTitle(content: title, selectionState: tabButtonCell.selectionState),
             showingIcon: tabButtonCell.showsIcon,
-            showingMenu: tabButtonCell.showsMenu,
             closePosition: closePosition
         )
         iconView?.frame = iconFrames.iconFrame

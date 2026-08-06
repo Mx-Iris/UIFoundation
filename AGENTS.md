@@ -354,6 +354,16 @@ host's shortcut closes another, and on a *stacked* bar the disagreement is loud,
 anchors the fold and re-selecting into a pile blows that sliver up to full width. The demo
 (`TabBarDemoViewController`) is wired the host-owned way and logs any disagreement.
 
+**No pull-down affordance.** `tabBar(_:menuForItem:)` supplies a *right-click* menu and nothing more —
+it lands on the tab's `NSView.menu` and AppKit presents it. The tab draws no chevron, reserves no room
+for one, and does not open the menu on a left click. Upstream KPCTabsControl did all three, because
+Numbers' sheet tabs have a real pull-down button; the system bar has no such element, so the whole path
+(`PullDownTemplate.pdf`, `TabButtonCell.popupImage()`, `drawPopupButtonWithFrame`, the `trackMouse`
+override that hit-tested the chevron, `Style.popupRectWithFrame`, the `showingMenu:` parameter on
+`Style.titleRect` / `Style.iconFrames`, and `NSImage.imageWithTint`) was removed. Don't reintroduce a
+`showingMenu` argument to make a custom style "leave space for the menu" — there is nothing to leave
+space for.
+
 **Full guide:** `Documentations/TabBar.md` — API, the three host-facing contracts (item identity,
 selection ownership, what a reload animates), the measured `SystemStyle` geometry, the stacking and
 scrolling models, and the known divergences from the system bar.
@@ -362,7 +372,7 @@ Wiring:
 - `traits: [..., .trait(name: "TabBar")]` in `Package.swift`
 - Every source file under `Sources/UIFoundationAppKit/TabBar/**/*.swift` is wrapped in `#if TabBar && os(macOS) … #endif`
 - macOS-only; the file-level `#if` additionally requires `os(macOS)`, so the trait compiles to nothing on UIKit / Catalyst / tvOS / visionOS / watchOS
-- PDF template glyphs live in `Sources/UIFoundationAppKit/TabBar/Templates/` and are bundled via `.copy("TabBar/Templates")` (always copied, harmless when the trait is off); loaded with `Bundle.module.url(forResource:withExtension:subdirectory:)`
+- No bundled resources, ObjC headers, or external dependencies — pure AppKit. The upstream `Templates/*.pdf` glyphs are all gone; the last survivor (`PullDownTemplate.pdf`) is covered under **No pull-down affordance** below
 - Per the unique-basename rule (see Code Style Notes), feature-scoped files are prefixed `TabBar+…` (e.g. the ported `Helpers.swift` became `TabBar+Geometry.swift`, `Style.swift` → `TabBar+Style.swift`); distinctive names such as `TabButton.swift` / `TabButtonCell.swift` keep their name, and per-class extensions stay `NSClassName+TabBar.swift`
 
 **Namespace convention (key difference from upstream):** to avoid polluting the umbrella module's top-level namespace with generic names, the entire public API is **nested under the `TabBar` class** — Swift ≥ 6.3 (Swift 5 language mode included) permits nesting protocols inside types, which this relies on. Only `TabBar` and `TabButton` stay top-level. Map: `Style`/`ThemedStyle`/`Theme` → `TabBar.Style`/`.ThemedStyle`/`.Theme`; `TabButtonTheme`/`TabBarTheme` → `TabBar.ButtonTheme`/`.ControlTheme`; `TabBarDataSource`/`TabBarDelegate` → `TabBar.DataSource`/`.Delegate`; `TabPosition`/`ClosePosition`/`TabWidth`/`TabSelectionState` → `TabBar.TabPosition`/`.ClosePosition`/`.TabWidth`/`.SelectionState`; `SystemStyle` (+ its theme) → nested; `Offset`/`IconFrames`/`TitleEditorSettings`/`BorderMask`/`TitleDefaults` → nested; the old global `TabBarSelectionDidChangeNotification` string is now `TabBar.selectionDidChangeNotification` (`Notification.Name`). Files whose content is a protocol default-impl extension (`extension TabBar.ThemedStyle`, `extension TabBar.Theme`) are **not** lexically inside `TabBar`, so sibling nested types there must be fully qualified as `TabBar.X`; declaration files using `extension TabBar { … }` resolve short names.

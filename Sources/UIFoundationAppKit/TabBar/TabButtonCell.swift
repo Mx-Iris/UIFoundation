@@ -26,8 +26,6 @@ final class TabButtonCell: NSButtonCell {
 
     var showsIcon: Bool { (controlView as? TabButton)?.icon != nil }
 
-    var showsMenu: Bool { (menu?.items.count ?? 0) > 0 }
-
     var buttonPosition: TabBar.TabPosition = .middle {
         didSet { controlView?.needsDisplay = true }
     }
@@ -85,15 +83,6 @@ final class TabButtonCell: NSButtonCell {
 
     // MARK: - Properties & Rects
 
-    static func popupImage() -> NSImage {
-        guard let url = Bundle.module.url(forResource: "PullDownTemplate", withExtension: "pdf", subdirectory: "Templates"),
-              let image = NSImage(contentsOf: url) else {
-            assertionFailure("TabBar: missing bundled resource PullDownTemplate.pdf")
-            return NSImage()
-        }
-        return image.imageWithTint(NSColor.darkGray)
-    }
-
     func hasRoomToDrawFullTitle(inRect rect: NSRect) -> Bool {
         let title = style.attributedTitle(content: self.title, selectionState: selectionState)
         let requiredMinimumWidth = title.size().width + 2.0 * titleMargin
@@ -104,41 +93,14 @@ final class TabButtonCell: NSButtonCell {
     override func cellSize(forBounds aRect: NSRect) -> NSSize {
         let title = style.attributedTitle(content: self.title, selectionState: selectionState)
         let titleSize = title.size()
-        let popupSize = (menu == nil) ? NSSize.zero : TabButtonCell.popupImage().size
-        let cellSize = NSSize(width: titleSize.width + (popupSize.width * 2) + 36, height: max(titleSize.height, popupSize.height))
+        let cellSize = NSSize(width: titleSize.width + 36, height: titleSize.height)
         controlView?.invalidateIntrinsicContentSize()
         return cellSize
     }
 
-    override func trackMouse(with theEvent: NSEvent,
-                             in cellFrame: NSRect,
-                             of controlView: NSView,
-                             untilMouseUp flag: Bool) -> Bool {
-        if hitTest(
-            for: theEvent,
-            in: controlView.superview!.frame,
-            of: controlView.superview!
-        ) != [] {
-            let popupRect = style.popupRectWithFrame(cellFrame, closePosition: closePosition)
-            let location = controlView.convert(theEvent.locationInWindow, from: nil)
-
-            if (menu?.items.count ?? 0) > 0 && popupRect.contains(location) {
-                menu?.popUp(
-                    positioning: menu!.items.first,
-                    at: NSPoint(x: popupRect.midX, y: popupRect.maxY),
-                    in: controlView
-                )
-
-                return true
-            }
-        }
-
-        return super.trackMouse(with: theEvent, in: cellFrame, of: controlView, untilMouseUp: flag)
-    }
-
     override func titleRect(forBounds theRect: NSRect) -> NSRect {
         let title = style.attributedTitle(content: self.title, selectionState: selectionState)
-        return style.titleRect(title: title, inBounds: theRect, showingIcon: showsIcon, showingMenu: showsMenu, closePosition: closePosition)
+        return style.titleRect(title: title, inBounds: theRect, showingIcon: showsIcon, closePosition: closePosition)
     }
 
     // MARK: - Editing
@@ -210,28 +172,12 @@ final class TabButtonCell: NSButtonCell {
             let title = style.attributedTitle(content: self.title, selectionState: selectionState)
             _ = drawTitle(title, withFrame: contentFrame, in: controlView)
         }
-
-        if showsMenu {
-            drawPopupButtonWithFrame(frame)
-        }
     }
 
     override func drawTitle(_ title: NSAttributedString, withFrame frame: NSRect, in controlView: NSView) -> NSRect {
         let titleRect = self.titleRect(forBounds: frame)
         title.draw(in: titleRect)
         return titleRect
-    }
-
-    fileprivate func drawPopupButtonWithFrame(_ frame: NSRect) {
-        let image = TabButtonCell.popupImage()
-        image.draw(
-            in: style.popupRectWithFrame(frame, closePosition: closePosition),
-            from: .zero,
-            operation: .sourceOver,
-            fraction: 1.0,
-            respectFlipped: true,
-            hints: nil
-        )
     }
 }
 

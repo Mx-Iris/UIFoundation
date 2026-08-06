@@ -78,7 +78,7 @@ Only the first three data-source methods are required.
 | `tabBar(_:itemAtIndex:)` | The item backing a tab — see [3.1](#31-items-are-matched-by-identity-not-position). |
 | `tabBar(_:titleForItem:)` | Tab title. |
 | `tabBar(_:iconForItem:)` | Leading icon. |
-| `tabBar(_:menuForItem:)` | Contextual menu; configure its target and action before returning. |
+| `tabBar(_:menuForItem:)` | Right-click menu; configure its target and action before returning. Assigned to the tab's `NSView.menu`, so AppKit presents it — the tab grows no affordance of its own, matching the system bar. |
 | `tabBar(_:closeIconForItem:)` / `closePositionForItem:` | The close button's image and edge (`.left` matches the system bar). |
 | `tabBar(_:titleAlternativeIconForItem:)` | Drawn in place of a title too narrow to fit. |
 
