@@ -1,0 +1,20 @@
+# UIFoundation 文档索引
+
+跨项目复用的 AppKit 基础组件与基类。**新增或重命名任何文档都必须同步更新这份索引。**
+
+> **项目类型：库（源码分发）**。SPM library product，使用方每次重新编译，无 ABI 约束，
+> 但**源码兼容性必须评估** —— 本库是多个项目的公共底座，一处改动会同时传导到多个下游仓库。
+> 提案见 [`Evolutions/README.md`](Evolutions/README.md)。
+
+## 使用指南
+
+三篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
+**接入任何一个组件前先读对应那篇。**
+
+- [TabBar](TabBar.md) —— 标签栏控件。含三条宿主必须知道的契约：**item 按身份而非位置匹配**、
+  选中态归谁所有、`reloadTabs(animated:)` 到底动画了什么。另有 `SystemStyle` 的几何、
+  堆叠、滚动与批量关闭行为，以及与系统实现的已知偏离。
+- [TextFinder](TextFinder.md) —— 表格与大纲视图的 ⌘F 查找。**含一条踩了就静默出错的契约**：
+  宿主禁止直接调用 `textFinder.performAction(_:)`，必须走 `textFinderClient.performTextFinderAction(_:)`
+  —— 索引是惰性的，直接调会搜到空文档且不报错。另有表格的 run-length 快路径与大纲的外部索引机制。
+- [SystemHUD](SystemHUD.md) —— 系统风格的 HUD 提示。
