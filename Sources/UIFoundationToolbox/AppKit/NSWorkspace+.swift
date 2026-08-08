@@ -157,75 +157,87 @@ extension FrameworkToolbox where Base == NSWorkspace {
 
     // MARK: - Device Symbol Name Map
 
-    /// Maps UTType identifiers to SF Symbol names for device family resolution.
+    /// Maps UTType identifiers to SF Symbol names for device family resolution,
+    /// ordered from the most specific device family to the most general one.
     /// Derived from CoreTypes.bundle UTTypeIcons/UTTypeSymbolName declarations.
-    private static let _deviceSymbolNameMap: [String: String] = [
-        // Mac
-        "com.apple.mac":                        "desktopcomputer",
-        "com.apple.mac.laptop":                 "macbook",
-        "com.apple.mac.notchless-laptop":       "macbook.gen1",
-        "com.apple.mac.notched-laptop":         "macbook.gen2",
-        "com.apple.mac.tower":                  "macpro.gen3",
-        "com.apple.mac.rackmount":              "macpro.gen3.server",
-        "com.apple.macbook":                    "macbook",
-        "com.apple.macbookair":                 "macbook",
-        "com.apple.macbookair.notched":         "macbook.gen2",
-        "com.apple.macbookpro":                 "macbook",
-        "com.apple.macbookpro-2021":            "macbook.gen2",
-        "com.apple.imac":                       "desktopcomputer",
-        "com.apple.imac-2021":                  "desktopcomputer",
-        "com.apple.macmini":                    "macmini",
-        "com.apple.macmini-2020":               "macmini",
-        "com.apple.macstudio":                  "macstudio",
-        "com.apple.macpro":                     "macpro.gen3",
-        "com.apple.macpro-2019":                "macpro.gen3",
-        "com.apple.macpro-2019-rackmount":      "macpro.gen3.server",
-        "com.apple.macpro-cylinder":            "macpro.gen2",
-        "com.apple.macpro-firewire":            "macpro.gen1",
+    ///
+    /// The order is load-bearing. `UTType.supertypes` is an unordered set holding the
+    /// entire ancestor closure, so an iPhone 15 Pro Max conforms to `com.apple.iphone`,
+    /// `com.apple.homebuttonless-iphone` *and* `com.apple.dynamic-island-iphone` at the
+    /// same time, and a notched MacBook Pro conforms to both `com.apple.mac.notched-laptop`
+    /// and `com.apple.mac.notchless-laptop`. Looking those supertypes up in a dictionary
+    /// returns whichever one the set happens to yield first, which silently produces a
+    /// home-button iPhone symbol for a Dynamic Island phone. Walking a fixed order and
+    /// taking the first match instead makes the result deterministic and correct.
+    private static let _orderedDeviceSymbolNames: [(utTypeIdentifier: String, symbolName: String)] = [
+        // iPhone — dynamic island ⊂ home-button-less ⊂ iPhone.
+        ("com.apple.dynamic-island-iphone",     "iphone.gen3"),
+        ("com.apple.iphone-x",                  "iphone.gen2"),
+        ("com.apple.homebuttonless-iphone",     "iphone.gen2"),
+        ("com.apple.iphone-8-plus",             "iphone.gen1"),
+        ("com.apple.iphone-8",                  "iphone.gen1"),
+        ("com.apple.iphone-4",                  "iphone.gen1"),
+        ("com.apple.iphone",                    "iphone.gen1"),
 
-        // iPhone
-        "com.apple.iphone":                     "iphone.gen1",
-        "com.apple.iphone-4":                   "iphone.gen1",
-        "com.apple.iphone-8":                   "iphone.gen1",
-        "com.apple.iphone-8-plus":              "iphone.gen1",
-        "com.apple.homebuttonless-iphone":      "iphone.gen2",
-        "com.apple.iphone-x":                   "iphone.gen2",
-        "com.apple.dynamic-island-iphone":      "iphone.gen3",
+        // iPad — home-button-less ⊂ iPad.
+        ("com.apple.homebuttonless-ipad",       "ipad"),
+        ("com.apple.ipad",                      "ipad.homebutton"),
 
-        // iPad
-        "com.apple.ipad":                       "ipad.homebutton",
-        "com.apple.homebuttonless-ipad":        "ipad",
+        // Mac laptops — notched ⊂ notchless ⊂ laptop.
+        ("com.apple.macbookair.notched",        "macbook.gen2"),
+        ("com.apple.macbookpro-2021",           "macbook.gen2"),
+        ("com.apple.mac.notched-laptop",        "macbook.gen2"),
+        ("com.apple.mac.notchless-laptop",      "macbook.gen1"),
+        ("com.apple.macbookpro",                "macbook"),
+        ("com.apple.macbookair",                "macbook"),
+        ("com.apple.macbook",                   "macbook"),
+        ("com.apple.mac.laptop",                "macbook"),
+
+        // Mac desktops.
+        ("com.apple.macstudio",                 "macstudio"),
+        ("com.apple.macmini-2020",              "macmini"),
+        ("com.apple.macmini",                   "macmini"),
+        ("com.apple.imac-2021",                 "desktopcomputer"),
+        ("com.apple.imac",                      "desktopcomputer"),
+        ("com.apple.macpro-2019-rackmount",     "macpro.gen3.server"),
+        ("com.apple.mac.rackmount",             "macpro.gen3.server"),
+        ("com.apple.macpro-cylinder",           "macpro.gen2"),
+        ("com.apple.macpro-firewire",           "macpro.gen1"),
+        ("com.apple.macpro-2019",               "macpro.gen3"),
+        ("com.apple.mac.tower",                 "macpro.gen3"),
+        ("com.apple.macpro",                    "macpro.gen3"),
+        ("com.apple.mac",                       "desktopcomputer"),
 
         // Apple Watch
-        "com.apple.watch":                      "applewatch",
+        ("com.apple.watch",                     "applewatch"),
 
         // Apple TV
-        "com.apple.apple-tv":                   "appletv",
+        ("com.apple.apple-tv",                  "appletv"),
 
-        // HomePod
-        "com.apple.homepod":                    "homepod",
-        "com.apple.homepod-mini":               "homepodmini",
+        // HomePod — mini ⊂ HomePod.
+        ("com.apple.homepod-mini",              "homepodmini"),
+        ("com.apple.homepod",                   "homepod"),
 
         // Apple Vision Pro
-        "com.apple.visionpro":                  "visionpro",
+        ("com.apple.visionpro",                 "visionpro"),
 
-        // iPod
-        "com.apple.ipod":                       "ipod",
-        "com.apple.ipod-touch":                 "ipodtouch",
-        "com.apple.legacy-ipod":                "ipod",
-        "com.apple.ipod-shuffle":               "ipodshuffle.gen4",
+        // iPod — touch and shuffle ⊂ iPod.
+        ("com.apple.ipod-touch",                "ipodtouch"),
+        ("com.apple.ipod-shuffle",              "ipodshuffle.gen4"),
+        ("com.apple.legacy-ipod",               "ipod"),
+        ("com.apple.ipod",                      "ipod"),
 
-        // AirPods
-        "com.apple.airpods":                    "airpods",
-        "com.apple.airpods-gen3":               "airpods.gen3",
-        "com.apple.airpods-pro":                "airpodspro",
-        "com.apple.airpods-max":                "airpodsmax",
+        // AirPods — Max, Pro and gen 3 ⊂ AirPods.
+        ("com.apple.airpods-max",               "airpodsmax"),
+        ("com.apple.airpods-pro",               "airpodspro"),
+        ("com.apple.airpods-gen3",              "airpods.gen3"),
+        ("com.apple.airpods",                   "airpods"),
 
         // Display
-        "public.display":                       "display",
-        "com.apple.studio-display":             "display",
-        "com.apple.pro-display-xdr":            "display",
-        "com.apple.virtual-machine":            "display",
+        ("com.apple.studio-display",            "display"),
+        ("com.apple.pro-display-xdr",           "display"),
+        ("com.apple.virtual-machine",           "display"),
+        ("public.display",                      "display"),
     ]
 
     /// The tag class for Apple device model codes (e.g., "Mac15,14", "iPhone16,2").
@@ -235,17 +247,26 @@ extension FrameworkToolbox where Base == NSWorkspace {
     /// Loaded directly from CoreTypes.bundle to bypass NSWorkspace's dynamic resolution.
     private static let _fallbackDeviceColorIcon = NSImage(contentsOfFile: "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/com.apple.led-cinema-display-27.icns") ?? NSImage(named: NSImage.computerName)!
 
-    /// Resolves the SF Symbol name for a UTType by walking its supertype chain.
+    /// Resolves the SF Symbol name for a UTType from the type itself and its supertype
+    /// closure, preferring the most specific device family that matches.
     private static func _resolveSymbolName(for type: UTType) -> String? {
-        if let name = _deviceSymbolNameMap[type.identifier] {
-            return name
+        var conformingIdentifiers = Set(type.supertypes.map(\.identifier))
+        conformingIdentifiers.insert(type.identifier)
+        return _orderedDeviceSymbolNames.first { conformingIdentifiers.contains($0.utTypeIdentifier) }?.symbolName
+    }
+
+    /// Resolves a hardware model identifier to its UTType, if the system declares one.
+    ///
+    /// Model identifiers the running OS does not know about — a simulator's host
+    /// architecture (`arm64`, `x86_64`), a VM (`VirtualMac2,1`), or hardware newer than
+    /// this macOS release — resolve to a *dynamic* UTType that carries no icon and no
+    /// supertypes, so those are reported as a miss rather than passed along.
+    private static func _resolveDeclaredType(forModelIdentifier modelIdentifier: String) -> UTType? {
+        guard let type = UTType(tag: modelIdentifier, tagClass: _deviceModelCodeTagClass, conformingTo: nil),
+              type.isDeclared else {
+            return nil
         }
-        for supertype in type.supertypes {
-            if let name = _deviceSymbolNameMap[supertype.identifier] {
-                return name
-            }
-        }
-        return nil
+        return type
     }
 
     /// Returns the full-color device icon for the given hardware model identifier.
@@ -258,13 +279,22 @@ extension FrameworkToolbox where Base == NSWorkspace {
     /// - Parameter modelIdentifier: The hardware model identifier (e.g., "Mac15,14", "iPhone16,2").
     /// - Returns: The device icon, or the current computer icon if the model is not recognized.
     public func deviceIcon(forModelIdentifier modelIdentifier: String) -> NSImage {
-        if let type = UTType(tag: modelIdentifier, tagClass: Self._deviceModelCodeTagClass, conformingTo: nil),
-           type.isDeclared {
-            return base.icon(for: type)
-        }
         // Dynamic (undeclared) types like "VirtualMac2,1" have no icon in CoreTypes.bundle.
         // Fall back to the generic display icon.
-        return Self._fallbackDeviceColorIcon
+        declaredDeviceIcon(forModelIdentifier: modelIdentifier) ?? Self._fallbackDeviceColorIcon
+    }
+
+    /// Returns the full-color device icon for the given hardware model identifier, or
+    /// `nil` when the model is not declared in CoreTypes.bundle.
+    ///
+    /// Unlike ``deviceIcon(forModelIdentifier:)``, which substitutes a generic display
+    /// icon, this reports the miss so callers holding a more appropriate fallback of
+    /// their own — an asset catalog image, an SF Symbol — can supply it instead.
+    ///
+    /// - Parameter modelIdentifier: The hardware model identifier (e.g., "Mac15,14", "iPhone16,2").
+    /// - Returns: The device icon, or `nil` if the model is not recognized.
+    public func declaredDeviceIcon(forModelIdentifier modelIdentifier: String) -> NSImage? {
+        Self._resolveDeclaredType(forModelIdentifier: modelIdentifier).map { base.icon(for: $0) }
     }
 
     /// Returns the SF Symbol name for the given hardware model identifier.
@@ -275,14 +305,24 @@ extension FrameworkToolbox where Base == NSWorkspace {
     /// - Parameter modelIdentifier: The hardware model identifier (e.g., "Mac15,14", "iPhone16,2").
     /// - Returns: The SF Symbol name, or `nil` if no symbol mapping is found.
     public func deviceSymbolName(forModelIdentifier modelIdentifier: String) -> String? {
-        guard let type = UTType(tag: modelIdentifier, tagClass: Self._deviceModelCodeTagClass, conformingTo: nil) else {
-            return nil
-        }
-        return Self._resolveSymbolName(for: type)
+        Self._resolveDeclaredType(forModelIdentifier: modelIdentifier).flatMap(Self._resolveSymbolName(for:))
     }
-    
+
     public func deviceSymbolIcon(forModelIdentifier modelIdentifier: String) -> NSImage {
-        return deviceSymbolName(forModelIdentifier: modelIdentifier).flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) } ?? fallbackIcon
+        declaredDeviceSymbolIcon(forModelIdentifier: modelIdentifier) ?? fallbackIcon
+    }
+
+    /// Returns the SF Symbol device image for the given hardware model identifier, or
+    /// `nil` when the model resolves to no known device family.
+    ///
+    /// The symbol counterpart to ``declaredDeviceIcon(forModelIdentifier:)``: it reports
+    /// the miss instead of substituting a generic desktop computer symbol.
+    ///
+    /// - Parameter modelIdentifier: The hardware model identifier (e.g., "Mac15,14", "iPhone16,2").
+    /// - Returns: The SF Symbol image, or `nil` if the model is not recognized.
+    public func declaredDeviceSymbolIcon(forModelIdentifier modelIdentifier: String) -> NSImage? {
+        deviceSymbolName(forModelIdentifier: modelIdentifier)
+            .flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) }
     }
 
     /// Returns the full-color device icon for a known Apple device family.

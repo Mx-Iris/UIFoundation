@@ -188,6 +188,7 @@ let package = Package(
             name: "UIFoundationTests",
             dependencies: [
                 "UIFoundation",
+                "UIFoundationToolbox",
             ]
         ),
     ],
