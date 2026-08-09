@@ -453,6 +453,36 @@ Differences from the original `Mx-Iris/SystemHUD` package: internal types nested
 
 **Full guide:** `Documentations/SystemHUD.md`.
 
+### Navigation (ported from the macOS App Store)
+
+A `UINavigationController`-shaped container for AppKit — a view controller stack, a push / pop parallax transition, and a two-finger swipe back. Ships as the opt-in SPM trait `Navigation` (default: disabled); every file under `Sources/UIFoundationAppKit/Navigation/**` is wrapped in `#if Navigation && os(macOS)`. Pure AppKit, no private API, no resources.
+
+Ported from **the macOS App Store's own implementation, not from UIKit** — deliberately. UIKit's `_UINavigationParallaxTransition` only yields an animator on AppKit (`NSViewControllerPresentationAnimator` has two methods and no transition context), which can carry neither a stack nor an interactive gesture. The App Store's version is a real container, is AppKit-native throughout, and gets its back swipe from the public `NSEvent.trackSwipeEvent`. Full reverse-engineering report with every address: [`Researchs/AppStore-Custom-Navigation-Internals.md`](Researchs/AppStore-Custom-Navigation-Internals.md); the decision record is Evolution [`0001`](Documentations/Evolutions/0001-appstore-style-navigation-controller.md).
+
+Four layers, deliberately decoupled — the bottom two know nothing about navigation, and the transition layer knows nothing about the stack:
+
+```
+NavigationController                  stack, delegates, swipe
+  └── any ViewTransition              PushViewTransition / PopViewTransition
+        ├── ViewPropertyInterpolator  [any Transformation] + TimingCurve
+        │     └── Interpolator<Value: Interpolatable>
+        └── ViewPropertyAnimator      NSAnimationContext wrapper
+```
+
+**The animation mechanism is load-bearing.** Transitions never build a `CABasicAnimation`. They assign *final* values to `frame` / `alphaValue` inside an `NSAnimationContext` group with `allowsImplicitAnimation = true`, which is why `prepare()` forces `wantsLayer` on every participating view. Keep it that way: `apply(fraction)` is only steppable frame-by-frame from a gesture *because* it is plain assignment. Building explicit animations would silently cost the interactive pop.
+
+**Ease exactly once.** Each `Interpolator` carries its own curve and applies it; `ViewPropertyInterpolator.apply(_:)` passes the fraction through un-eased. Easing again at the bundle level makes a released gesture jump.
+
+Two presets, both measured rather than estimated, exposed through `NavigationConfiguration`. **`.uiKit` is the default**: 0.35 s ease-in-ease-out, outgoing page counter-sliding `floor(width × 0.3)`, sRGB black at 10 %, and a **9 pt edge shadow** trailing the incoming page. `.appStore` is the App Store's own: 0.35 s on `cubic-bezier(0.1878, 0.0023, 0.5399, 0.9629)` **for both directions** (AppStoreKit ships a reversed curve and never calls it), `floor(width × 0.2527)`, black at 22 %, and **no edge shadow**.
+
+**Do not flip the default back to `.appStore`.** It was the default for one review round and was rejected on sight: with no shadow to give the arriving page an edge, five points less parallax, and a curve that is ~63 % through the motion at half the time and then crawls, the App Store look reads as content sliding sideways rather than one page moving over another. Fidelity stayed available as a preset; the default is the one that looks like a navigation push. The shadow itself (`NavigationEdgeShadowView`) is a port of UIKit's `_UIVerticalEdgeShadowView` by way of AppKitPlus — its falloff is a **blur spill**, an opaque block filled entirely outside the clip so only its shadow survives, not a linear gradient, which reads noticeably harder.
+
+Divergences from the App Store worth remembering: pages are framed from the container's `bounds` inset by `contentInsets`, not from its `frame` (theirs only works because a root view sits at the origin); only the difference between old and new stacks is re-parented, not the whole stack; a stack change requested mid-transition is deferred rather than applied on top; `Interpolator.value(forInput:)` has one `CGFloat` overload instead of three (three make every literal call site ambiguous). The three `InteractiveViewTransition` members are designed here, not copied — only their slot count was recoverable.
+
+Host contracts (all four are in the guide, and each fails confusingly rather than loudly): the container owns page frames so pages must not be constrained from outside; pages are forced layer-backed; interactive pop consumes horizontal scroll events, so a page with a horizontal `NSScrollView` swallows the swipe; `viewControllers` keeps reporting the old stack until a running transition ends.
+
+**Full guide:** `Documentations/Navigation.md`.
+
 ### Custom Tooltip (`UIFoundationAppleInternal/Tooltip/`)
 
 macOS-only customizable replacement for the `NSToolTipManager` pipeline. Lives in `UIFoundationAppleInternal` (private API; not App-Store-safe). No SPM trait — this ships unconditionally with the `AppleInternal` trait.
@@ -493,13 +523,13 @@ Structure under `UIFoundationExample-macOS/UIFoundationExample-macOS/`:
 - `AppDelegate.swift` — builds a `DemoBrowserWindowController` on launch; nothing else.
 - `Browser/` — `DemoBrowserWindowController` (code-built `NSWindow`), `DemoBrowserSplitViewController` (sidebar + `DemoDetailViewController`), `DemoSidebarViewController` (source-list `NSOutlineView`; items are a private `SidebarNode` reference type because `NSOutlineView` needs stable item identity).
 - `Catalog/` — `Demo` (a value type: `title` / `category` / `summary` / `minimumMacOS` / `makeViewController`) and `DemoCatalog.all` (the registry) + `DemoCatalog.grouped`.
-- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `CustomTooltipDemoViewController`).
+- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `NavigationDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `CustomTooltipDemoViewController`).
 
 **To add a demo:** drop a new `NSViewController` file under `Demos/` and append one `Demo` to `DemoCatalog.all`. Nothing else changes.
 
 Two project facts that make this work (and matter when extending it):
 - The Xcode project's app source group is a **file-system-synchronized group** (`PBXFileSystemSynchronizedRootGroup`, Xcode 16+). Any file added under the app folder is auto-included in the target — **no `project.pbxproj` edits needed** to add/move/delete demos.
-- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabBar` and `SystemHUD` are enabled alongside `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder`); otherwise the control's symbols won't be compiled into the package and the demo won't link.
+- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabBar`, `SystemHUD` and `Navigation` are enabled alongside `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder`); otherwise the control's symbols won't be compiled into the package and the demo won't link.
 
 Build the example from the command line with `xcodebuild -project UIFoundationExample-macOS/UIFoundationExample-macOS.xcodeproj -scheme UIFoundationExample-macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build 2>&1 | xcsift`.
 

@@ -233,6 +233,41 @@ The panel sizes itself to its content — never below `minimumSize`, never wider
 
 See [`Documentations/SystemHUD.md`](Documentations/SystemHUD.md) for the full guide.
 
+### Navigation
+
+Enable the `Navigation` trait for a `UINavigationController`-shaped container: a view controller stack, a push / pop parallax transition, and a two-finger swipe back.
+
+```swift
+.package(
+    url: "https://github.com/Mx-Iris/UIFoundation",
+    from: "0.13.0",
+    traits: ["Navigation"]
+)
+```
+
+```swift
+let navigationController = NavigationController(rootViewController: LibraryViewController())
+window.contentViewController = navigationController
+
+navigationController.pushViewController(AlbumViewController(album: album), animated: true)
+navigationController.popToRootViewController(animated: true)
+```
+
+AppKit ships no navigation container, so the container itself is ported from the one the macOS App Store built for itself rather than from UIKit — the App Store's version is a real stack, is AppKit-native throughout (`NSAnimationContext`, `NSView.frame`, `NSEvent` swipe tracking), and uses no private API.
+
+Two looks ship, both measured from the originals. `.uiKit` — the default — reproduces `UINavigationController`'s push: 0.35 s ease-in-ease-out, the outgoing page counter-sliding 30 % of the width under a 10 % black dim, with a 9 pt shadow trailing the arriving page's edge. `.appStore` reproduces the App Store's, which is flatter on purpose: `cubic-bezier(0.1878, 0.0023, 0.5399, 0.9629)`, 25.27 % counter-slide, 22 % dim, no shadow.
+
+```swift
+navigationController.configuration = .appStore          // or adjust one knob at a time
+navigationController.configuration.parallaxFactor = 0.4
+```
+
+`transitionDelegate` replaces the animation outright.
+
+There is no navigation bar: titles and back buttons stay the host's, driven off `NavigationControllerDelegate`. Pages are positioned by frame inside the container, so lay a page out with constraints internally and never pin it to anything outside.
+
+See [`Documentations/Navigation.md`](Documentations/Navigation.md) for the full guide — the contracts a host has to keep, the configuration surface, and how to write a custom transition.
+
 ### Cross-Platform Typealias
 
 `UIFoundationTypealias` provides `NSUI`-prefixed aliases (`NSUIView`, `NSUIColor`, `NSUIFont`, etc.) enabling cross-platform code without `#if canImport` branching:

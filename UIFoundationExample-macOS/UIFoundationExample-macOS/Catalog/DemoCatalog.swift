@@ -45,6 +45,12 @@ enum DemoCatalog {
             makeViewController: { SystemHUDDemoViewController() }
         ),
         Demo(
+            title: "Navigation",
+            category: "Controls",
+            summary: "NavigationController driving the App Store's push / pop — live duration, parallax, dimming and curve, plus the two-finger swipe back.",
+            makeViewController: { NavigationDemoViewController() }
+        ),
+        Demo(
             title: "Custom Tooltip",
             category: "AppKit Private",
             summary: "CustomToolTipManager playground — live color/slider editing, per-view override, plus an unmodified system control for visual comparison.",

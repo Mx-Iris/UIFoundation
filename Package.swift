@@ -71,6 +71,7 @@ let package = Package(
         .trait(name: "AppleInternal"),
         .trait(name: "FilterUI"),
         .trait(name: "IDEIcons"),
+        .trait(name: "Navigation"),
         .trait(name: "NSAttributedStringBuilder"),
         .trait(name: "QuickActionBar"),
         .trait(name: "StatusItemController"),

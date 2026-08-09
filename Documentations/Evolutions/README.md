@@ -20,4 +20,6 @@ PrivateSymbols（全面改用本库基类）。改动一个组件的行为，等
 
 ## 提案
 
-尚无提案。今后的新功能与架构改动一律从这里开始，编号自 `0001` 起。
+| # | 标题 | 状态 | 摘要 |
+|---|------|------|------|
+| [0001](0001-appstore-style-navigation-controller.md) | NavigationController：移植 macOS App Store 的导航容器与推入/弹出转场 | Implemented | AppKit 没有导航容器，本提案把 macOS App Store 自己那套搬进来：视图控制器栈、推入/弹出转场、双指右滑返回。落在新 trait `Navigation`（默认关闭）下，对现有使用方零影响。配套使用指南见 [`Navigation.md`](../Navigation.md)，逆向依据见 [`Researchs/AppStore-Custom-Navigation-Internals.md`](../../Researchs/AppStore-Custom-Navigation-Internals.md)。 |

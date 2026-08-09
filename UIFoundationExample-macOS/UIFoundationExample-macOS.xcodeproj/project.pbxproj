@@ -348,6 +348,7 @@
 				AppleInternal,
 				FilterUI,
 				IDEIcons,
+				Navigation,
 				NSAttributedStringBuilder,
 				QuickActionBar,
 				StatusItemController,
