@@ -483,6 +483,94 @@ Host contracts (all four are in the guide, and each fails confusingly rather tha
 
 **Full guide:** `Documentations/Navigation.md`.
 
+### Settings Window
+
+A System Settings-shaped window plus a settings model that persists itself. Extracted from
+RuntimeViewer's `RuntimeViewerSettings` / `RuntimeViewerSettingsUI` — decision record is Evolution
+[`0002`](Documentations/Evolutions/0002-reusable-settings-window.md). Ships behind the opt-in SPM
+trait `Settings` (default: disabled) as **two** targets, both macOS 14+, both wrapped in
+`#if Settings && os(macOS)`:
+
+- **`UIFoundationSettings`** (model layer, no AppKit) — `SettingsStorage` / `FileSystemSettingsStorage`,
+  `SettingsStore`, `PersistentSettings`, `AppSettings`.
+- **`UIFoundationSettingsUI`** (UI layer) — `SettingsWindowController` / `SettingsWindow`,
+  `SettingsRootView`, `SettingsPage` + `@SettingsPageBuilder`, `SettingsForm`, `SettingsPageIcon`,
+  `SettingsNavigator`. Ships `Resources/Localizable.xcstrings`: the module has user-facing text of
+  its own (the back / forward buttons), and `#bundle` only resolves for a target that has a bundle.
+  A literal without `bundle: #bundle` in here searches the *app's* catalog and silently renders the
+  key.
+
+Split in two because reading settings and *showing* the settings window are different jobs: services
+and view models do the former everywhere, the latter happens in one place. Neither target joins the
+`UIFoundation` umbrella — that would push the macOS 14 floor onto every consumer. No new external
+dependencies: no dependency-injection framework, no introspection package, no macro package.
+
+The host supplies a `Codable` **value type** and a page list; saving, debouncing, loading and change
+notification come with the box:
+
+```swift
+struct Settings: PersistentSettings {
+    var general = General()
+    @MainActor static let store = SettingsStore(
+        defaultValue: Settings(),
+        storage: FileSystemSettingsStorage(applicationDirectoryName: "MyApp")
+    )
+}
+typealias Setting<Value> = AppSettings<Settings, Value>   // then: @Setting(\.general)
+```
+
+**The store is reached through the type, not through the environment.** `AppSettings` reads
+`Root.store`, so the same door works outside SwiftUI (`Settings.current.general.x`) — which an
+`@Environment`-injected store cannot do, and which matters because most settings reads in a real app
+happen in services, not views. One store per model type is the deliberate consequence.
+
+Four things measured rather than assumed (all four have probes in the proposal's decision log):
+
+- **Redraws come from Observation, not from the property wrapper.** SwiftUI evaluates `body` inside
+  a tracking scope, so reading `Root.store.value` there registers the dependency. `AppSettings`
+  therefore **does not conform to `DynamicProperty`** — a conforming wrapper, a non-conforming one,
+  and a view reading the store directly all redraw identically. Don't add the conformance back; it
+  would read as load-bearing when it is not.
+- **Invalidation is coarse.** Tracking lands on `value` as a whole, so any settings change
+  invalidates every view that reads settings, including one reading an unrelated field. Free in a
+  settings window, potentially not on a hot path.
+- **Value-type-ness is load-bearing and unenforceable.** Auto-save hangs off `value`'s `didSet`; a
+  class model mutates in place, never fires it, and silently never persists.
+- **Disabling sidebar collapsing needs no swizzling.** `canCollapse = false` sticks (verified on
+  macOS 26 across a run-loop pass, a SwiftUI update and a resize). SwiftUI's split view controller is
+  reachable **only as the `NSSplitView`'s delegate** — it is not a child of the hosting controller,
+  so walking `children` finds nothing. Upstream RuntimeViewer swizzled
+  `NSSplitViewItem.canCollapse`'s getter process-wide; that was never necessary and is not ported.
+  `SettingsWindowChromeTests` guards this.
+
+**Page navigation** (Evolution [`0003`](Documentations/Evolutions/0003-settings-navigation-history.md))
+is a `SettingsNavigator`: the single source of truth for the selected page *and* the history behind
+the ⌘[ / ⌘] chevrons in the detail pane's leading toolbar slot. It is the host's handle for driving
+the window from code (`controller.navigator.currentPageID = "updates"`), which is why it exists at
+all — the selection used to be a `private @State`.
+
+- **The sidebar's selection is derived from the navigator, not stored beside it.** Don't reintroduce
+  the usual "selection plus an `isNavigatingThroughHistory` flag": that flag's reset depends on when
+  SwiftUI writes the selection back, and there is no guarantee — reset early and a visit goes
+  unrecorded, late and the user's next click is taken for a programmatic one.
+- **The chevrons are one `ToolbarItem` holding a `ControlGroup` with `.controlGroupStyle(.navigation)`**
+  — the exact spelling Xcode's settings window uses. Don't "simplify" it: dropping `.navigation`
+  resolves to a native toolbar item with no segmented control at all, and two adjacent
+  `ToolbarItem`s (or a `ToolbarItemGroup`, which still yields two `NSToolbarItem`s) draw as separate
+  buttons instead of the joined capsule. Checked against a view-hierarchy capture of Xcode's own
+  window: same class chain down to `SwiftUISegmentedControl`, same `segmentCount` 2 / `.momentary` /
+  `.separated` / `.extraLarge`, same 73 × 36 fitting size. `SettingsNavigationControlsTests` asserts
+  the first three.
+- **Sub-page drill-down needs nothing from the library** — measured: a `NavigationStack` inside a
+  page's own content gets SwiftUI's own `navigationStack.back` toolbar item. Deliberately *not*
+  merged into `SettingsNavigator`, which tracks pages and not positions within one.
+- **Correcting an earlier note here:** SwiftUI *does* build a toolbar for the settings window on
+  macOS 26, and hiding the sidebar toggle in it works. `window.toolbar` is `nil` only when the panel
+  is **embedded** in a host window rather than being its `contentViewController` — which is also why
+  an embedded panel shows no chevrons. `SettingsNavigationControlsTests` guards the toolbar wiring.
+
+**Full guide:** `Documentations/SettingsWindow.md`.
+
 ### Custom Tooltip (`UIFoundationAppleInternal/Tooltip/`)
 
 macOS-only customizable replacement for the `NSToolTipManager` pipeline. Lives in `UIFoundationAppleInternal` (private API; not App-Store-safe). No SPM trait — this ships unconditionally with the `AppleInternal` trait.
@@ -526,6 +614,14 @@ Structure under `UIFoundationExample-macOS/UIFoundationExample-macOS/`:
 - `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `NavigationDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `CustomTooltipDemoViewController`).
 
 **To add a demo:** drop a new `NSViewController` file under `Demos/` and append one `Demo` to `DemoCatalog.all`. Nothing else changes.
+
+**Do not let a demo dictate the window's minimum width.** Auto Layout treats an `NSHostingView`'s
+ideal width — and a wrapping `NSTextField`'s single-line width — as a hard floor, so the browser
+window gets pushed wide and cannot be shrunk back. Measured: three SwiftUI panels side by side
+demanded 1006 pt; stacking them vertically brought it to 339 pt. Stack wide content vertically, add
+`.fixedSize(horizontal: false, vertical: true)` to text that should wrap, and call
+`setContentCompressionResistancePriority(.defaultLow, for: .horizontal)` on hosting views and labels.
+The shared summary label at the top of the detail pane is already set up this way.
 
 Two project facts that make this work (and matter when extending it):
 - The Xcode project's app source group is a **file-system-synchronized group** (`PBXFileSystemSynchronizedRootGroup`, Xcode 16+). Any file added under the app folder is auto-included in the target — **no `project.pbxproj` edits needed** to add/move/delete demos.

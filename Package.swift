@@ -66,6 +66,20 @@ let package = Package(
                 "UIFoundationToolbox",
             ]
         ),
+
+        .library(
+            name: "UIFoundationSettings",
+            targets: [
+                "UIFoundationSettings",
+            ]
+        ),
+
+        .library(
+            name: "UIFoundationSettingsUI",
+            targets: [
+                "UIFoundationSettingsUI",
+            ]
+        ),
     ],
     traits: [
         .trait(name: "AppleInternal"),
@@ -74,6 +88,7 @@ let package = Package(
         .trait(name: "Navigation"),
         .trait(name: "NSAttributedStringBuilder"),
         .trait(name: "QuickActionBar"),
+        .trait(name: "Settings"),
         .trait(name: "StatusItemController"),
         .trait(name: "SystemHUD"),
         .trait(name: "TabBar"),
@@ -185,11 +200,34 @@ let package = Package(
             name: "UIFoundationAppleInternalObjC"
         ),
 
+        .target(
+            name: "UIFoundationSettings",
+            swiftSettings: swiftSettings,
+        ),
+
+        .target(
+            name: "UIFoundationSettingsUI",
+            dependencies: [
+                "UIFoundationSettings",
+                .target(name: "UIFoundationAppKit", condition: .when(platforms: appkitPlatforms)),
+            ],
+            // The module ships user-facing text of its own (the back / forward
+            // buttons), so it needs a bundle to look strings up in. Without a
+            // resource here `#bundle` does not resolve, and a plain literal
+            // would silently search the app's catalog instead of this one.
+            resources: [
+                .process("Resources"),
+            ],
+            swiftSettings: swiftSettings,
+        ),
+
         .testTarget(
             name: "UIFoundationTests",
             dependencies: [
                 "UIFoundation",
                 "UIFoundationToolbox",
+                "UIFoundationSettings",
+                .target(name: "UIFoundationSettingsUI", condition: .when(platforms: appkitPlatforms)),
             ]
         ),
     ],
