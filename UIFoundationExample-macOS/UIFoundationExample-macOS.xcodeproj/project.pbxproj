@@ -10,6 +10,8 @@
 		E94046812FB61EB0008552BF /* UIFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = E94046802FB61EB0008552BF /* UIFoundation */; };
 		E94046832FB61EB0008552BF /* UIFoundationToolbox in Frameworks */ = {isa = PBXBuildFile; productRef = E94046822FB61EB0008552BF /* UIFoundationToolbox */; };
 		E943A7DD2AF76F1100526917 /* UIFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = E943A7DC2AF76F1100526917 /* UIFoundation */; };
+		E94046912FB61EB0008552BF /* UIFoundationSettings in Frameworks */ = {isa = PBXBuildFile; productRef = E94046902FB61EB0008552BF /* UIFoundationSettings */; };
+		E94046932FB61EB0008552BF /* UIFoundationSettingsUI in Frameworks */ = {isa = PBXBuildFile; productRef = E94046922FB61EB0008552BF /* UIFoundationSettingsUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,6 +33,8 @@
 				E943A7DD2AF76F1100526917 /* UIFoundation in Frameworks */,
 				E94046812FB61EB0008552BF /* UIFoundation in Frameworks */,
 				E94046832FB61EB0008552BF /* UIFoundationToolbox in Frameworks */,
+				E94046912FB61EB0008552BF /* UIFoundationSettings in Frameworks */,
+				E94046932FB61EB0008552BF /* UIFoundationSettingsUI in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -81,6 +85,8 @@
 				E943A7DC2AF76F1100526917 /* UIFoundation */,
 				E94046802FB61EB0008552BF /* UIFoundation */,
 				E94046822FB61EB0008552BF /* UIFoundationToolbox */,
+				E94046902FB61EB0008552BF /* UIFoundationSettings */,
+				E94046922FB61EB0008552BF /* UIFoundationSettingsUI */,
 			);
 			productName = "UIFoundationExample-macOS";
 			productReference = E943A7A92AF76E0E00526917 /* UIFoundationExample-macOS.app */;
@@ -351,6 +357,7 @@
 				Navigation,
 				NSAttributedStringBuilder,
 				QuickActionBar,
+				Settings,
 				StatusItemController,
 				SystemHUD,
 				TabBar,
@@ -370,6 +377,14 @@
 		E943A7DC2AF76F1100526917 /* UIFoundation */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = UIFoundation;
+		};
+		E94046902FB61EB0008552BF /* UIFoundationSettings */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UIFoundationSettings;
+		};
+		E94046922FB61EB0008552BF /* UIFoundationSettingsUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UIFoundationSettingsUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

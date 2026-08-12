@@ -48,4 +48,25 @@ struct Demo {
         guard let minimumMacOS else { return true }
         return ProcessInfo.processInfo.isOperatingSystemAtLeast(minimumMacOS)
     }
+
+    /// Stand-in for a demo whose types are gated behind a newer SDK.
+    ///
+    /// The sidebar already refuses to select an unavailable demo, so this is
+    /// never shown in practice — it exists because `makeViewController` still
+    /// has to type-check on the older deployment target.
+    static func unavailablePlaceholderViewController(requiring requirement: String) -> NSViewController {
+        let viewController = NSViewController()
+        let label = NSTextField(labelWithString: "This demo requires \(requirement).")
+        label.textColor = .secondaryLabelColor
+        label.translatesAutoresizingMaskIntoConstraints = false
+
+        let containerView = NSView()
+        containerView.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
+        ])
+        viewController.view = containerView
+        return viewController
+    }
 }

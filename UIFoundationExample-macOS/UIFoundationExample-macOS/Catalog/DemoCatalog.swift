@@ -51,6 +51,19 @@ enum DemoCatalog {
             makeViewController: { NavigationDemoViewController() }
         ),
         Demo(
+            title: "Settings Window",
+            category: "Controls",
+            summary: "A seven-page settings panel in its own window, with a page list driven by the settings themselves and counters showing what a change actually redraws.",
+            minimumMacOS: OperatingSystemVersion(majorVersion: 14, minorVersion: 0, patchVersion: 0),
+            makeViewController: {
+                if #available(macOS 14.0, *) {
+                    SettingsDemoViewController()
+                } else {
+                    Demo.unavailablePlaceholderViewController(requiring: "macOS 14")
+                }
+            }
+        ),
+        Demo(
             title: "Custom Tooltip",
             category: "AppKit Private",
             summary: "CustomToolTipManager playground — live color/slider editing, per-view override, plus an unmodified system control for visual comparison.",
