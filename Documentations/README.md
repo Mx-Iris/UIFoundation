@@ -8,7 +8,7 @@
 
 ## 使用指南
 
-五篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
+六篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
 **接入任何一个组件前先读对应那篇。**
 
 - [SettingsWindow](SettingsWindow.md) —— System Settings 形状的设置窗口，外加一个会自己持久化的设置模型。
@@ -28,3 +28,8 @@
   宿主禁止直接调用 `textFinder.performAction(_:)`，必须走 `textFinderClient.performTextFinderAction(_:)`
   —— 索引是惰性的，直接调会搜到空文档且不报错。另有表格的 run-length 快路径与大纲的外部索引机制。
 - [SystemHUD](SystemHUD.md) —— 系统风格的 HUD 提示。
+- [ToolbarNavigation](ToolbarNavigation.md) —— `NSToolbar.Navigation`，Safari 式的后退 / 前进工具栏项。
+  数据由组件**主动拉取**（借 `NSToolbarItem` 的验证周期），所以没有「历史变了要通知它」这一步。
+  含三条宿主契约：历史行的**索引 0 是最近的一条**、跑在验证周期上的两个问题必须廉价、
+  窗口非 key 时刷新会延后。观感由库定死，控件不暴露也不转发样式 —— 这正是两条被 API 完全藏住的
+  AppKit 行为得以结构性锁死的方式；另有第三条「踩坑」的实测证否。

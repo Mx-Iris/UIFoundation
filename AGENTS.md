@@ -199,6 +199,64 @@ Property wrappers using `_enclosingInstance` subscript: on **get**, calls `loadV
 
 `TableViewProtocol` / `OutlineViewProtocol` provide `scrollableTableView()` / `scrollableSingleColumnOutlineView()` static factories returning `(NSScrollView, Self)` tuples.
 
+### Toolbar DSL — `NSToolbar.Navigation`
+
+`Sources/UIFoundationAppKit/Toolbar/` holds a builder-style `NSToolbar` API: an `ToolbarItem` base
+class plus chained modifiers, with subclasses `NSToolbar.Button` / `.Item` / `.Group` / `.Menu` /
+`.PopUpButton` / `.Search` / `.SegmentedControl` / `.View` / `.TrackingSeparator` / **`.Navigation`**.
+No trait — it ships unconditionally on macOS.
+
+`NSToolbar.Navigation` is a Safari-style back / forward pair in one item, because AppKit has none.
+Decision record is Evolution
+[`0004`](Documentations/Evolutions/0004-appkit-navigation-toolbar-item.md).
+
+**Data is pulled, never pushed.** There is no `reloadHistory()` and its absence is the design:
+`NSToolbarItem` already validates on the toolbar's validation cycle, so `validate()` re-asks the
+data source whether each direction is live and how deep its history is. A host that changes its own
+history has nothing to remember to call. Row *contents* are pulled later, in `menuNeedsUpdate(_:)`,
+only while a menu is opening — per-row icon resolution must not land on the event loop, while
+whether a menu exists at all has to be settled *before* the press.
+
+Two AppKit behaviours are held structurally rather than by comment:
+
+- **A segment menu opens on an ordinary click when the control's `action` is `nil`**, instead of on
+  a long press — single-step navigation silently disappears. The `NSSegmentedControl` is
+  **internal**, so `target` / `action` are wired once in `init` and there is no typed door to reach
+  them through afterwards. (It is internal rather than `private` because the tests need it;
+  `private` would buy nothing anyway, since AppKit needs the view on the item and `item.view` leads
+  there for anyone who casts it — a hole no design can close.) To cause a click, call
+  `performNavigation(in:)` — which is also where a host's ⌘[ / ⌘] main-menu items should land, since
+  `NSToolbarItem` has no key equivalents.
+- **An empty `NSMenu` still pops, as a blank box.** An empty direction gets
+  `setMenu(nil, forSegment:)`, never a menu with no rows.
+
+**The appearance is the library's, not the host's.** No styling API and no forwarding properties:
+two segments, `.momentary`, `.separated`, direction-aware chevrons, no menu indicator,
+`isNavigational` on macOS 11+. Don't add a `segmentStyle` / `controlSize` passthrough "for
+flexibility" — the control they'd forward to is the same one carrying the action, and a navigation
+pair has one correct look. The only host-facing text is `backwardTitle` / `forwardTitle`, which
+exist for localization (they become the tooltips and the chevrons' accessibility descriptions).
+
+Two measurements worth not re-deriving:
+
+- **Attaching a menu does not raise a pull-down indicator.** Measured on macOS 26:
+  `showsMenuIndicator(forSegment:)` is `false` on a fresh control and stays `false` across
+  `setMenu(_:forSegment:)`. The often-repeated third "gotcha" does not reproduce. The item sets it
+  off once as a statement of intent, and the test suite keeps a canary in case a future release
+  changes it.
+- **`selectedSegment` cannot be faked on a `.momentary` control** — assigning it reads back `-1`,
+  AppKit's "nothing is being tracked". A click is therefore untestable headlessly, which is why the
+  dispatch is split out into `performNavigation(in:)`.
+
+Host contracts (all three fail silently rather than loudly): history index `0` is the **nearest**
+entry in that direction, not the oldest; `canNavigateIn` / `numberOfHistoryEntriesIn` run on the
+event loop and must be cheap; refresh waits for the window to become key (call `validate()`
+directly if an exact moment is needed).
+
+**Full guide:** `Documentations/ToolbarNavigation.md`. Demo: **Toolbar Navigation** in the example
+app — it opens its own window, since the demo browser's detail pane has no toolbar, and lists the
+four checks that only a human can perform (long press being the main one).
+
 ### Self-Sizing Row Views
 
 Three classes under `Base/` let a table or a tree size itself to its rows instead of scrolling inside a fixed frame — drop one into a stack view and it reports the height it needs:
@@ -611,7 +669,7 @@ Structure under `UIFoundationExample-macOS/UIFoundationExample-macOS/`:
 - `AppDelegate.swift` — builds a `DemoBrowserWindowController` on launch; nothing else.
 - `Browser/` — `DemoBrowserWindowController` (code-built `NSWindow`), `DemoBrowserSplitViewController` (sidebar + `DemoDetailViewController`), `DemoSidebarViewController` (source-list `NSOutlineView`; items are a private `SidebarNode` reference type because `NSOutlineView` needs stable item identity).
 - `Catalog/` — `Demo` (a value type: `title` / `category` / `summary` / `minimumMacOS` / `makeViewController`) and `DemoCatalog.all` (the registry) + `DemoCatalog.grouped`.
-- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `NavigationDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `CustomTooltipDemoViewController`).
+- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `NavigationDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `SettingsDemoViewController`, `ToolbarNavigationDemoViewController`, `CustomTooltipDemoViewController`).
 
 **To add a demo:** drop a new `NSViewController` file under `Demos/` and append one `Demo` to `DemoCatalog.all`. Nothing else changes.
 

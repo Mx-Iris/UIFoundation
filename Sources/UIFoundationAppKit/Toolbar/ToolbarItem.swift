@@ -7,9 +7,9 @@ import UIFoundationToolbox
 /// A toolbar item used with the builder-style `NSToolbar` API.
 ///
 /// Subclass this type, or use one of the provided subclasses (``NSToolbar/Button``,
-/// ``NSToolbar/Item``, ``NSToolbar/Group``, ``NSToolbar/Menu``, ``NSToolbar/PopUpButton``,
-/// ``NSToolbar/Search``, ``NSToolbar/SegmentedControl``, ``NSToolbar/View``,
-/// ``NSToolbar/TrackingSeparator``).
+/// ``NSToolbar/Item``, ``NSToolbar/Group``, ``NSToolbar/Menu``, ``NSToolbar/Navigation``,
+/// ``NSToolbar/PopUpButton``, ``NSToolbar/Search``, ``NSToolbar/SegmentedControl``,
+/// ``NSToolbar/View``, ``NSToolbar/TrackingSeparator``).
 open class ToolbarItem: NSObject {
 
     /// The identifier of the toolbar item.

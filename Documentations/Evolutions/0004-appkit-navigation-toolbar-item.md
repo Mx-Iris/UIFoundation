@@ -1,13 +1,13 @@
 # 0004 - NSToolbar.Navigation：AppKit 的后退 / 前进工具栏项
 
-- **状态**: Draft
+- **状态**: Implemented
 - **作者**: JH
 - **创建日期**: 2026-08-12
 - **最后更新**: 2026-08-12
 - **所属愿景**: 无
 - **关联提案**: [0003](0003-settings-navigation-history.md)（SwiftUI 侧的同类控件）
-- **实现分支 / PR**: 待定
-- **配套文档**: 待定 —— 落地时判断是否需要使用指南
+- **实现分支 / PR**: `main`
+- **配套文档**: [`ToolbarNavigation.md`](../ToolbarNavigation.md)（落地时确认需要，理由见落地步骤 4）
 
 ## 摘要
 
@@ -406,19 +406,30 @@ library evolution）。
 
 ## 落地步骤
 
-1. **`ToolbarItem+Navigation.swift`** —— 类本体、两条契约的结构性实现、版本回退、无障碍。
-2. **单元测试** —— 可测的部分：段数 / 跟踪模式 / 指示箭头状态；data source 报 `false` 时
-   `isEnabled(forSegment:)` 随之为 `false`；data source 报 0 条历史时 `menuForSegment(_:)` 是 `nil`
-   **而不是空菜单**（契约二的回归测试）；没有 delegate 时 `segmentedControl.action` 仍非 nil
-   （契约一的回归测试）；`menuNeedsUpdate(_:)` 后菜单行数与 `numberOfHistoryEntriesIn` 一致，且
-   行内容按 nearest-first 取自 `historyEntryAt:in:`；点击历史行时 delegate 收到的索引正确。
-   **长按这个交互本身测不了**，见调研 ②。
-3. **示例 App 演示项** —— 同时作为契约 ② 的手工验证场；验证结论写回本提案决策日志。
-4. **文档** —— 判断是否单独成篇（预判需要）；判断有无新术语（预判无）。
+1. ✅ **`ToolbarItem+Navigation.swift`** —— 类本体、两条契约的结构性实现、版本回退、无障碍。
+2. ✅ **单元测试** —— `Tests/UIFoundationTests/ToolbarNavigationItemTests.swift`，18 条。
+   每条关键断言都做过破坏性验证（改坏实现确认它变红），见决策日志。
+3. ✅ **示例 App 演示项** —— `Demos/ToolbarNavigationDemoViewController.swift`，
+   分类 Controls，标题「Toolbar Navigation」。它自己开一个带工具栏的窗口（演示项跑在
+   browser 的详情面板里，那里没有工具栏），窗口里是一个假的文档站点：点链接前进、
+   chevron 回退、长按看历史。演示面板本身列出了四条**只能手工确认**的检查项。
+4. ✅ **文档** —— 单独成篇：[`ToolbarNavigation.md`](../ToolbarNavigation.md)。
+   判据成立 —— 组件把两条 AppKit 契约吃掉之后，**剩给宿主的四条契约仍然是「从签名看不出来、
+   违反了就出错」那一类**：历史索引 0 是最近一条（反了不报错，只是跳错页）、跑在验证周期上的两个
+   问题必须廉价、`segmentedControl` 的 target / action 归组件所有、窗口非 key 时刷新会延后。
+   无新术语，术语表未动。
 
 ## 决策日志
 
 | 日期 | 变更 | 说明 |
 |------|------|------|
+| 2026-08-12 | 落地完成，状态置 `Implemented` | 实现 + 18 条测试 + 示例演示项 + 使用指南同批次落地。**长按交互本身仍未验证** —— 它需要真实的鼠标按下-保持-松开，我合成不出来，也不能替用户点。示例演示项的面板里列出了四条待手工确认的检查项（单击走一步而不是弹菜单、长按弹历史、空方向长按什么都不弹、两段都不画下拉箭头），确认结果请回填到本表。 |
+| 2026-08-12 | **实测证否了第三条「踩坑」** | 动机一节说「不关掉 `setShowsMenuIndicator` 两段会带下拉箭头」。实测（macOS 26）：`showsMenuIndicator(forSegment:)` 在全新控件上就是 `false`，`setMenu(_:forSegment:)` 不会把它打开，显式设 `true` 之后挂/摘菜单也不会把它改回去。也就是说那行调用在默认路径上是 no-op，RuntimeViewer 那行属防御性写法。处理：保留一次调用（作为「这对控件要读作两个 chevron 而不是两个弹出按钮」的意图声明，兼防宿主把它打开），但**不**在 `validate()` 里逐次重申；同时留一条 canary 测试，将来某个系统版本真的改了行为就会变红。 |
+| 2026-08-12 | **`segmentedControl` 收回内部，且不提供任何样式转发** | 用户定的：「界面是库里面定好的，外面只管怎么用」。落地过程中这一条改过两次，值得记下经过 —— 提案原本说「公开 API 里没有改动 target / action 的入口」，我实现时发现这句不成立（`public let segmentedControl` 本身就是入口），于是改成在 `validate()` 里每次夺回 target / action；用户随后要求控件不要暴露，我先按「样式还是要能改」的思路转发了 `segmentStyle` / `controlSize`，用户再次明确否掉。**最终形态最简单也最强**：控件是 `internal`，target / action 在 `init` 里接一次就再没有第二处能碰，`validate()` 里的夺回逻辑随之删掉（真正的死代码）—— 提案原来那句话基本成为事实。说「基本」是因为**有一个洞关不掉**：AppKit 要求视图挂在 toolbar item 上，所以 `item.view` 强转仍然能拿到控件。这一点已如实写进指南，没有含糊过去 —— 关掉的是那扇有类型、显眼、不会有人误开的门，不是可达性本身。<br><br>为什么是 `internal` 而不是 `private`：中途按用户要求试过 `private`，但 `@testable` 对 `private` 成员无效，测试被迫改走 `item.item.view` 强转（那条路验证过是真的：让 item 挂别的视图，整个套件变红而不是空过）。用户得知有测试后要求改回。这个取舍其实不亏 —— 上面那个洞意味着 `private` 相对 `internal` 并没有真的多关掉什么，代价却是测试要绕路。样式转发之所以不该留：它要转发到的正是那个挂着 action 的控件，而导航项的观感只有一个正确答案。宿主可改的只剩 `backwardTitle` / `forwardTitle`，它们是本地化用的（决定 tooltip 与 VoiceOver 读出的文本），不是样式。回归测试从「被清空后能修复」换成「菜单反复挂/摘之后 action 仍在」—— 已破坏性验证会变红。 |
+| 2026-08-12 | 新增 `performNavigation(in:)`（提案没有） | 起因是可测性：momentary 跟踪模式下 `selectedSegment` **无法程序化设置** —— 实测赋值后读回 `-1`（AppKit 的「当前没有段在被跟踪」），所以一次点击在测试里伪造不出来。把「读出方向」与「通知 delegate + 重新验证」拆开，后半段就能直接测。附带好处：提案「非目标」里说键盘快捷键归宿主，但没说宿主怎么复用那次刷新 —— 这个方法正好是 ⌘[ / ⌘] 主菜单项的落点。 |
+| 2026-08-12 | `historyEntryAt:in:` 也给默认实现 | 提案只给 `numberOfHistoryEntriesIn` 和 `didSelectHistoryEntryAt` 留了默认，却又说宿主「只实现两个方法」—— 两句话互相矛盾，因为 `historyEntryAt` 仍是必须实现的协议要求。补一个返回空 `HistoryEntry` 的默认实现；条数默认为 0 时它不可达，所以不会有人看到那个空标题。 |
+| 2026-08-12 | `historyMenu(for:)` 不公开（提案下游影响一节提过它） | 组件在每次 `menuNeedsUpdate` 里 `removeAllItems()`。公开这个菜单等于邀请宿主往里加行，然后在下一次长按时被静默清空 —— 那是**新造**一个陷阱，与本提案的目的相反。宿主要检查挂没挂菜单，用 `segmentedControl.menu(forSegment:)` 就够了。 |
+| 2026-08-12 | `NSMenu.autoenablesItems = false`（提案未提） | 不关掉的话 `HistoryEntry.isEnabled` 会被 AppKit 的自动启用覆盖。这一条差点漏测：覆盖发生在 `NSMenu.update()` 里，而第一版测试在填完菜单后立刻读 `isEnabled`，早于 `update()`，于是把 `autoenablesItems` 改回 `true` 测试照样绿。破坏性验证时才发现它不具鉴别力，补上 `menu.update()` 后才真的变红。 |
+| 2026-08-12 | `segmentStyle` 用 `.separated`，不是调研里记的 `.automatic` | 调研 ① 记的是 RuntimeViewer 的 `.automatic`。改用 `.separated`，与 [0003](0003-settings-navigation-history.md) 在 Xcode 设置窗口视图层级里实测到的那个控件一致（那边 `.controlGroupStyle(.navigation)` 产出的正是 `.separated`），也与 macOS 11 之后 Safari 的观感一致。**这是定死的**，宿主换不回去 —— 见上一条。 |
 | 2026-08-12 | 数据源 / 回调改为 delegate，且改推送为拉取 | 用户提出「数据源和回调用 Delegate 获取和通知」。评估后采纳，并且比单纯换接口形状更进一步：初稿的推送式（`setHistoryItems(_:for:)`）只消灭了顺序陷阱，没消灭「历史变了忘了推」这一类失同步 —— 而这正是本组件存在的理由。改成 data source 拉取后，借 `NSToolbarItem` 自带的 `validate()`（本库 `ToolbarItem.swift:206` 已暴露为 `open`），宿主没有任何需要按时调用的东西。附带两处自己的设计决定：**条数与行内容分两级拉取**（条数跟验证周期，因为「挂不挂菜单」必须在长按前定下；行内容只在 `menuNeedsUpdate` 时拉，避免 RuntimeViewer 那种逐行图标解析跑在验证周期里），以及 **data source 返回值类型 `HistoryEntry` 而非 `NSMenuItem`**（点击路由归组件，delegate 收到索引，避免「你给我 view、我偷改你的 action」那种接口）。 |
 | 2026-08-12 | Created as Draft | 起因：用户提供 RuntimeViewer 手搓的 `NavigationToolbarItem`，问能否封装复用。调研确认 AppKit 确实没有内建导航项（SwiftUI 侧有，见 0003），本库已有 toolbar DSL 可直接挂载。方案的重点不是搬那三十行代码，而是把它注释里记下的两条 AppKit 行为契约变成 API 形状 —— 并顺手消掉现有调用方式里「先填内容后判可达性」的顺序陷阱。两条契约来自用户实测，**本提案未独立复验**（长按需要真实鼠标跟踪，无头环境合成不出来），落地时在示例 App 里手工确认。 |
