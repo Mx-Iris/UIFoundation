@@ -64,6 +64,12 @@ enum DemoCatalog {
             }
         ),
         Demo(
+            title: "Toolbar Navigation",
+            category: "Controls",
+            summary: "NSToolbar.Navigation driving a pretend documentation site in its own window — click to step, press and hold for the history menu.",
+            makeViewController: { ToolbarNavigationDemoViewController() }
+        ),
+        Demo(
             title: "Custom Tooltip",
             category: "AppKit Private",
             summary: "CustomToolTipManager playground — live color/slider editing, per-view override, plus an unmodified system control for visual comparison.",
