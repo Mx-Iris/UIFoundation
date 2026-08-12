@@ -81,6 +81,10 @@ final class DemoDetailViewController: NSViewController {
         summaryLabel.lineBreakMode = .byWordWrapping
         summaryLabel.maximumNumberOfLines = 0
         summaryLabel.translatesAutoresizingMaskIntoConstraints = false
+        // Wrapping alone does not stop a long summary from widening the window:
+        // a label's intrinsic width is still its single-line width, and Auto
+        // Layout honours it unless the label is allowed to be compressed.
+        summaryLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         contentView.translatesAutoresizingMaskIntoConstraints = false
 
         view.addSubview(summaryLabel)
