@@ -11,10 +11,10 @@
 六篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
 **接入任何一个组件前先读对应那篇。**
 
-- [SettingsWindow](SettingsWindow.md) —— System Settings 形状的设置窗口，外加一个会自己持久化的设置模型。
-  **含一条踩了就静默出错的契约**：设置模型必须是值类型，写成 class 则自动保存永不触发、且没有任何报错。
-  另有失效粒度（改任一设置会让所有读设置的视图重绘）、为什么 `AppSettings` 不遵守 `DynamicProperty`、
-  以及侧栏禁折叠为何不需要 swizzle 的实测结论。
+- [SettingsWindow](SettingsWindow.md) —— System Settings 形状的设置窗口，外加一个会自己持久化的
+  `@Observable` 设置模型。**含一条踩了就静默漏存的契约**：`accessPersistedValues()` 必须读取每个编码
+  属性。另有 section 级失效粒度、为什么 `AppSettings` 不遵守 `DynamicProperty`、`@Observable` 与
+  Codable 的配合方式，以及侧栏禁折叠为何不需要 swizzle 的实测结论。
 
 - [Navigation](Navigation.md) —— 视图控制器导航栈与推入/弹出转场，移植自 macOS App Store 自己那套。
   含四条宿主必须知道的契约：**容器独占子视图 frame，禁止从外部给页面加约束**、

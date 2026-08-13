@@ -1,6 +1,7 @@
 #if Settings && os(macOS)
 
 import Foundation
+import Observation
 import SwiftUI
 import Testing
 
@@ -28,7 +29,8 @@ private actor WriteCountingStorage: SettingsStorage {
 }
 
 @available(macOS 14.0, *)
-private struct WrapperTestSettings: PersistentSettings, Equatable {
+@Observable
+private final class WrapperTestSettings: PersistentSettings {
     struct General: Codable, Sendable, Equatable {
         var depth = 3
         var isEnabled = false
@@ -36,6 +38,31 @@ private struct WrapperTestSettings: PersistentSettings, Equatable {
 
     var general = General()
     var title = "untitled"
+
+    init() {}
+
+    @MainActor
+    func accessPersistedValues() {
+        _ = general
+        _ = title
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case general
+        case title
+    }
+
+    required init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        general = try container.decodeIfPresent(General.self, forKey: .general) ?? General()
+        title = try container.decodeIfPresent(String.self, forKey: .title) ?? "untitled"
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(general, forKey: .general)
+        try container.encode(title, forKey: .title)
+    }
 
     @MainActor
     static let storage = WriteCountingStorage()
@@ -63,9 +90,8 @@ private func waitUntil(
 /// Covers the property wrapper's two doors into the store.
 ///
 /// The projected value matters most: it is the one every `Toggle` and `Picker`
-/// on a settings page writes through, and the auto-save contract depends on the
-/// write landing as an assignment to `store.value` rather than an in-place
-/// mutation somewhere below it. Nothing else in the suite exercises that path.
+/// on a settings page writes through. The persistence contract depends on that
+/// write reaching an observed property of the current settings object.
 @MainActor
 @Suite("AppSettings")
 struct AppSettingsTests {
@@ -121,10 +147,6 @@ struct AppSettingsTests {
         #expect(WrapperTestSettings.current.general.isEnabled)
     }
 
-    /// The contract that makes the whole design work: a binding write has to
-    /// land as an assignment to `store.value`, because that is what `didSet`
-    /// hangs the auto-save off. A binding that mutated something below `value`
-    /// in place would read back correctly and silently never persist.
     @Test("a projected-binding write is persisted")
     func projectedBindingWritePersists() async {
         guard #available(macOS 14.0, *) else { return }

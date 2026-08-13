@@ -1,34 +1,57 @@
 #if Settings && os(macOS)
 
 import Foundation
+import Observation
 
-/// A settings model that knows where its own store lives.
+/// An observable reference model whose changes a ``SettingsStore`` can persist.
 ///
-/// The static store is what lets ``AppSettings`` find the settings from a
-/// property wrapper — and what lets code outside SwiftUI reach them through the
-/// same door, via ``current``.
+/// Observation is access-driven: there is no wildcard operation for observing
+/// every property on an object. Implement ``accessPersistedValues()`` by
+/// reading each property encoded to storage. The store calls the method inside
+/// `withObservationTracking` and automatically re-arms after every mutation.
 ///
-/// - Important: Conformers **must be value types**. See ``SettingsStore`` for
-///   what breaks otherwise.
+/// ```swift
+/// @Observable
+/// final class Settings: SettingsModel {
+///     var general = General()
+///     var appearance = Appearance()
+///
+///     func accessPersistedValues() {
+///         _ = general
+///         _ = appearance
+///     }
+/// }
+/// ```
+///
+/// - Important: Keep this list in sync with the model's encoded properties. A
+///   property omitted from the method still encodes during another save, but a
+///   change to that property alone cannot trigger auto-save.
 @available(macOS 14.0, *)
-public protocol PersistentSettings: Codable, Sendable {
-    @MainActor static var store: SettingsStore<Self> { get }
+public protocol SettingsModel: AnyObject, Codable, Observable {
+    @MainActor
+    func accessPersistedValues()
+}
+
+/// A ``SettingsModel`` that publishes the single store used by its application.
+///
+/// The static store lets ``AppSettings`` and non-SwiftUI code reach the same
+/// model without an environment object or dependency container.
+@available(macOS 14.0, *)
+public protocol PersistentSettings: SettingsModel {
+    @MainActor
+    static var store: SettingsStore<Self> { get }
 }
 
 @available(macOS 14.0, *)
 extension PersistentSettings {
-    /// The current settings — shorthand for `store.value`.
+    /// The current settings object — shorthand for `store.value`.
     ///
-    /// Read and write these from anywhere on the main actor:
+    /// Read or mutate it from the main actor:
     ///
     /// ```swift
     /// if Settings.current.updates.automaticallyChecks { … }
     /// Settings.current.theme.fontSize += 1
     /// ```
-    ///
-    /// - Important: Assign through `Settings.current` directly. Copying it into
-    ///   a local (`var copy = Settings.current`), mutating that, and forgetting
-    ///   to assign back changes nothing and reports no error.
     @MainActor
     public static var current: Self {
         get { store.value }

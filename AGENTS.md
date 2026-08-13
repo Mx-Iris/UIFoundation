@@ -550,7 +550,7 @@ trait `Settings` (default: disabled) as **two** targets, both macOS 14+, both wr
 `#if Settings && os(macOS)`:
 
 - **`UIFoundationSettings`** (model layer, no AppKit) — `SettingsStorage` / `FileSystemSettingsStorage`,
-  `SettingsStore`, `PersistentSettings`, `AppSettings`.
+  `SettingsModel`, `SettingsStore`, `PersistentSettings`, `AppSettings`.
 - **`UIFoundationSettingsUI`** (UI layer) — `SettingsWindowController` / `SettingsWindow`,
   `SettingsRootView`, `SettingsPage` + `@SettingsPageBuilder`, `SettingsForm`, `SettingsPageIcon`,
   `SettingsNavigator`. Ships `Resources/Localizable.xcstrings`: the module has user-facing text of
@@ -563,12 +563,18 @@ and view models do the former everywhere, the latter happens in one place. Neith
 `UIFoundation` umbrella — that would push the macOS 14 floor onto every consumer. No new external
 dependencies: no dependency-injection framework, no introspection package, no macro package.
 
-The host supplies a `Codable` **value type** and a page list; saving, debouncing, loading and change
-notification come with the box:
+The host supplies a `Codable` `@Observable` **reference model** and a page list; saving, debouncing,
+loading and property-level change notification come with the box:
 
 ```swift
-struct Settings: PersistentSettings {
+@Observable
+final class Settings: PersistentSettings {
     var general = General()
+
+    @MainActor func accessPersistedValues() {
+        _ = general
+    }
+
     @MainActor static let store = SettingsStore(
         defaultValue: Settings(),
         storage: FileSystemSettingsStorage(applicationDirectoryName: "MyApp")
@@ -582,18 +588,25 @@ typealias Setting<Value> = AppSettings<Settings, Value>   // then: @Setting(\.ge
 `@Environment`-injected store cannot do, and which matters because most settings reads in a real app
 happen in services, not views. One store per model type is the deliberate consequence.
 
-Four things measured rather than assumed (all four have probes in the proposal's decision log):
+Five things measured rather than assumed (the Settings model change is Evolution
+[`0005`](Documentations/Evolutions/0005-observable-settings-model.md)):
 
 - **Redraws come from Observation, not from the property wrapper.** SwiftUI evaluates `body` inside
   a tracking scope, so reading `Root.store.value` there registers the dependency. `AppSettings`
   therefore **does not conform to `DynamicProperty`** — a conforming wrapper, a non-conforming one,
   and a view reading the store directly all redraw identically. Don't add the conformance back; it
   would read as load-bearing when it is not.
-- **Invalidation is coarse.** Tracking lands on `value` as a whole, so any settings change
-  invalidates every view that reads settings, including one reading an unrelated field. Free in a
-  settings window, potentially not on a hot path.
-- **Value-type-ness is load-bearing and unenforceable.** Auto-save hangs off `value`'s `didSet`; a
-  class model mutates in place, never fires it, and silently never persists.
+- **Invalidation follows the model property.** Reading `general` is not invalidated by an in-place
+  change to `appearance`; replacing the whole Store value still updates every reader. Value-type
+  sections give section-level granularity, which is enough to keep RuntimeViewer's Transformer,
+  Theme and MCP listeners independent.
+- **Persistence observation is explicit.** Observation has no wildcard listener, so
+  `accessPersistedValues()` must read every encoded top-level property. Omitting one means a change
+  to that property alone cannot schedule auto-save. Keep the method beside the coding keys.
+- **Encoding is not an observation shortcut.** A probe wrapping `JSONEncoder.encode(settings)` in
+  `withObservationTracking` did not receive property changes; compiler-synthesized Codable also
+  sees `@Observable` backing storage. Hosts must provide explicit coding or use a coding macro that
+  understands Observation.
 - **Disabling sidebar collapsing needs no swizzling.** `canCollapse = false` sticks (verified on
   macOS 26 across a run-loop pass, a SwiftUI update and a resize). SwiftUI's split view controller is
   reachable **only as the `NSSplitView`'s delegate** — it is not a child of the hosting controller,

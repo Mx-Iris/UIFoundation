@@ -16,13 +16,14 @@
 //  settings panel belongs. Keep it open beside the demo: the counter panels here
 //  read the same settings, so editing anything over there moves them, which is
 //  what makes three otherwise-invisible properties of the design visible —
-//  coarse invalidation, debounced writes, and the value-type copy trap.
+//  key-path invalidation, debounced writes, and whole-model replacement.
 //
 //  Settings land in a temporary directory rather than Application Support, so
 //  running the example never disturbs a real app's settings file.
 //
 
 import AppKit
+import Observation
 import SwiftUI
 import UIFoundation
 import UIFoundationSettings
@@ -33,10 +34,12 @@ import UIFoundationSettingsUI
 /// The workbench app's settings. Note what it does *not* contain: no saving, no
 /// file handling, no `didSet`. Declaring the store is the whole contract.
 ///
-/// It is a `struct` on purpose — see ``SettingsStore`` for why a class would
-/// silently stop persisting.
+/// It is an `@Observable` reference model, so readers track individual
+/// top-level properties while ``SettingsStore`` independently observes every
+/// persisted property for saving.
 @available(macOS 14.0, *)
-struct WorkbenchSettings: PersistentSettings {
+@Observable
+final class WorkbenchSettings: PersistentSettings {
     var general = General()
     var appearance = Appearance()
     var editor = Editor()
@@ -227,6 +230,53 @@ struct WorkbenchSettings: PersistentSettings {
             Workspace(id: "server", name: "Server", symbolName: "server.rack", isIndexed: true, notes: ""),
             Workspace(id: "tooling", name: "Tooling", symbolName: "wrench.and.screwdriver", isIndexed: false, notes: ""),
         ]
+    }
+
+    // MARK: Persistence observation and coding
+
+    init() {}
+
+    @MainActor
+    func accessPersistedValues() {
+        _ = general
+        _ = appearance
+        _ = editor
+        _ = indexing
+        _ = updates
+        _ = advanced
+        _ = workspaces
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case general
+        case appearance
+        case editor
+        case indexing
+        case updates
+        case advanced
+        case workspaces
+    }
+
+    required init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        general = try container.decodeIfPresent(General.self, forKey: .general) ?? General()
+        appearance = try container.decodeIfPresent(Appearance.self, forKey: .appearance) ?? Appearance()
+        editor = try container.decodeIfPresent(Editor.self, forKey: .editor) ?? Editor()
+        indexing = try container.decodeIfPresent(Indexing.self, forKey: .indexing) ?? Indexing()
+        updates = try container.decodeIfPresent(Updates.self, forKey: .updates) ?? Updates()
+        advanced = try container.decodeIfPresent(Advanced.self, forKey: .advanced) ?? Advanced()
+        workspaces = try container.decodeIfPresent([Workspace].self, forKey: .workspaces) ?? Workspace.starterSet
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(general, forKey: .general)
+        try container.encode(appearance, forKey: .appearance)
+        try container.encode(editor, forKey: .editor)
+        try container.encode(indexing, forKey: .indexing)
+        try container.encode(updates, forKey: .updates)
+        try container.encode(advanced, forKey: .advanced)
+        try container.encode(workspaces, forKey: .workspaces)
     }
 
     // MARK: Store
@@ -573,7 +623,7 @@ private struct IndexingSettingsPage: View {
             } header: {
                 Text("Excluded Paths")
             } footer: {
-                Text("An editable list is where the value-type model earns its keep: adding, removing and toggling rows are all just mutations, and each one persists with no extra code.")
+                Text("The observable reference model keeps list edits simple: adding, removing and toggling rows are ordinary property mutations, and each one persists with no extra code.")
             }
             .disabled(!indexing.isEnabled)
         }
@@ -928,8 +978,8 @@ final class SettingsDemoViewController: NSViewController {
         let openWindowButton = NSButton(title: "Open Settings Window", target: self, action: #selector(openSettingsWindow))
         openWindowButton.keyEquivalent = "\r"
 
-        let copyTrapButton = NSButton(title: "Mutate a Copy", target: self, action: #selector(mutateACopy))
-        copyTrapButton.toolTip = "Mutates a copy of the settings without assigning it back — the mistake the value-type contract invites."
+        let replacementButton = NSButton(title: "Replace Model", target: self, action: #selector(replaceSettingsObject))
+        replacementButton.toolTip = "Replaces the settings object and verifies that observation and persistence move to the replacement."
 
         let saveNowButton = NSButton(title: "Save Now", target: self, action: #selector(saveNow))
         saveNowButton.toolTip = "Writes immediately instead of waiting out the debounce."
@@ -970,7 +1020,7 @@ final class SettingsDemoViewController: NSViewController {
         // the SwiftUI content's ideal size, which becomes a hard floor.
         panelsView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        let primaryRow = NSStackView(views: [openWindowButton, copyTrapButton, saveNowButton, revealButton])
+        let primaryRow = NSStackView(views: [openWindowButton, replacementButton, saveNowButton, revealButton])
         primaryRow.orientation = .horizontal
         primaryRow.spacing = 10
 
@@ -1098,18 +1148,16 @@ final class SettingsDemoViewController: NSViewController {
         refreshNavigationDisplay()
     }
 
-    /// The mistake the value-type contract invites: mutating a copy and never
-    /// assigning it back. Nothing is saved, nothing is notified, nothing warns.
     @objc
-    private func mutateACopy() {
+    private func replaceSettingsObject() {
         let before = WorkbenchSettings.current.general.recentDocumentCount
-        var copiedSettings = WorkbenchSettings.current
-        copiedSettings.general.recentDocumentCount = 999
-        // …and never assigned back to `WorkbenchSettings.current`.
+        let replacementSettings = WorkbenchSettings()
+        replacementSettings.general.recentDocumentCount = 999
+        WorkbenchSettings.current = replacementSettings
         let after = WorkbenchSettings.current.general.recentDocumentCount
         statusLabel.stringValue = """
-        Mutated a copy to 999 — the store still reads \(after) (was \(before)). \
-        No save, no redraw, no error. Always assign through `WorkbenchSettings.current`.
+        Replaced the model: recent-document count is now \(after) (was \(before)). \
+        Readers and persistence now follow the replacement object.
         """
     }
 

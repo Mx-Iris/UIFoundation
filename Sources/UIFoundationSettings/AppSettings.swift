@@ -2,8 +2,8 @@
 
 import SwiftUI
 
-/// Reads and writes one slot of a ``PersistentSettings`` model from a SwiftUI
-/// view.
+/// Reads and writes one property of a ``PersistentSettings`` model from a
+/// SwiftUI view.
 ///
 /// The key path can address a whole section or a single leaf:
 ///
@@ -30,26 +30,16 @@ import SwiftUI
 /// // …then: @Setting(\.general) private var general
 /// ```
 ///
-/// ### What makes the view redraw
-///
-/// Not this wrapper, and deliberately **not** `DynamicProperty` — it does not
-/// conform, and adding the conformance changes nothing (measured: a conforming
-/// wrapper, a non-conforming one, and a view reading the store directly all
-/// redraw identically). Redraws come from Observation: SwiftUI evaluates `body`
-/// inside an observation-tracking scope, so reading `Root.store.value` there is
-/// enough to register the dependency, however the value was reached.
-///
-/// One consequence worth knowing: tracking lands on `store.value` as a whole,
-/// so **any** settings change invalidates **every** view that reads settings,
-/// including views that read an unrelated field. That is free in a settings
-/// window and could matter on a hot path — see `Documentations/SettingsWindow.md`.
+/// SwiftUI observes the property reached by the reference key path. A view
+/// reading `general` is therefore unaffected by a change to `appearance`; it
+/// does not observe one coarse root value.
 @available(macOS 14.0, *)
 @MainActor
 @propertyWrapper
 public struct AppSettings<Root: PersistentSettings, Value> {
-    private let keyPath: WritableKeyPath<Root, Value>
+    private let keyPath: ReferenceWritableKeyPath<Root, Value>
 
-    public init(_ keyPath: WritableKeyPath<Root, Value>) {
+    public init(_ keyPath: ReferenceWritableKeyPath<Root, Value>) {
         self.keyPath = keyPath
     }
 
@@ -58,20 +48,15 @@ public struct AppSettings<Root: PersistentSettings, Value> {
         nonmutating set { Root.store.value[keyPath: keyPath] = newValue }
     }
 
-    /// A key-path binding into the store, not a `Binding(get:set:)`.
+    /// A key-path binding into the current observable settings object.
     ///
-    /// Every control on a settings page goes through here, and `$something` is
-    /// read afresh on each body evaluation. The closure form would allocate a
-    /// new pair of closures per read and hand out a binding whose location is
-    /// new every time — which is what makes a child view holding `@Binding`
-    /// look changed on every pass. Derived from the observable store by key
-    /// path, the binding's location is stable instead.
-    ///
-    /// The write still lands as an assignment to `store.value`, which is what
-    /// the auto-save hangs off — `AppSettingsTests` pins that down.
+    /// `@Bindable` gives the binding a stable key-path location without
+    /// allocating a fresh `Binding(get:set:)` closure pair on every read. A
+    /// loaded replacement is picked up because this accessor resolves
+    /// `Root.store.value` afresh.
     public var projectedValue: Binding<Value> {
-        @Bindable var store = Root.store
-        return $store.value[dynamicMember: keyPath]
+        @Bindable var settings = Root.store.value
+        return $settings[dynamicMember: keyPath]
     }
 }
 

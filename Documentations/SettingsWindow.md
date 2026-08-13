@@ -1,7 +1,7 @@
 # Settings Window
 
 > A System Settings-shaped window for AppKit apps: a sidebar of pages, grouped forms, and a settings
-> model that persists itself. The host writes a `Codable` struct and a list of pages; saving,
+> model that persists itself. The host writes an `@Observable` reference model and a list of pages; saving,
 > debouncing, loading and change notification come with the box.
 >
 > Ships behind the opt-in SPM trait `Settings`, in two modules — `UIFoundationSettings` (the model
@@ -32,8 +32,10 @@ swift build --traits Settings                           // CLI
 ```swift
 import UIFoundationSettings      // model layer
 import UIFoundationSettingsUI    // window layer
+import Observation
 
-struct Settings: PersistentSettings {
+@Observable
+final class Settings: PersistentSettings {
     var general = General()
     var appearance = Appearance()
 
@@ -44,6 +46,31 @@ struct Settings: PersistentSettings {
 
     struct Appearance: Codable, Sendable {
         var usesLargeText = false
+    }
+
+    init() {}
+
+    @MainActor
+    func accessPersistedValues() {
+        _ = general
+        _ = appearance
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case general
+        case appearance
+    }
+
+    required init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        general = try container.decodeIfPresent(General.self, forKey: .general) ?? General()
+        appearance = try container.decodeIfPresent(Appearance.self, forKey: .appearance) ?? Appearance()
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(general, forKey: .general)
+        try container.encode(appearance, forKey: .appearance)
     }
 
     @MainActor
@@ -86,19 +113,28 @@ window. A module that only reads settings depends on `UIFoundationSettings` and 
 
 ## 2. The settings model
 
-Conform a type to `PersistentSettings`; its only requirement is a static `store`.
+Conform an `@Observable` class to `PersistentSettings`. It supplies a static `store` and implements
+`accessPersistedValues()` by reading every property that is encoded. The store calls that method
+inside Observation tracking; this is how it notices in-place mutations without adding `didSet` to
+every property.
 
-**The model must be a value type.** Nothing in the type system enforces this and violating it fails
-silently — see [§8](#8-contracts-and-limits).
-
-Everything else is ordinary Swift. Use plain property defaults; `Codable` synthesis fills them in
-when a stored file predates a newly added field, so adding settings over time needs no migration
-plumbing.
+Use defaults while decoding missing keys so a stored file that predates a new setting remains valid.
+Plain compiler-synthesized `Codable` is not suitable for an `@Observable` class: the macro turns the
+properties into computed accessors backed by underscored storage and adds an observation registrar.
+Write `Codable` explicitly, as above, or use a coding macro that understands Observation.
 
 ```swift
-struct Settings: PersistentSettings {
+@Observable
+final class Settings: PersistentSettings {
     var general = General()          // added in 1.0
     var indexing = Indexing()        // added in 1.4 — old files decode fine
+
+    func accessPersistedValues() {
+        _ = general
+        _ = indexing
+    }
+
+    // Decode missing keys to General() / Indexing().
     …
 }
 ```
@@ -136,10 +172,8 @@ if Settings.current.general.confirmsBeforeQuitting { … }
 Settings.current.appearance.usesLargeText = true
 ```
 
-Both reach the same store; there is no environment to inject and no container to register.
-
-> **Assign through `current` itself.** `var copy = Settings.current` followed by mutating `copy`
-> changes a copy: nothing is saved, nothing is notified, nothing reports an error.
+Both reach the same observable object; there is no environment to inject and no container to
+register.
 
 **Observing changes** outside SwiftUI works through the Observation framework as usual — the read
 has to happen *inside* the tracking closure:
@@ -275,14 +309,15 @@ out.
 
 ## 6. Persistence
 
-`SettingsStore` owns the value and writes it back a short while after it changes, coalescing a burst
-of edits into a single write. Hosts never call save.
+`SettingsStore` owns the current object, observes the properties named by
+`accessPersistedValues()`, and writes it back a short while after one changes. A burst of edits is
+coalesced into one write; hosts never call save after ordinary edits.
 
 | Concern | Behaviour |
 |---|---|
 | Where | `FileSystemSettingsStorage(applicationDirectoryName:)` → `~/Library/Application Support/<name>/Settings.json`. `init(fileURL:)` writes anywhere else; conform `SettingsStorage` to persist somewhere other than a file. |
 | When | `autoSaveDelay` after the last change (default 1 s). `save()` writes immediately and cancels the pending write — call it when terminating. |
-| Loading | `await store.load()` once at launch. It replaces the value **without** triggering a save. |
+| Loading | `await store.load()` once at launch. It replaces the object **without** triggering a save, then moves both business and persistence observation to the replacement before returning. |
 | Missing file | Not an error: `load()` returns `.noStoredData` and the default value stays in effect. |
 | Corrupt file | `load()` returns `.failed(error)`, keeps the defaults, and **leaves the stored bytes alone** so a later build can still recover them. |
 
@@ -301,41 +336,44 @@ migrateLegacyFontSizeIfNeeded()   // writes through Settings.current
 ## 7. What redraws, and when
 
 Redraws come from Observation, not from this library: SwiftUI evaluates `body` inside an
-observation-tracking scope, so reading the store there registers the dependency. Consequently:
+observation-tracking scope, so reading the reached `@Observable` property registers the dependency.
+Consequently:
 
 - `AppSettings` **does not conform to `DynamicProperty`**, on purpose. Measured three ways — a
-  conforming wrapper, a non-conforming one, and a view reading the store directly — all redraw
+  conforming wrapper, a non-conforming one, and a view reading the model directly — all redraw
   identically. The conformance would only suggest it is load-bearing when it is not.
 - A view that reads settings outside the settings window updates too, with no wiring. The demo's
   live mirror panel is exactly this.
 
-**Invalidation is coarse, by design of the value-type model.** Tracking lands on the store's `value`
-property as a whole, so **any** settings change invalidates **every** view that reads settings —
-including views reading an unrelated field. Measured with three panels side by side:
+**Invalidation follows the observed model property.** The store's `value` property is read as well,
+so replacing the whole settings object updates every reader. Ordinary edits mutate that object in
+place and only notify readers of the property that changed:
 
 | Panel | Edit to `appearance` | Edit to `general` |
 |---|---|---|
-| reads `\.general` | re-evaluates | re-evaluates |
-| reads `\.appearance` | re-evaluates | re-evaluates |
+| reads `\.general` | untouched | re-evaluates |
+| reads `\.appearance` | re-evaluates | untouched |
 | reads no settings | untouched | untouched |
 
-So the blast radius is "every view that reads settings", **not** the whole view tree — a view that
-never touches the store is unaffected. The **Settings Window** demo shows this live with counters.
-
-In a settings window this costs nothing: one page is on screen, edits happen at human speed. It can
-matter if a hot path in the main UI reads settings directly. If that comes up, in increasing order
-of effort: hoist the value into the view's own `@State`, cache a snapshot outside the view, or
-revisit the trade-off recorded in
-[Evolution 0002](Evolutions/0002-reusable-settings-window.md#替代方案考量).
+The granularity is one top-level stored property when sections are value types. Reading
+`settings.theme.fontSize` observes `theme`, so another field inside `theme` also invalidates that
+reader; changing `transformer` does not. Make a section its own `@Observable` reference model only
+when leaf-level granularity is worth the added identity and coding complexity. The **Settings
+Window** demo shows the normal section-level behaviour with counters.
 
 ---
 
 ## 8. Contracts and limits
 
-**The settings model must be a value type.** Auto-saving hangs off `value`'s `didSet`, which only
-fires when the property is assigned. With a struct, `store.value.general.x = 1` reads-modifies-writes
-the whole property and saves. With a class it mutates the object in place, `didSet` never fires, and
-**settings are silently never written to disk**. There is no compiler diagnostic for this.
+**Every encoded property must be read by `accessPersistedValues()`.** Observation has no wildcard
+"any property changed" subscription. An omitted property still appears whenever another edit causes
+a save, but changing only the omitted property cannot schedule that save. Keep the method beside the
+coding keys and update both together.
+
+**The model must be an observable reference type.** `SettingsModel` enforces `AnyObject`, `Codable`,
+and `Observable`; use the `@Observable` macro so ordinary stored properties participate in access
+tracking. Perform settings access on the main actor, as `SettingsStore`, `AppSettings`, and
+`PersistentSettings.current` do.
 
 **macOS 14+.** `@Observable` sets the floor. The package still deploys to macOS 10.15, so every
 symbol here is `@available(macOS 14, *)`; a host on an older target gates the settings window behind

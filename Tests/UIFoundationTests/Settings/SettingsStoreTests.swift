@@ -1,6 +1,7 @@
 #if Settings && os(macOS)
 
 import Foundation
+import Observation
 import Testing
 
 @testable import UIFoundationSettings
@@ -32,7 +33,8 @@ private actor RecordingStorage: SettingsStorage {
     }
 }
 
-private struct DemoSettings: Codable, Sendable, Equatable {
+@Observable
+private final class DemoSettings: SettingsModel, Equatable {
     struct General: Codable, Sendable, Equatable {
         var depth = 3
         var isEnabled = false
@@ -40,6 +42,55 @@ private struct DemoSettings: Codable, Sendable, Equatable {
 
     var general = General()
     var title = "untitled"
+
+    init(general: General = General(), title: String = "untitled") {
+        self.general = general
+        self.title = title
+    }
+
+    @MainActor
+    func accessPersistedValues() {
+        _ = general
+        _ = title
+    }
+
+    static func == (left: DemoSettings, right: DemoSettings) -> Bool {
+        left.general == right.general && left.title == right.title
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case general
+        case title
+    }
+
+    required init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        general = try container.decodeIfPresent(General.self, forKey: .general) ?? General()
+        title = try container.decodeIfPresent(String.self, forKey: .title) ?? "untitled"
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(general, forKey: .general)
+        try container.encode(title, forKey: .title)
+    }
+}
+
+private final class ObservationChangeRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var recordedChangeCount = 0
+
+    var changeCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return recordedChangeCount
+    }
+
+    func recordChange() {
+        lock.lock()
+        recordedChangeCount += 1
+        lock.unlock()
+    }
 }
 
 /// Long enough for the debounce to elapse, short enough not to drag the suite.
@@ -73,7 +124,44 @@ private func waitPastAutoSave() async {
 @MainActor
 @Suite("SettingsStore")
 struct SettingsStoreTests {
-    @Test("a nested key path write triggers a save")
+    @Test("an observed property ignores an unrelated settings change")
+    func propertyObservationIsNarrow() {
+        guard #available(macOS 14.0, *) else { return }
+        let storage = RecordingStorage()
+        let store = SettingsStore(defaultValue: DemoSettings(), storage: storage)
+        let changeRecorder = ObservationChangeRecorder()
+
+        withObservationTracking {
+            _ = store.value.general
+        } onChange: {
+            changeRecorder.recordChange()
+        }
+
+        store.value.title = "unrelated"
+        #expect(changeRecorder.changeCount == 0)
+
+        store.value.general.depth = 8
+        #expect(changeRecorder.changeCount == 1)
+    }
+
+    @Test("replacing the settings object notifies existing readers")
+    func replacementObservationWorks() {
+        guard #available(macOS 14.0, *) else { return }
+        let storage = RecordingStorage()
+        let store = SettingsStore(defaultValue: DemoSettings(), storage: storage)
+        let changeRecorder = ObservationChangeRecorder()
+
+        withObservationTracking {
+            _ = store.value.general.depth
+        } onChange: {
+            changeRecorder.recordChange()
+        }
+
+        store.value = DemoSettings(title: "replacement")
+        #expect(changeRecorder.changeCount == 1)
+    }
+
+    @Test("a nested property write triggers a save")
     func nestedWriteSaves() async throws {
         guard #available(macOS 14.0, *) else { return }
         let storage = RecordingStorage()
@@ -108,10 +196,11 @@ struct SettingsStoreTests {
     @Test("loading stored settings does not write them straight back")
     func loadDoesNotEcho() async throws {
         guard #available(macOS 14.0, *) else { return }
-        var stored = DemoSettings()
-        stored.general.depth = 11
-        stored.title = "stored"
-        let storage = RecordingStorage(initialData: try JSONEncoder().encode(stored))
+        let storedSettings = DemoSettings(
+            general: DemoSettings.General(depth: 11, isEnabled: false),
+            title: "stored"
+        )
+        let storage = RecordingStorage(initialData: try JSONEncoder().encode(storedSettings))
 
         let store = SettingsStore(defaultValue: DemoSettings(), storage: storage, autoSaveDelay: autoSaveDelay)
         let outcome = await store.load()
@@ -120,7 +209,7 @@ struct SettingsStoreTests {
         if case .loaded = outcome {} else {
             Issue.record("expected .loaded, got \(outcome)")
         }
-        #expect(store.value == stored)
+        #expect(store.value == storedSettings)
         #expect(await storage.saveCount == 0)
     }
 
@@ -128,31 +217,33 @@ struct SettingsStoreTests {
     func emptyStorageKeepsDefaults() async {
         guard #available(macOS 14.0, *) else { return }
         let storage = RecordingStorage()
-        let store = SettingsStore(defaultValue: DemoSettings(), storage: storage, autoSaveDelay: autoSaveDelay)
+        let defaultSettings = DemoSettings()
+        let store = SettingsStore(defaultValue: defaultSettings, storage: storage, autoSaveDelay: autoSaveDelay)
 
         let outcome = await store.load()
 
         if case .noStoredData = outcome {} else {
             Issue.record("expected .noStoredData, got \(outcome)")
         }
-        #expect(store.value == DemoSettings())
+        #expect(store.value === defaultSettings)
     }
 
     @Test("undecodable data leaves the defaults in place and reports the failure")
     func corruptStorageReportsFailure() async {
         guard #available(macOS 14.0, *) else { return }
         let storage = RecordingStorage(initialData: Data("not json".utf8))
-        let store = SettingsStore(defaultValue: DemoSettings(), storage: storage, autoSaveDelay: autoSaveDelay)
+        let defaultSettings = DemoSettings()
+        let store = SettingsStore(defaultValue: defaultSettings, storage: storage, autoSaveDelay: autoSaveDelay)
 
         let outcome = await store.load()
 
         if case .failed = outcome {} else {
             Issue.record("expected .failed, got \(outcome)")
         }
-        #expect(store.value == DemoSettings())
+        #expect(store.value === defaultSettings)
     }
 
-    @Test("an explicit save writes immediately and cancels the pending one")
+    @Test("an explicit save writes immediately and cancels deferred work")
     func explicitSaveSupersedesDebounce() async throws {
         guard #available(macOS 14.0, *) else { return }
         let storage = RecordingStorage()
@@ -163,12 +254,13 @@ struct SettingsStoreTests {
 
         #expect(await storage.saveCount == 1)
 
-        // The debounced task must not fire a second write after the fact.
+        // Neither the debounced task nor Observation's deferred re-arm may
+        // produce a second write after the explicit save.
         await waitPastAutoSave()
         #expect(await storage.saveCount == 1)
     }
 
-    @Test("mutating settings after a load still saves")
+    @Test("mutating settings immediately after a load still saves")
     func writeAfterLoadResumesSaving() async throws {
         guard #available(macOS 14.0, *) else { return }
         let storage = RecordingStorage(initialData: try JSONEncoder().encode(DemoSettings()))
