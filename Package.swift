@@ -57,28 +57,28 @@ let package = Package(
             name: "UIFoundation",
             targets: [
                 "UIFoundation",
-            ]
+            ],
         ),
 
         .library(
             name: "UIFoundationToolbox",
             targets: [
                 "UIFoundationToolbox",
-            ]
+            ],
         ),
 
         .library(
             name: "UIFoundationSettings",
             targets: [
                 "UIFoundationSettings",
-            ]
+            ],
         ),
 
         .library(
             name: "UIFoundationSettingsUI",
             targets: [
                 "UIFoundationSettingsUI",
-            ]
+            ],
         ),
     ],
     traits: [
@@ -97,17 +97,17 @@ let package = Package(
         .package(
             remote: .package(
                 url: "https://github.com/Mx-Iris/FrameworkToolbox",
-                from: "0.7.4"
+                from: "0.7.4",
             ),
         ),
         .package(
             url: "https://github.com/p-x9/AssociatedObject",
-            from: "0.13.0"
+            from: "0.13.0",
         ),
     ],
     targets: [
         .target(
-            name: "UIFoundationTypealias"
+            name: "UIFoundationTypealias",
         ),
 
         .target(
@@ -191,13 +191,13 @@ let package = Package(
             ],
             swiftSettings: swiftSettings,
         ),
-        
+
         .target(
-            name: "UIFoundationCarbonInternal"
+            name: "UIFoundationCarbonInternal",
         ),
-        
-            .target(
-            name: "UIFoundationAppleInternalObjC"
+
+        .target(
+            name: "UIFoundationAppleInternalObjC",
         ),
 
         .target(
@@ -228,7 +228,7 @@ let package = Package(
                 "UIFoundationToolbox",
                 "UIFoundationSettings",
                 .target(name: "UIFoundationSettingsUI", condition: .when(platforms: appkitPlatforms)),
-            ]
+            ],
         ),
     ],
     swiftLanguageModes: [.v5],
