@@ -25,7 +25,7 @@ extension NSToolbar {
         self.init(identifier, allowsUserCustomization: allowsUserCustomization, items: items())
     }
 
-    fileprivate func _installManagedItems(_ items: [ToolbarItem], allowsUserCustomization: Bool) {
+    private func _installManagedItems(_ items: [ToolbarItem], allowsUserCustomization: Bool) {
         let manager = ManagedDelegate(items: items)
         managedDelegate = manager
         delegate = manager

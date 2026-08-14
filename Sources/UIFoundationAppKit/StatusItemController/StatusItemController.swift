@@ -12,12 +12,12 @@
 #if StatusItemController && os(macOS)
 
 import AppKit
+import UIFoundationToolbox
 
 /// Controller for an `NSStatusItem`. Designed to be subclassed.
 /// - Warning: You must subclass this controller.
 @MainActor
 open class StatusItemController: NSObject, NSMenuDelegate {
-
     // MARK: Properties
 
     /// The status item.
@@ -34,7 +34,7 @@ open class StatusItemController: NSObject, NSMenuDelegate {
         super.init()
         self.statusItem.button?.toolTip = Bundle.main.infoDictionary?["CFBundleName"] as? String
         self.statusItem.button?.image = image
-        (self.statusItem.button?.cell as? NSButtonCell)?.highlightsBy = [NSCell.StyleMask(rawValue: 0)]
+        self.statusItem.button?.buttonCell?.highlightsBy = [NSCell.StyleMask(rawValue: 0)]
         self.statusItem.button?.target = self
         self.statusItem.button?.action = #selector(_didClickStatusItem(_:))
         self.statusItem.button?.sendAction(on: [.leftMouseDown, .rightMouseUp])
@@ -111,5 +111,23 @@ open class StatusItemController: NSObject, NSMenuDelegate {
         self._configureMenu(hidden: true)
     }
 }
+
+
+extension NSEvent {
+    /// Returns `true` if the event is `.rightMouseUp` or a control-click equivalent.
+    fileprivate var isRightClickUpForStatusItem: Bool {
+        let isRightClick = (self.type == .rightMouseUp)
+        let isControlClick = self.modifierFlags.contains(.control)
+        return isRightClick || isControlClick
+    }
+}
+
+extension NSApplication {
+    /// Returns `true` if the application's current event is a right-click-up or control-click equivalent.
+    fileprivate var isCurrentEventRightClickUpForStatusItem: Bool {
+        self.currentEvent?.isRightClickUpForStatusItem ?? false
+    }
+}
+
 
 #endif
