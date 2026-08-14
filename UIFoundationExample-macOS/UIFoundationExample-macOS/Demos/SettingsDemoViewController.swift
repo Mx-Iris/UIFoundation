@@ -1133,7 +1133,7 @@ final class SettingsDemoViewController: NSViewController {
         // settings; a real app would usually build this once. The navigator is
         // the demo's, not the window's, so the history survives the rebuild.
         settingsWindowController = SettingsWindowController(
-            title: "Workbench Settings",
+            configuration: SettingsConfiguration(title: "Workbench Settings"),
             navigator: settingsNavigator
         ) {
             workbenchSettingsPages(

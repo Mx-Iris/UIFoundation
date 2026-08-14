@@ -552,16 +552,34 @@ trait `Settings` (default: disabled) as **two** targets, both macOS 14+, both wr
 - **`UIFoundationSettings`** (model layer, no AppKit) — `SettingsStorage` / `FileSystemSettingsStorage`,
   `SettingsModel`, `SettingsStore`, `PersistentSettings`, `AppSettings`.
 - **`UIFoundationSettingsUI`** (UI layer) — `SettingsWindowController` / `SettingsWindow`,
-  `SettingsRootView`, `SettingsPage` + `@SettingsPageBuilder`, `SettingsForm`, `SettingsPageIcon`,
-  `SettingsNavigator`. Ships `Resources/Localizable.xcstrings`: the module has user-facing text of
-  its own (the back / forward buttons), and `#bundle` only resolves for a target that has a bundle.
-  A literal without `bundle: #bundle` in here searches the *app's* catalog and silently renders the
-  key.
+  `SettingsScene`, `SettingsRootView`, `SettingsPage` + `@SettingsPageBuilder`, `SettingsForm`,
+  `SettingsPageIcon`, `SettingsNavigator`. Ships `Resources/Localizable.xcstrings`: the module has
+  user-facing text of its own (the back / forward buttons), and `#bundle` only resolves for a target
+  that has a bundle. A literal without `bundle: #bundle` in here searches the *app's* catalog and
+  silently renders the key.
 
 Split in two because reading settings and *showing* the settings window are different jobs: services
 and view models do the former everywhere, the latter happens in one place. Neither target joins the
 `UIFoundation` umbrella — that would push the macOS 14 floor onto every consumer. No new external
 dependencies: no dependency-injection framework, no introspection package, no macro package.
+
+**All host customization goes through the top-level `SettingsConfiguration`** (Evolution
+[`0008`](Documentations/Evolutions/0008-top-level-settings-configuration.md)): window title and size,
+sidebar width and icon size, and navigation-control visibility. Pass the same value to
+`SettingsScene` or an embedded `SettingsRootView`. Keep `SettingsNavigator` separate — it is live
+selection/history state, not appearance — and keep the page builder separate because pages are
+content. RuntimeViewer uses `sidebarIconSize: 15` to preserve its pre-migration glyph size; the
+library default remains 20.
+
+**There are two complete presentation choices** (Evolution
+[`0007`](Documentations/Evolutions/0007-settings-scene.md)). `SettingsWindowController` gives AppKit
+direct ownership of a window on macOS 14+. `SettingsScene` is a native SwiftUI `Settings` scene with
+the same initializer shape, public configuration, and public navigator. SwiftUI apps place it in
+`App.body`; macOS 26+ AppKit apps wrap it in `NSHostingSceneRepresentation`, register that with
+`NSApplication.addSceneRepresentation(_:)` during `applicationWillFinishLaunching(_:)`, and open it
+through `representation.environment.openSettings()`. Do not hide registration inside the scene or a
+process-wide convenience: its timing belongs to the app lifecycle. SwiftUI owns a native Settings
+scene's title, so `SettingsConfiguration.title` remains specific to `SettingsWindowController`.
 
 The host supplies a `Codable` `@Observable` **reference model** and a page list; saving, debouncing,
 loading and property-level change notification come with the box:

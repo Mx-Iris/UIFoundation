@@ -11,10 +11,11 @@
 六篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
 **接入任何一个组件前先读对应那篇。**
 
-- [SettingsWindow](SettingsWindow.md) —— System Settings 形状的设置窗口，外加一个会自己持久化的
-  `@Observable` 设置模型。**含一条踩了就静默漏存的契约**：`accessPersistedValues()` 必须读取每个编码
-  属性。另有 section 级失效粒度、为什么 `AppSettings` 不遵守 `DynamicProperty`、`@Observable` 与
-  Codable 的配合方式，以及侧栏禁折叠为何不需要 swizzle 的实测结论。
+- [SettingsWindow](SettingsWindow.md) —— System Settings 形状的设置窗口与原生 SwiftUI
+  `SettingsScene`，后者可由 macOS 26 AppKit 通过 `NSHostingSceneRepresentation` 注册；另带一个会自己
+  持久化的 `@Observable` 设置模型。**含一条踩了就静默漏存的契约**：`accessPersistedValues()` 必须读取
+  每个编码属性。另有 section 级失效粒度、为什么 `AppSettings` 不遵守 `DynamicProperty`、`@Observable`
+  与 Codable 的配合方式，以及侧栏禁折叠为何不需要 swizzle 的实测结论。
 
 - [Navigation](Navigation.md) —— 视图控制器导航栈与推入/弹出转场，移植自 macOS App Store 自己那套。
   含四条宿主必须知道的契约：**容器独占子视图 frame，禁止从外部给页面加约束**、

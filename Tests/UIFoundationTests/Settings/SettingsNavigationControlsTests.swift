@@ -44,9 +44,11 @@ struct SettingsNavigationControlsTests {
         showsNavigationControls: Bool = true
     ) async -> NSWindow {
         let rootView = SettingsRootView(
-            navigator: navigator,
-            showsNavigationControls: showsNavigationControls,
-            sidebarWidth: sidebarWidth
+            configuration: .init(
+                sidebarWidth: sidebarWidth,
+                showsNavigationControls: showsNavigationControls
+            ),
+            navigator: navigator
         ) {
             SettingsPage("General", id: "general", symbol: "gearshape") { Text("general") }
             SettingsPage("Advanced", id: "advanced", symbol: "slider.horizontal.3") { Text("advanced") }

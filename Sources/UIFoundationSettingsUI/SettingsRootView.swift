@@ -4,8 +4,9 @@ import SwiftUI
 
 /// The settings window's content: a sidebar of pages beside the selected page.
 ///
-/// Usually reached through ``SettingsWindowController``; use this directly only
-/// when hosting the settings UI somewhere other than its own window.
+/// Usually reached through ``SettingsWindowController`` or ``SettingsScene``;
+/// use this directly only when embedding the settings UI somewhere other than
+/// its own presentation.
 ///
 /// ```swift
 /// SettingsRootView {
@@ -35,6 +36,7 @@ public struct SettingsRootView: View {
     private let pageIdentifiers: [SettingsPage.ID]
 
     private let sidebarWidth: CGFloat
+    private let sidebarIconSize: CGFloat
     private let showsNavigationControls: Bool
 
     private let providedNavigator: SettingsNavigator?
@@ -45,24 +47,23 @@ public struct SettingsRootView: View {
     @State private var ownNavigator: SettingsNavigator
 
     /// - Parameters:
+    ///   - configuration: Window and sidebar customization. Only the sidebar
+    ///     and navigation-control values are used when this view is embedded.
     ///   - navigator: Drives the selection and history. Defaults to one of the
     ///     view's own, starting on the first page.
-    ///   - showsNavigationControls: Whether to show the back / forward buttons.
-    ///     Hiding them leaves `navigator` working — only the buttons go away.
-    ///   - sidebarWidth: Width of the page list.
     ///   - pages: Sidebar entries, in order.
     @MainActor
     public init(
+        configuration: SettingsConfiguration = .init(),
         navigator: SettingsNavigator? = nil,
-        showsNavigationControls: Bool = true,
-        sidebarWidth: CGFloat = 185,
         @SettingsPageBuilder pages: () -> [SettingsPage]
     ) {
         let resolvedPages = pages()
         self.pages = resolvedPages
         self.pageIdentifiers = resolvedPages.map(\.id)
-        self.sidebarWidth = sidebarWidth
-        self.showsNavigationControls = showsNavigationControls
+        self.sidebarWidth = configuration.sidebarWidth
+        self.sidebarIconSize = configuration.sidebarIconSize
+        self.showsNavigationControls = configuration.showsNavigationControls
         self.providedNavigator = navigator
         _ownNavigator = State(initialValue: SettingsNavigator(initialPageID: resolvedPages.first?.id))
     }
@@ -71,7 +72,12 @@ public struct SettingsRootView: View {
 
     public var body: some View {
         NavigationSplitView {
-            SettingsSidebar(pages: pages, navigator: navigator, width: sidebarWidth)
+            SettingsSidebar(
+                pages: pages,
+                navigator: navigator,
+                width: sidebarWidth,
+                iconSize: sidebarIconSize
+            )
         } detail: {
             SettingsDetailPane(
                 pages: pages,
@@ -95,6 +101,7 @@ private struct SettingsSidebar: View {
     let pages: [SettingsPage]
     let navigator: SettingsNavigator
     let width: CGFloat
+    let iconSize: CGFloat
 
     var body: some View {
         // A key-path binding into the navigator rather than a hand-written
@@ -108,7 +115,7 @@ private struct SettingsSidebar: View {
             Label {
                 Text(page.title)
             } icon: {
-                SettingsPageIcon(page.icon)
+                SettingsPageIcon(page.icon, size: iconSize)
             }
         }
         .navigationSplitViewColumnWidth(width)

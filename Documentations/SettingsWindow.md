@@ -1,11 +1,11 @@
-# Settings Window
+# Settings Window and Scene
 
-> A System Settings-shaped window for AppKit apps: a sidebar of pages, grouped forms, and a settings
-> model that persists itself. The host writes an `@Observable` reference model and a list of pages; saving,
-> debouncing, loading and change notification come with the box.
+> A System Settings-shaped presentation for SwiftUI and AppKit apps: a sidebar of pages, grouped
+> forms, and a settings model that persists itself. The host writes an `@Observable` reference model
+> and a list of pages; saving, debouncing, loading and change notification come with the box.
 >
 > Ships behind the opt-in SPM trait `Settings`, in two modules — `UIFoundationSettings` (the model
-> layer) and `UIFoundationSettingsUI` (the window). macOS 14+, macOS only.
+> layer) and `UIFoundationSettingsUI` (the presentation layer). macOS 14+, macOS only.
 
 ---
 
@@ -14,7 +14,7 @@
 - [1. Getting started](#1-getting-started)
 - [2. The settings model](#2-the-settings-model)
 - [3. Reading and writing settings](#3-reading-and-writing-settings)
-- [4. Building the window](#4-building-the-window)
+- [4. Choosing a presentation](#4-choosing-a-presentation)
 - [5. Page navigation](#5-page-navigation)
 - [6. Persistence](#6-persistence)
 - [7. What redraws, and when](#7-what-redraws-and-when)
@@ -188,18 +188,114 @@ withObservationTracking {
 
 ---
 
-## 4. Building the window
+## 4. Choosing a presentation
 
-`SettingsWindowController` takes a title, a fixed content width, a minimum height, and the pages:
+The same pages have three presentation entry points:
+
+- `SettingsWindowController` gives an AppKit host direct ownership of an `NSWindowController` on
+  macOS 14 and later.
+- `SettingsScene` is a native SwiftUI `Settings` scene. A SwiftUI app places it in `App.body`; a
+  macOS 26 AppKit app can register it through `NSHostingSceneRepresentation`.
+- `SettingsRootView` is the content alone, for embedding inside another view or window.
+
+`SettingsConfiguration` is the single place for window and sidebar customization.
+The same value can be passed to all three entry points:
 
 ```swift
-SettingsWindowController(title: "Settings", contentWidth: 715, minimumContentHeight: 400) {
+let configuration = SettingsConfiguration(
+    title: "Settings",
+    contentWidth: 715,
+    minimumContentHeight: 400,
+    sidebarWidth: 185,
+    sidebarIconSize: 20,
+    showsNavigationControls: true
+)
+
+SettingsWindowController(configuration: configuration) {
     SettingsPage("General", symbol: "gearshape") { GeneralPage() }
     if isDeveloperBuild {
         SettingsPage("Debug", symbol: "ladybug", tint: .red) { DebugPage() }
     }
 }
 ```
+
+Those are all of the host-customizable window values. `navigator` remains a separate initializer
+argument because it is live selection and history state, not appearance. `sidebarIconSize` applies
+uniformly to every page icon; the default is 20 pt.
+
+### Native SwiftUI Settings scene
+
+Use `SettingsScene` directly from a SwiftUI app. It reuses the same `SettingsConfiguration`, navigator, and
+page builder as the window controller:
+
+```swift
+@main
+struct WorkbenchApplication: App {
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+
+        SettingsScene(
+            configuration: SettingsConfiguration(sidebarIconSize: 15)
+        ) {
+            SettingsPage("General", id: "general", plainSymbol: "gearshape") {
+                GeneralSettingsView()
+            }
+            SettingsPage("Updates", id: "updates", plainSymbol: "arrow.down.circle") {
+                UpdateSettingsView()
+            }
+        }
+    }
+}
+```
+
+SwiftUI owns the native Settings scene's window title and Settings menu item, so
+`SettingsConfiguration.title` applies only to `SettingsWindowController`. Content width, minimum height,
+sidebar values, and navigation-control visibility apply to both presentation paths.
+
+### Hosting the scene from AppKit on macOS 26
+
+macOS 26 adds `NSHostingSceneRepresentation`, which lets an AppKit-lifecycle app register a SwiftUI
+scene. Keep both the scene and its representation as application-lifetime state, register the
+representation from `applicationWillFinishLaunching(_:)`, and open it through the representation's
+environment:
+
+```swift
+@available(macOS 26.0, *)
+@MainActor
+final class ApplicationDelegate: NSObject, NSApplicationDelegate {
+    private let settingsScene: SettingsScene
+    private let settingsSceneRepresentation: NSHostingSceneRepresentation<SettingsScene>
+
+    override init() {
+        let settingsScene = SettingsScene {
+            SettingsPage("General", id: "general", plainSymbol: "gearshape") {
+                GeneralSettingsView()
+            }
+        }
+        self.settingsScene = settingsScene
+        self.settingsSceneRepresentation = NSHostingSceneRepresentation {
+            settingsScene
+        }
+        super.init()
+    }
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        NSApplication.shared.addSceneRepresentation(settingsSceneRepresentation)
+    }
+
+    @IBAction
+    func showSettings(_ sender: Any?) {
+        settingsSceneRepresentation.environment.openSettings()
+    }
+}
+```
+
+An AppKit app that still supports macOS 14–25 can keep `SettingsWindowController` as its fallback
+and use this bridge only inside a macOS 26 availability branch. UIFoundation intentionally does not
+hide registration in a convenience method: registration timing belongs to the application
+lifecycle, and `NSHostingSceneRepresentation` is already the system's typed bridge.
 
 The builder supports `if` / `if-else` / `for`, so pages can be conditional.
 
@@ -255,10 +351,11 @@ settingsWindowController.navigator.currentPageID = "updates"
 settingsWindowController.showWindow(nil)
 ```
 
-It is created for you and published as `SettingsWindowController.navigator`. Pass your own to
-`SettingsWindowController(navigator:)` / `SettingsRootView(navigator:)` when it should outlive the
-window — worth doing if the window is rebuilt on each open, since a fresh navigator means a fresh,
-empty history each time.
+It is created for you and published as `SettingsWindowController.navigator` or
+`SettingsScene.navigator`. Pass your own to `SettingsWindowController(navigator:)`,
+`SettingsScene(navigator:)`, or `SettingsRootView(navigator:)` when it should outlive the
+presentation — worth doing if a controller or scene is rebuilt on each open, since a fresh navigator
+means a fresh, empty history each time.
 
 | Member | Does |
 |---|---|
@@ -278,10 +375,10 @@ Behaviour, matching Xcode and System Settings:
   `nil` back when a click lands on empty space.
 - The history caps at `SettingsNavigator.maximumHistoryLength` (100) entries, dropping the oldest.
 
-`showsNavigationControls: false` hides the control. **The navigator keeps working** — hiding the
-chevrons is a chrome decision, not a way to turn navigation off. An embedded panel is in the same
-position for a different reason (see [§8](#sidebar-collapsing)): drive `navigator` from the host's
-own controls.
+`SettingsConfiguration(showsNavigationControls: false)` hides the control. **The navigator keeps working** —
+hiding the chevrons is a chrome decision, not a way to turn navigation off. An embedded panel is in
+the same position for a different reason (see [§8](#sidebar-collapsing)): drive `navigator` from the
+host's own controls.
 
 ### Sub-pages
 
