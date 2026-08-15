@@ -252,7 +252,11 @@ struct WorkbenchApplication: App {
 
 SwiftUI owns the native Settings scene's window title and Settings menu item, so
 `SettingsConfiguration.title` applies only to `SettingsWindowController`. Content width, minimum height,
-sidebar values, and navigation-control visibility apply to both presentation paths.
+sidebar values, and navigation-control visibility apply to both presentation paths. `SettingsScene`
+keeps the selected page title and the back / forward control in one inline titlebar row, matching
+`SettingsWindowController`. The scene requests `.windowToolbarStyle(.unified)` and reconciles the
+backing `NSWindow` after attachment because native `SwiftUI.Settings` otherwise replaces that request
+with AppKit's `.preference` style on macOS 26, putting the title above a second toolbar row.
 
 ### Hosting the scene from AppKit on macOS 26
 
@@ -296,6 +300,10 @@ An AppKit app that still supports macOS 14–25 can keep `SettingsWindowControll
 and use this bridge only inside a macOS 26 availability branch. UIFoundation intentionally does not
 hide registration in a convenience method: registration timing belongs to the application
 lifecycle, and `NSHostingSceneRepresentation` is already the system's typed bridge.
+
+A runnable version lives in the macOS example app: `AppDelegate` owns and registers
+`SettingsSceneRepresentationExample`, while `SettingsSceneRepresentationDemoViewController` opens
+its Registration and Activation pages through `representation.environment.openSettings()`.
 
 The builder supports `if` / `if-else` / `for`, so pages can be conditional.
 
@@ -346,8 +354,12 @@ draw as two separate buttons.
 Behind them is `SettingsNavigator`, which is also **the single source of truth for which page is on
 screen** — so the same object opens the window on a chosen page:
 
+### Programmatic navigation examples
+
+Choose a page before opening an AppKit-owned settings window:
+
 ```swift
-settingsWindowController.navigator.currentPageID = "updates"
+settingsWindowController.navigator.navigate(to: "updates")
 settingsWindowController.showWindow(nil)
 ```
 
@@ -357,9 +369,45 @@ It is created for you and published as `SettingsWindowController.navigator` or
 presentation — worth doing if a controller or scene is rebuilt on each open, since a fresh navigator
 means a fresh, empty history each time.
 
+Choose the initial page and preserve navigation history while presentations are rebuilt:
+
+```swift
+let navigator = SettingsNavigator(initialPageID: "general")
+
+let settingsWindowController = SettingsWindowController(navigator: navigator) {
+    SettingsPage("General", id: "general", symbol: "gearshape") {
+        GeneralSettingsView()
+    }
+    SettingsPage("Editor", id: "editor", symbol: "text.alignleft") {
+        EditorSettingsView()
+    }
+}
+
+navigator.navigate(to: "editor")
+settingsWindowController.showWindow(nil)
+```
+
+Drive an already-visible window from a menu command, button, or deep link:
+
+```swift
+@MainActor
+func openAdvancedSettings() {
+    settingsNavigator.navigate(to: "advanced")
+    settingsWindowController.showWindow(nil)
+}
+```
+
+Dynamic page identifiers work the same way, provided the current page builder actually emitted that
+page:
+
+```swift
+settingsNavigator.navigate(to: "workspace.\(workspace.id)")
+```
+
 | Member | Does |
 |---|---|
-| `currentPageID` | The page on screen. Assigning records a visit. |
+| `navigate(to:)` | Open a page and record the visit. |
+| `currentPageID` | The page on screen, exposed read-only to hosts. |
 | `visitedPageIDs` / `currentHistoryIndex` | The history and the position in it. |
 | `canGoBack` / `canGoForward` | What the buttons key their enabled state off. |
 | `goBack()` / `goForward()` | Move; return the page moved to, or `nil` at either end. |
@@ -369,10 +417,11 @@ means a fresh, empty history each time.
 Behaviour, matching Xcode and System Settings:
 
 - Picking a page in the sidebar records a visit; picking the one already on screen does not.
+- Calling `navigate(to:)` records a visit; calling it for the current page does nothing.
 - Going back and then picking a new page drops what was ahead, as a browser does.
 - Back and forward move the sidebar's highlight and add nothing to the history.
-- `currentPageID = nil` is **ignored**. A settings sidebar always has a selection, and `List` writes
-  `nil` back when a click lands on empty space.
+- `currentPageID` is read-only to hosts. Internally, a transient `nil` selection written by SwiftUI's
+  `List` is ignored so clicking empty sidebar space does not blank the detail pane.
 - The history caps at `SettingsNavigator.maximumHistoryLength` (100) entries, dropping the oldest.
 
 `SettingsConfiguration(showsNavigationControls: false)` hides the control. **The navigator keeps working** —

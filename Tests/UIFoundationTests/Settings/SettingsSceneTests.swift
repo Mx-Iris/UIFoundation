@@ -49,6 +49,40 @@ struct SettingsSceneTests {
 
         _ = representation.environment.openSettings
     }
+
+    @Test("the native settings scene keeps the title and toolbar inline")
+    func nativeSettingsSceneUsesUnifiedToolbarStyle() async {
+        guard #available(macOS 26.0, *) else { return }
+
+        let existingWindowIdentifiers = Set(NSApplication.shared.windows.map(ObjectIdentifier.init))
+        let settingsScene = SettingsScene {
+            SettingsPage("General", id: "general", symbol: "gearshape") { Text("general") }
+            SettingsPage("Updates", id: "updates", symbol: "arrow.down.circle") { Text("updates") }
+        }
+        let representation = NSHostingSceneRepresentation {
+            settingsScene
+        }
+
+        NSApplication.shared.addSceneRepresentation(representation)
+        representation.environment.openSettings()
+
+        var presentedWindow: NSWindow?
+        for _ in 0 ..< 50 {
+            presentedWindow = NSApplication.shared.windows.first {
+                !existingWindowIdentifiers.contains(ObjectIdentifier($0))
+            }
+            if presentedWindow?.toolbarStyle == .unified { break }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        try? await Task.sleep(for: .milliseconds(200))
+        defer { presentedWindow?.close() }
+
+        #expect(presentedWindow != nil, "the Settings scene did not present a window")
+        #expect(
+            presentedWindow?.toolbarStyle == .unified,
+            "expected an inline title and toolbar, got raw style \(String(describing: presentedWindow?.toolbarStyle.rawValue))"
+        )
+    }
 }
 
 #endif

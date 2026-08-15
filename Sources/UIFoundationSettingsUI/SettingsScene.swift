@@ -58,9 +58,11 @@ public struct SettingsScene: Scene {
                 navigator: navigator,
                 pages: { pages }
             )
+            .settingsSceneWindowChrome()
             .frame(minWidth: configuration.contentWidth, maxWidth: configuration.contentWidth)
             .frame(minHeight: configuration.minimumContentHeight)
         }
+        .windowToolbarStyle(.unified)
     }
 }
 

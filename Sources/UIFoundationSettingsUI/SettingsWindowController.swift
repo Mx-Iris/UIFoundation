@@ -30,7 +30,7 @@ public final class SettingsWindow: NSWindow {}
 /// back / forward navigation from the host's own menu:
 ///
 /// ```swift
-/// controller.navigator.currentPageID = "updates"
+/// controller.navigator.navigate(to: "updates")
 /// controller.showWindow(nil)
 /// ```
 @available(macOS 14.0, *)

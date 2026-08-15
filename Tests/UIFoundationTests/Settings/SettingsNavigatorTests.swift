@@ -34,15 +34,15 @@ struct SettingsNavigatorTests {
         #expect(!navigator.canGoForward)
     }
 
-    @Test("selecting a page records it; selecting the same one again does not")
+    @Test("navigating to a page records it; navigating to the same one again does not")
     func recordingAndDeduplication() {
         guard #available(macOS 14.0, *) else { return }
         let navigator = SettingsNavigator(initialPageID: "general")
 
-        navigator.currentPageID = "appearance"
+        navigator.navigate(to: "appearance")
         #expect(navigator.visitedPageIDs == ["general", "appearance"])
 
-        navigator.currentPageID = "appearance"
+        navigator.navigate(to: "appearance")
         #expect(navigator.visitedPageIDs == ["general", "appearance"])
         #expect(navigator.currentHistoryIndex == 1)
     }
@@ -51,8 +51,8 @@ struct SettingsNavigatorTests {
     func backAndForwardDoNotRecord() {
         guard #available(macOS 14.0, *) else { return }
         let navigator = SettingsNavigator(initialPageID: "general")
-        navigator.currentPageID = "appearance"
-        navigator.currentPageID = "editor"
+        navigator.navigate(to: "appearance")
+        navigator.navigate(to: "editor")
 
         #expect(navigator.goBack() == "appearance")
         #expect(navigator.currentPageID == "appearance")
@@ -86,18 +86,18 @@ struct SettingsNavigatorTests {
     func selectingAfterGoingBackTruncates() {
         guard #available(macOS 14.0, *) else { return }
         let navigator = SettingsNavigator(initialPageID: "general")
-        navigator.currentPageID = "appearance"
-        navigator.currentPageID = "editor"
+        navigator.navigate(to: "appearance")
+        navigator.navigate(to: "editor")
         navigator.goBack()
 
-        navigator.currentPageID = "updates"
+        navigator.navigate(to: "updates")
 
         #expect(navigator.visitedPageIDs == ["general", "appearance", "updates"])
         #expect(navigator.currentHistoryIndex == 2)
         #expect(!navigator.canGoForward)
     }
 
-    @Test("assigning nil is ignored so the sidebar keeps its selection")
+    @Test("an internal nil selection update is ignored so the sidebar keeps its selection")
     func nilAssignmentIsIgnored() {
         guard #available(macOS 14.0, *) else { return }
         let navigator = SettingsNavigator(initialPageID: "general")
@@ -112,8 +112,8 @@ struct SettingsNavigatorTests {
     func clearingKeepsTheCurrentPage() {
         guard #available(macOS 14.0, *) else { return }
         let navigator = SettingsNavigator(initialPageID: "general")
-        navigator.currentPageID = "appearance"
-        navigator.currentPageID = "editor"
+        navigator.navigate(to: "appearance")
+        navigator.navigate(to: "editor")
 
         navigator.clearHistory()
 
@@ -127,8 +127,8 @@ struct SettingsNavigatorTests {
     func pruningKeepsTheSurvivingPosition() {
         guard #available(macOS 14.0, *) else { return }
         let navigator = SettingsNavigator(initialPageID: "general")
-        navigator.currentPageID = "workspace-a"
-        navigator.currentPageID = "editor"
+        navigator.navigate(to: "workspace-a")
+        navigator.navigate(to: "editor")
         navigator.goBack()  // on "workspace-a"
 
         navigator.pruneHistory(keeping: ["general", "workspace-a", "editor"])
@@ -141,8 +141,8 @@ struct SettingsNavigatorTests {
     func pruningFallsBackward() {
         guard #available(macOS 14.0, *) else { return }
         let navigator = SettingsNavigator(initialPageID: "general")
-        navigator.currentPageID = "workspace-a"
-        navigator.currentPageID = "editor"
+        navigator.navigate(to: "workspace-a")
+        navigator.navigate(to: "editor")
         navigator.goBack()  // on "workspace-a"
 
         navigator.pruneHistory(keeping: ["general", "editor"])
@@ -156,8 +156,8 @@ struct SettingsNavigatorTests {
     func pruningFallsForward() {
         guard #available(macOS 14.0, *) else { return }
         let navigator = SettingsNavigator(initialPageID: "workspace-a")
-        navigator.currentPageID = "workspace-b"
-        navigator.currentPageID = "editor"
+        navigator.navigate(to: "workspace-b")
+        navigator.navigate(to: "editor")
         navigator.goBack()
         navigator.goBack()  // on "workspace-a"
 
@@ -171,8 +171,8 @@ struct SettingsNavigatorTests {
     func pruningCollapsesRepeats() {
         guard #available(macOS 14.0, *) else { return }
         let navigator = SettingsNavigator(initialPageID: "general")
-        navigator.currentPageID = "workspace-a"
-        navigator.currentPageID = "general"
+        navigator.navigate(to: "workspace-a")
+        navigator.navigate(to: "general")
 
         navigator.pruneHistory(keeping: ["general"])
 
@@ -188,7 +188,7 @@ struct SettingsNavigatorTests {
     func pruningEverything() {
         guard #available(macOS 14.0, *) else { return }
         let navigator = SettingsNavigator(initialPageID: "workspace-a")
-        navigator.currentPageID = "workspace-b"
+        navigator.navigate(to: "workspace-b")
 
         navigator.pruneHistory(keeping: [])
 
@@ -203,7 +203,7 @@ struct SettingsNavigatorTests {
         let navigator = SettingsNavigator(initialPageID: "page-0")
         let visitCount = SettingsNavigator.maximumHistoryLength + 20
         for pageNumber in 1 ..< visitCount {
-            navigator.currentPageID = "page-\(pageNumber)"
+            navigator.navigate(to: "page-\(pageNumber)")
         }
 
         #expect(navigator.visitedPageIDs.count == SettingsNavigator.maximumHistoryLength)

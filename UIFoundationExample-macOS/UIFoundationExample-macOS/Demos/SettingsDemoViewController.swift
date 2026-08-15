@@ -950,9 +950,9 @@ final class SettingsDemoViewController: NSViewController {
         wrappingLabelWithString: """
         The panel opens in its own window. Keep it open beside this one: the panels \
         below read the same settings, so editing anything over there moves them — and \
-        the counters show which views the change actually reached. The navigation row \
-        drives that window's back / forward chevrons from out here, through the same \
-        navigator object the window uses.
+        the counters show which views the change actually reached. The navigation controls \
+        opens several pages and drives that window's back / forward chevrons from out \
+        here, through the same navigator object the window uses.
         """
     )
 
@@ -990,8 +990,24 @@ final class SettingsDemoViewController: NSViewController {
 
         // Everything the settings window's own chevrons do, driven from here
         // instead — the point being that the host holds the navigator.
-        let jumpButton = NSButton(title: "Go to Updates", target: self, action: #selector(jumpToUpdatesPage))
-        jumpButton.toolTip = "Sets navigator.currentPageID and opens the window on that page."
+        let generalPageButton = NSButton(
+            title: "Go to General",
+            target: self,
+            action: #selector(navigateToGeneralPage)
+        )
+        generalPageButton.toolTip = "Calls navigator.navigate(to: \"general\") and opens the window."
+        let updatesPageButton = NSButton(
+            title: "Go to Updates",
+            target: self,
+            action: #selector(navigateToUpdatesPage)
+        )
+        updatesPageButton.toolTip = "Calls navigator.navigate(to: \"updates\") and opens the window."
+        let advancedPageButton = NSButton(
+            title: "Go to Advanced",
+            target: self,
+            action: #selector(navigateToAdvancedPage)
+        )
+        advancedPageButton.toolTip = "Calls navigator.navigate(to: \"advanced\") and opens the window."
         backButton.target = self
         backButton.action = #selector(goBackFromHost)
         forwardButton.target = self
@@ -1024,9 +1040,17 @@ final class SettingsDemoViewController: NSViewController {
         primaryRow.orientation = .horizontal
         primaryRow.spacing = 10
 
-        let navigationRow = NSStackView(views: [jumpButton, backButton, forwardButton])
-        navigationRow.orientation = .horizontal
-        navigationRow.spacing = 10
+        let pageNavigationRow = NSStackView(views: [
+            generalPageButton,
+            updatesPageButton,
+            advancedPageButton,
+        ])
+        pageNavigationRow.orientation = .horizontal
+        pageNavigationRow.spacing = 10
+
+        let historyNavigationRow = NSStackView(views: [backButton, forwardButton])
+        historyNavigationRow.orientation = .horizontal
+        historyNavigationRow.spacing = 10
 
         let secondaryRow = NSStackView(views: [resetSettingsButton, resetCountersButton])
         secondaryRow.orientation = .horizontal
@@ -1035,7 +1059,8 @@ final class SettingsDemoViewController: NSViewController {
         let stackView = NSStackView(views: [
             introductionLabel,
             primaryRow,
-            navigationRow,
+            pageNavigationRow,
+            historyNavigationRow,
             navigationLabel,
             panelsView,
             counterLabel,
@@ -1107,13 +1132,27 @@ final class SettingsDemoViewController: NSViewController {
         showSettingsWindow()
     }
 
+    @objc
+    private func navigateToGeneralPage() {
+        navigate(to: "general", pageTitle: "General")
+    }
+
+    @objc
+    private func navigateToUpdatesPage() {
+        navigate(to: "updates", pageTitle: "Updates")
+    }
+
+    @objc
+    private func navigateToAdvancedPage() {
+        navigate(to: "advanced", pageTitle: "Advanced")
+    }
+
     /// Opens the window on a page chosen in code, which is the whole point of
     /// the navigator being the host's to hold.
-    @objc
-    private func jumpToUpdatesPage() {
-        settingsNavigator.currentPageID = "updates"
+    private func navigate(to pageIdentifier: SettingsPage.ID, pageTitle: String) {
+        settingsNavigator.navigate(to: pageIdentifier)
         showSettingsWindow()
-        statusLabel.stringValue = "Jumped to the Updates page by assigning navigator.currentPageID."
+        statusLabel.stringValue = "Opened \(pageTitle) with navigator.navigate(to: \"\(pageIdentifier)\")."
     }
 
     @objc

@@ -580,6 +580,15 @@ the same initializer shape, public configuration, and public navigator. SwiftUI 
 through `representation.environment.openSettings()`. Do not hide registration inside the scene or a
 process-wide convenience: its timing belongs to the app lifecycle. SwiftUI owns a native Settings
 scene's title, so `SettingsConfiguration.title` remains specific to `SettingsWindowController`.
+`SettingsScene` requests `.windowToolbarStyle(.unified)` and also reconciles the backing
+`NSWindow.toolbarStyle` after attachment. The second step is load-bearing: native `SwiftUI.Settings`
+replaces the scene modifier with AppKit's `.preference` style on macOS 26, putting the page title above
+the navigation control instead of keeping both inline like `SettingsWindowController`. Keep that
+AppKit reconciliation scoped to `SettingsScene`; an embedded `SettingsRootView` must not restyle its
+host window.
+The runnable macOS 26 example is `SettingsSceneRepresentationExample` plus
+`SettingsSceneRepresentationDemoViewController`; `AppDelegate` owns the former and performs the
+launch-time registration.
 
 The host supplies a `Codable` `@Observable` **reference model** and a page list; saving, debouncing,
 loading and property-level change notification come with the box:
@@ -635,8 +644,12 @@ Five things measured rather than assumed (the Settings model change is Evolution
 **Page navigation** (Evolution [`0003`](Documentations/Evolutions/0003-settings-navigation-history.md))
 is a `SettingsNavigator`: the single source of truth for the selected page *and* the history behind
 the ⌘[ / ⌘] chevrons in the detail pane's leading toolbar slot. It is the host's handle for driving
-the window from code (`controller.navigator.currentPageID = "updates"`), which is why it exists at
+the window from code (`controller.navigator.navigate(to: "updates")`), which is why it exists at
 all — the selection used to be a `private @State`.
+
+`currentPageID` is read-only to hosts. Programmatic page changes go through `navigate(to:)`, which
+records the visit and truncates forward history when necessary; do not make the public setter
+writable again.
 
 - **The sidebar's selection is derived from the navigator, not stored beside it.** Don't reintroduce
   the usual "selection plus an `isNavigatingThroughHistory` flag": that flag's reset depends on when
@@ -697,10 +710,10 @@ Reference: full reverse-engineering report at [`Researchs/AppKit-NSToolTipManage
 `UIFoundationExample-macOS/` is a single-window **demo browser**: a sidebar (source list, grouped by category) on the left, the selected demo's view controller on the right. All code, no storyboard-driven UI (the storyboard is kept **only** for the main menu — it has no initial controller and never auto-opens a window).
 
 Structure under `UIFoundationExample-macOS/UIFoundationExample-macOS/`:
-- `AppDelegate.swift` — builds a `DemoBrowserWindowController` on launch; nothing else.
+- `AppDelegate.swift` — builds a `DemoBrowserWindowController` on launch and, on macOS 26+, owns and registers the Settings scene representation during `applicationWillFinishLaunching(_:)`.
 - `Browser/` — `DemoBrowserWindowController` (code-built `NSWindow`), `DemoBrowserSplitViewController` (sidebar + `DemoDetailViewController`), `DemoSidebarViewController` (source-list `NSOutlineView`; items are a private `SidebarNode` reference type because `NSOutlineView` needs stable item identity).
 - `Catalog/` — `Demo` (a value type: `title` / `category` / `summary` / `minimumMacOS` / `makeViewController`) and `DemoCatalog.all` (the registry) + `DemoCatalog.grouped`.
-- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `NavigationDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `SettingsDemoViewController`, `ToolbarNavigationDemoViewController`, `CustomTooltipDemoViewController`).
+- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `NavigationDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `SettingsDemoViewController`, `SettingsSceneRepresentationDemoViewController`, `ToolbarNavigationDemoViewController`, `CustomTooltipDemoViewController`).
 
 **To add a demo:** drop a new `NSViewController` file under `Demos/` and append one `Demo` to `DemoCatalog.all`. Nothing else changes.
 

@@ -64,6 +64,19 @@ enum DemoCatalog {
             }
         ),
         Demo(
+            title: "Settings Scene Representation",
+            category: "Controls",
+            summary: "An AppKit-lifecycle app registering a native SwiftUI Settings scene with NSHostingSceneRepresentation and opening it through the representation environment.",
+            minimumMacOS: OperatingSystemVersion(majorVersion: 26, minorVersion: 0, patchVersion: 0),
+            makeViewController: {
+                if #available(macOS 26.0, *) {
+                    SettingsSceneRepresentationDemoViewController()
+                } else {
+                    Demo.unavailablePlaceholderViewController(requiring: "macOS 26")
+                }
+            }
+        ),
+        Demo(
             title: "Toolbar Navigation",
             category: "Controls",
             summary: "NSToolbar.Navigation driving a pretend documentation site in its own window — click to step, press and hold for the history menu.",

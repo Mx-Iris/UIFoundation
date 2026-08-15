@@ -10,8 +10,21 @@ import Observation
 /// Hosts hold one to drive the settings window from code:
 ///
 /// ```swift
-/// settingsWindowController.navigator.currentPageID = "updates"
+/// let navigator = SettingsNavigator(initialPageID: "general")
+/// let settingsWindowController = SettingsWindowController(navigator: navigator) {
+///     SettingsPage("General", id: "general", symbol: "gearshape") {
+///         GeneralSettingsView()
+///     }
+///     SettingsPage("Updates", id: "updates", symbol: "arrow.down.circle") {
+///         UpdatesSettingsView()
+///     }
+/// }
+///
+/// navigator.navigate(to: "updates")
 /// settingsWindowController.showWindow(nil)
+///
+/// navigator.navigate(to: "general")
+/// navigator.goBack()
 /// ```
 ///
 /// ``SettingsRootView`` and ``SettingsWindowController`` create one for
@@ -22,8 +35,8 @@ import Observation
 /// `isNavigatingThroughHistory` flag" arrangement depends on when SwiftUI
 /// writes the selection back, and there is no guarantee about that — clear the
 /// flag too early and a visit goes unrecorded, too late and the user's next
-/// click is mistaken for a programmatic one. Here both paths write the same
-/// variable, so there is nothing to keep in sync.
+/// click is mistaken for a programmatic one. Here both paths feed the same
+/// history operation, so there is nothing to keep in sync.
 ///
 /// ### Why the derived values are stored rather than computed
 ///
@@ -67,20 +80,25 @@ public final class SettingsNavigator {
         canGoForward = false
     }
 
-    /// The page on screen.
+    /// Navigates to a page and records the visit.
     ///
-    /// Assigning records a visit, dropping anything ahead in the history the
-    /// way a browser does when you go back and then follow a new link.
-    /// Assigning the page already on screen changes nothing.
+    /// Anything ahead in the history is dropped the way a browser does when
+    /// you go back and then follow a new link. Navigating to the page already
+    /// on screen changes nothing.
+    public func navigate(to pageID: SettingsPage.ID) {
+        record(pageID)
+    }
+
+    /// The page on screen. Use ``navigate(to:)`` to change it.
     ///
-    /// Assigning `nil` is ignored. A settings sidebar always has a selection,
-    /// and `List` writes `nil` back when a click lands on empty space —
-    /// honouring that would blank the detail pane.
-    public var currentPageID: SettingsPage.ID? {
+    /// The setter remains internal so ``SettingsRootView`` can give SwiftUI's
+    /// `List` a key-path selection binding. `List` writes `nil` when a click
+    /// lands on empty space; ignoring that keeps the detail pane selected.
+    public internal(set) var currentPageID: SettingsPage.ID? {
         get { storedCurrentPageID }
         set {
             guard let newValue else { return }
-            record(newValue)
+            navigate(to: newValue)
         }
     }
 

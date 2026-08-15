@@ -113,7 +113,7 @@ struct SettingsNavigationControlsTests {
         #expect(!control.isEnabled(forSegment: 0), "back is live with nothing behind it")
         #expect(!control.isEnabled(forSegment: 1), "forward is live with nothing ahead")
 
-        navigator.currentPageID = "advanced"
+        navigator.navigate(to: "advanced")
         for _ in 0 ..< 10 { try? await Task.sleep(for: .milliseconds(20)) }
         #expect(control.isEnabled(forSegment: 0), "back stayed dead after visiting a second page")
         #expect(!control.isEnabled(forSegment: 1))
@@ -151,13 +151,13 @@ struct SettingsNavigationControlsTests {
 
         #expect(Self.hostSuppliedToolbarItems(in: window).isEmpty)
 
-        navigator.currentPageID = "advanced"
+        navigator.navigate(to: "advanced")
         #expect(navigator.goBack() == "general")
         #expect(navigator.currentPageID == "general")
     }
 
     /// The navigator is the single source of truth, so a page selected in code
-    /// has to reach the view — otherwise `currentPageID = …` would silently do
+    /// has to reach the view — otherwise `navigate(to:)` would silently do
     /// nothing to what is on screen.
     @Test("selecting a page in code drives the view")
     func codeSelectionDrivesTheView() async {
@@ -166,7 +166,7 @@ struct SettingsNavigationControlsTests {
         let window = await Self.makeHostedWindow(navigator: navigator)
         defer { window.close() }
 
-        navigator.currentPageID = "advanced"
+        navigator.navigate(to: "advanced")
         for _ in 0 ..< 10 {
             try? await Task.sleep(for: .milliseconds(20))
         }
@@ -187,7 +187,7 @@ struct SettingsNavigationControlsTests {
         let window = await Self.makeHostedWindow(navigator: navigator)
         defer { window.close() }
 
-        navigator.currentPageID = "advanced"
+        navigator.navigate(to: "advanced")
         for _ in 0 ..< 10 { try? await Task.sleep(for: .milliseconds(20)) }
 
         #expect(window.performKeyEquivalent(with: Self.commandKeyEvent("[")))

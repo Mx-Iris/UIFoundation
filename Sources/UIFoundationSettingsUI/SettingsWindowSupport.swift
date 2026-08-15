@@ -18,6 +18,46 @@ extension View {
                 .accessibilityHidden(true)
         )
     }
+
+    /// Keeps the native `Settings` scene on the same inline title-and-toolbar
+    /// row as ``SettingsWindowController``.
+    ///
+    /// `SwiftUI.Settings` applies AppKit's `.preference` toolbar style after
+    /// evaluating `Scene.windowToolbarStyle(_:)`. Reconcile the backing window
+    /// after attachment so the scene's `.unified` request actually sticks.
+    /// This modifier is intentionally used only by ``SettingsScene``; an
+    /// independently embedded ``SettingsRootView`` must not restyle its host.
+    func settingsSceneWindowChrome() -> some View {
+        background(
+            SettingsSceneChromeConfigurator()
+                .accessibilityHidden(true)
+        )
+    }
+}
+
+@available(macOS 14.0, *)
+private struct SettingsSceneChromeConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        ConfiguratorView()
+    }
+
+    func updateNSView(_ nativeView: NSView, context: Context) {
+        (nativeView as? ConfiguratorView)?.scheduleConfiguration()
+    }
+
+    private final class ConfiguratorView: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            scheduleConfiguration()
+        }
+
+        func scheduleConfiguration() {
+            guard window != nil else { return }
+            DispatchQueue.main.async { [weak self] in
+                self?.window?.toolbarStyle = .unified
+            }
+        }
+    }
 }
 
 /// Applies the settings-pane chrome from inside the view hierarchy, retrying a

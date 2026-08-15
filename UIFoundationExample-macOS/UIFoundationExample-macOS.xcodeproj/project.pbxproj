@@ -9,9 +9,9 @@
 /* Begin PBXBuildFile section */
 		E94046812FB61EB0008552BF /* UIFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = E94046802FB61EB0008552BF /* UIFoundation */; };
 		E94046832FB61EB0008552BF /* UIFoundationToolbox in Frameworks */ = {isa = PBXBuildFile; productRef = E94046822FB61EB0008552BF /* UIFoundationToolbox */; };
-		E943A7DD2AF76F1100526917 /* UIFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = E943A7DC2AF76F1100526917 /* UIFoundation */; };
 		E94046912FB61EB0008552BF /* UIFoundationSettings in Frameworks */ = {isa = PBXBuildFile; productRef = E94046902FB61EB0008552BF /* UIFoundationSettings */; };
 		E94046932FB61EB0008552BF /* UIFoundationSettingsUI in Frameworks */ = {isa = PBXBuildFile; productRef = E94046922FB61EB0008552BF /* UIFoundationSettingsUI */; };
+		E943A7DD2AF76F1100526917 /* UIFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = E943A7DC2AF76F1100526917 /* UIFoundation */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -374,10 +374,6 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = UIFoundationToolbox;
 		};
-		E943A7DC2AF76F1100526917 /* UIFoundation */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = UIFoundation;
-		};
 		E94046902FB61EB0008552BF /* UIFoundationSettings */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = UIFoundationSettings;
@@ -385,6 +381,10 @@
 		E94046922FB61EB0008552BF /* UIFoundationSettingsUI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = UIFoundationSettingsUI;
+		};
+		E943A7DC2AF76F1100526917 /* UIFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UIFoundation;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

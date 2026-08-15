@@ -88,8 +88,8 @@ public struct SettingsRootView: View {
         .settingsWindowChrome()
         .onChange(of: pageIdentifiers, initial: true) { _, availablePageIDs in
             navigator.pruneHistory(keeping: Set(availablePageIDs))
-            if navigator.currentPageID == nil {
-                navigator.currentPageID = availablePageIDs.first
+            if navigator.currentPageID == nil, let firstPageID = availablePageIDs.first {
+                navigator.navigate(to: firstPageID)
             }
         }
     }
