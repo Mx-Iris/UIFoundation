@@ -535,6 +535,17 @@ second model type.
 **iOS is not supported.** Both modules are macOS-only. The model layer happens not to import AppKit,
 but it is not conditionally compiled or tested for other platforms, and it is not exported there.
 
+**The window's frame is autosaved under the controller's type name.** `SettingsWindowController`
+restores where the user last left the window and only centres it when there is nothing to restore —
+a first launch, or a stored frame AppKit rejects because the screen it was saved on is gone. The
+autosave name is `String(describing: Self.self)`, taken from the *dynamic* type, so a host that
+subclasses the controller gets its own slot. Renaming that subclass silently abandons the stored
+frame and the window centres once more; rename deliberately.
+
+Note the ordering this depends on: registering the autosave name is itself what applies a stored
+frame, and only `setFrameUsingName(_:)` reports whether there was one. Centring after registering
+the name would discard the restored position on every launch.
+
 ### Sidebar collapsing
 
 The sidebar cannot be collapsed, and the toolbar toggle that would collapse it is hidden. Both are

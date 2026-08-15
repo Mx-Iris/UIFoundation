@@ -95,8 +95,24 @@ open class SettingsWindowController: XiblessWindowController<SettingsWindow> {
         hostingController.view.frame = NSRect(origin: .zero, size: contentWindow.frame.size)
         contentViewController = hostingController
 
-        contentWindow.setFrameAutosaveName(String(describing: Self.self))
-        contentWindow.center()
+        restoreFrameOrCenter()
+    }
+
+    /// Places the window where the user last left it, falling back to the
+    /// centre of the screen.
+    ///
+    /// Registering the autosave name is itself what applies a stored frame, so
+    /// centring afterwards would throw away the position the user chose.
+    /// `setFrameUsingName(_:)` is the only one of the two that reports whether
+    /// there was anything to restore, so it decides whether to centre: it
+    /// returns `false` on a first launch, and also when AppKit rejects a stored
+    /// frame because the screen it was saved on is gone.
+    private func restoreFrameOrCenter() {
+        let frameAutosaveName = String(describing: Self.self)
+        if !contentWindow.setFrameUsingName(frameAutosaveName) {
+            contentWindow.center()
+        }
+        contentWindow.setFrameAutosaveName(frameAutosaveName)
     }
 }
 
