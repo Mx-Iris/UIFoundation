@@ -42,6 +42,8 @@ final class NavigationDemoViewController: NSViewController {
     private let contentInsetValueField = NSTextField(labelWithString: "")
 
     private let curvePopUpButton = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let transparentPagesCheckbox = NSButton(checkboxWithTitle: "Clear pages (macOS 26 glass)", target: nil, action: nil)
+    private let pageBackdropCheckbox = NSButton(checkboxWithTitle: "Backdrop under travelling page", target: nil, action: nil)
     private let interactivePopCheckbox = NSButton(checkboxWithTitle: "Two-finger swipe pops", target: nil, action: nil)
     private let rightToLeftCheckbox = NSButton(checkboxWithTitle: "Right-to-left layout", target: nil, action: nil)
 
@@ -87,6 +89,12 @@ final class NavigationDemoViewController: NSViewController {
     private func buildLayout() {
         let navigationHostView = NSView()
         navigationHostView.wantsLayer = true
+        // Stands in for a window whose material shows through its content: with "Clear pages" on,
+        // this is what a page lets you see.
+        let hostMaterialView = NSVisualEffectView()
+        hostMaterialView.material = .underPageBackground
+        hostMaterialView.blendingMode = .behindWindow
+        hostMaterialView.translatesAutoresizingMaskIntoConstraints = false
         navigationHostView.layer?.borderWidth = 1
         navigationHostView.layer?.borderColor = NSColor.separatorColor.cgColor
         navigationHostView.layer?.cornerRadius = 6
@@ -102,6 +110,8 @@ final class NavigationDemoViewController: NSViewController {
             labelledControl("Edge shadow", edgeShadowSlider, edgeShadowValueField),
             labelledControl("Content inset", contentInsetSlider, contentInsetValueField),
             labelledControl("Curve", curvePopUpButton, nil),
+            transparentPagesCheckbox,
+            pageBackdropCheckbox,
             interactivePopCheckbox,
             rightToLeftCheckbox,
             sectionLabel("Stack"),
@@ -124,6 +134,7 @@ final class NavigationDemoViewController: NSViewController {
         }
 
         navigationController.view.translatesAutoresizingMaskIntoConstraints = false
+        navigationHostView.addSubview(hostMaterialView)
         navigationHostView.addSubview(navigationController.view)
 
         NSLayoutConstraint.activate([
@@ -140,6 +151,11 @@ final class NavigationDemoViewController: NSViewController {
             hintField.leadingAnchor.constraint(equalTo: navigationHostView.leadingAnchor),
             hintField.trailingAnchor.constraint(equalTo: navigationHostView.trailingAnchor),
             hintField.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -20),
+
+            hostMaterialView.topAnchor.constraint(equalTo: navigationHostView.topAnchor),
+            hostMaterialView.leadingAnchor.constraint(equalTo: navigationHostView.leadingAnchor),
+            hostMaterialView.trailingAnchor.constraint(equalTo: navigationHostView.trailingAnchor),
+            hostMaterialView.bottomAnchor.constraint(equalTo: navigationHostView.bottomAnchor),
 
             // Constraining the *container* is fine; its pages are positioned by frame.
             navigationController.view.topAnchor.constraint(equalTo: navigationHostView.topAnchor),
@@ -201,6 +217,14 @@ final class NavigationDemoViewController: NSViewController {
         rightToLeftCheckbox.target = self
         rightToLeftCheckbox.action = #selector(configurationDidChange)
 
+        transparentPagesCheckbox.state = .off
+        transparentPagesCheckbox.target = self
+        transparentPagesCheckbox.action = #selector(transparencyDidChange)
+
+        pageBackdropCheckbox.state = .on
+        pageBackdropCheckbox.target = self
+        pageBackdropCheckbox.action = #selector(configurationDidChange)
+
         pushButton.target = self
         pushButton.action = #selector(pushPage)
         backButton.target = self
@@ -210,6 +234,15 @@ final class NavigationDemoViewController: NSViewController {
     }
 
     @objc private func configurationDidChange() {
+        applyConfiguration()
+    }
+
+    /// Repaints every page already on the stack, so the toggle takes effect without pushing.
+    @objc private func transparencyDidChange() {
+        let isTransparent = transparentPagesCheckbox.state == .on
+        for viewController in navigationController.viewControllers {
+            (viewController as? NavigationDemoPageViewController)?.isTransparent = isTransparent
+        }
         applyConfiguration()
     }
 
@@ -234,6 +267,7 @@ final class NavigationDemoViewController: NSViewController {
         configuration.parallaxFactor = CGFloat(parallaxSlider.doubleValue)
         configuration.dimmingColor = NSColor(srgbRed: 0, green: 0, blue: 0, alpha: CGFloat(dimmingSlider.doubleValue))
         configuration.edgeShadowWidth = CGFloat(edgeShadowSlider.doubleValue)
+        configuration.pageBackdrop = pageBackdropCheckbox.state == .on ? .automatic : .none
         let inset = CGFloat(contentInsetSlider.doubleValue)
         configuration.contentInsets = NSEdgeInsets(top: inset, left: inset, bottom: inset, right: inset)
         navigationController.configuration = configuration
@@ -253,7 +287,9 @@ final class NavigationDemoViewController: NSViewController {
 
     @objc private func pushPage() {
         let level = navigationController.viewControllers.count + 1
-        navigationController.pushViewController(NavigationDemoPageViewController(level: level), animated: true)
+        let page = NavigationDemoPageViewController(level: level)
+        page.isTransparent = transparentPagesCheckbox.state == .on
+        navigationController.pushViewController(page, animated: true)
     }
 
     @objc private func popPage() {
@@ -291,6 +327,18 @@ private final class NavigationDemoPageViewController: NSViewController {
 
     private let level: Int
 
+    /// When true the page paints no background of its own, the way a page on macOS 26 must if the
+    /// window's glass is to show through it. Turn the backdrop off with this on to see what the
+    /// transition looks like without one.
+    var isTransparent = false {
+        didSet {
+            guard isViewLoaded, isTransparent != oldValue else { return }
+            applyBackground()
+        }
+    }
+
+    private var tint: NSColor { Self.tints[(level - 1) % Self.tints.count] }
+
     private static let tints: [NSColor] = [
         .systemBlue, .systemPurple, .systemPink, .systemOrange, .systemGreen, .systemTeal,
     ]
@@ -312,10 +360,7 @@ private final class NavigationDemoPageViewController: NSViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.wantsLayer = true
-        let tint = Self.tints[(level - 1) % Self.tints.count]
-        // Opaque on purpose. A translucent page lets the one sliding out show straight through it
-        // mid-transition, which reads as a rendering bug and is not what a real page looks like.
-        view.layer?.backgroundColor = NSColor.windowBackgroundColor.blended(withFraction: 0.18, of: tint)?.cgColor
+        applyBackground()
 
         let titleField = NSTextField(labelWithString: "Level \(level)")
         titleField.font = .systemFont(ofSize: 34, weight: .semibold)
@@ -344,11 +389,18 @@ private final class NavigationDemoPageViewController: NSViewController {
         ])
     }
 
+    private func applyBackground() {
+        // Opaque unless asked otherwise: a page that paints nothing lets the one sliding out show
+        // straight through it, which is exactly what `NavigationPageBackdrop` exists to fix.
+        view.layer?.backgroundColor = isTransparent
+            ? NSColor.clear.cgColor
+            : NSColor.windowBackgroundColor.blended(withFraction: 0.18, of: tint)?.cgColor
+    }
+
     @objc private func pushDeeper() {
         guard let navigationController = parent as? NavigationController else { return }
-        navigationController.pushViewController(
-            NavigationDemoPageViewController(level: level + 1),
-            animated: true
-        )
+        let page = NavigationDemoPageViewController(level: level + 1)
+        page.isTransparent = isTransparent
+        navigationController.pushViewController(page, animated: true)
     }
 }

@@ -7,6 +7,40 @@
 
 import AppKit
 
+/// What goes behind a page while it is moving, so a see-through page does not show the page it is
+/// covering.
+///
+/// A navigation transition assumes pages are opaque: the arriving one covers the one it pushes
+/// away. On macOS 26 that assumption breaks, because a page has to be **clear** for the window's
+/// glass to show through it — and then both pages' content is visible at once for the length of
+/// the transition, overlapping.
+///
+/// The fix is a background for the page running the full-width slide, for the duration only. It is a sibling, not something written onto the page itself: this package's own
+/// ``LayerBackedView`` rewrites `layer.backgroundColor` in `updateLayer()`, so a page that redraws
+/// mid-transition would clobber anything set there, and restoring it afterwards would write back a
+/// stale value — a host doing this by hand has to force a redraw after restoring, and a sibling
+/// view has nothing to restore at all.
+public enum NavigationPageBackdrop {
+    /// Add one only when the travelling page looks see-through — it reports `isOpaque == false`
+    /// and carries no opaque layer background. Filled with `windowBackgroundColor`.
+    ///
+    /// A page that paints its own opaque background in `draw(_:)` also matches, and gets a
+    /// backdrop it completely hides. That costs one view for the length of the transition and
+    /// changes nothing on screen.
+    case automatic
+
+    /// Always add one, filled with this colour.
+    case color(NSColor)
+
+    /// Always add one, built by this closure — an `NSVisualEffectView` or `NSGlassEffectView` if
+    /// the page should carry its own material while it travels rather than a flat fill.
+    case view(() -> NSView)
+
+    /// Never add one. Correct when every page is opaque, and the only way to keep the container's
+    /// glass visible under a see-through page for the whole transition.
+    case none
+}
+
 /// The knobs a ``NavigationController`` and its transitions share.
 ///
 /// Two presets ship: ``uiKit`` — the default — reproduces `UINavigationController`'s push, and
@@ -32,6 +66,18 @@ public struct NavigationConfiguration {
     /// sliding sideways rather than one page moving over another.
     public var edgeShadowWidth: CGFloat
 
+    /// What goes behind a see-through page so it does not show the page it covers.
+    ///
+    /// It applies to the page running the full-width slide — the arriving page on a push, the
+    /// **leaving** page on a pop — and only that one. That is the page whose motion the eye
+    /// follows, and the one that has to look solid so the page behind it does not read through.
+    ///
+    /// The two directions get there differently. A push slides a view in underneath the arriving
+    /// page; a pop writes the colour onto the leaving page itself and puts it back afterwards,
+    /// because that page already fills the container and anything slipped beneath it would appear
+    /// there instantly instead of arriving with it.
+    public var pageBackdrop: NavigationPageBackdrop
+
     /// How far pages are inset from the container's bounds. Honoured by the transition too.
     public var contentInsets: NSEdgeInsets
 
@@ -40,12 +86,14 @@ public struct NavigationConfiguration {
         parallaxFactor: CGFloat = 0.3,
         dimmingColor: NSColor = NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.1),
         edgeShadowWidth: CGFloat = 9,
+        pageBackdrop: NavigationPageBackdrop = .automatic,
         contentInsets: NSEdgeInsets = NSEdgeInsets()
     ) {
         self.timing = timing
         self.parallaxFactor = parallaxFactor
         self.dimmingColor = dimmingColor
         self.edgeShadowWidth = edgeShadowWidth
+        self.pageBackdrop = pageBackdrop
         self.contentInsets = contentInsets
     }
 

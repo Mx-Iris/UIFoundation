@@ -30,6 +30,14 @@ struct NavigationTransitionRunTests {
 
     private var fullRect: CGRect { CGRect(x: 0, y: 0, width: 400, height: 300) }
 
+    /// A page that paints an opaque background of its own, so it needs no backdrop.
+    private func makeOpaqueView(frame: CGRect) -> NSView {
+        let view = NSView(frame: frame)
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        return view
+    }
+
     // MARK: Push
 
     @Test("Preparing a push stages the incoming page off screen, dimming between the two")
@@ -47,9 +55,13 @@ struct NavigationTransitionRunTests {
         )
         transition.prepare()
 
-        // Back to front: the page leaving, the dim over it, the shadow, the page arriving.
+        // Back to front: the page leaving, the dim over it, the shadow, then the arriving page
+        // over its own stand-in background.
         let edgeShadowView = try #require(transition.edgeShadowView)
-        #expect(container.subviews == [sourceView, transition.dimmingView, edgeShadowView, destinationView])
+        let pageBackdropView = try #require(transition.pageBackdropView)
+        #expect(container.subviews == [
+            sourceView, transition.dimmingView, edgeShadowView, pageBackdropView, destinationView,
+        ])
         #expect(transition.dimmingView.frame == fullRect)
         // Seated at zero — nothing has moved and the dim is still clear.
         #expect(sourceView.frame == fullRect)
@@ -130,7 +142,11 @@ struct NavigationTransitionRunTests {
         transition.prepare()
 
         let edgeShadowView = try #require(transition.edgeShadowView)
-        #expect(container.subviews == [destinationView, transition.dimmingView, edgeShadowView, sourceView])
+        // A pop adds no stand-in view at all: the background goes onto the leaving page itself.
+        #expect(transition.pageBackdropView == nil)
+        #expect(container.subviews == [
+            destinationView, transition.dimmingView, edgeShadowView, sourceView,
+        ])
         // The returning page starts where the push left it: offset by the parallax amount.
         #expect(destinationView.frame == CGRect(x: -120, y: 0, width: 400, height: 300))
         #expect(transition.dimmingView.alphaValue == 1)
@@ -260,7 +276,7 @@ struct NavigationTransitionRunTests {
     // MARK: Presets
 
     @Test("The App Store preset drops the edge shadow and slides less far")
-    func appStorePreset() {
+    func appStorePreset() throws {
         let container = makeContainer()
         let sourceView = NSView()
         let destinationView = NSView()
@@ -275,7 +291,10 @@ struct NavigationTransitionRunTests {
         transition.prepare()
 
         #expect(transition.edgeShadowView == nil)
-        #expect(container.subviews == [sourceView, transition.dimmingView, destinationView])
+        let pageBackdropView = try #require(transition.pageBackdropView)
+        #expect(container.subviews == [
+            sourceView, transition.dimmingView, pageBackdropView, destinationView,
+        ])
 
         transition.apply(1)
         // 400 × 0.2527, floored — nineteen points short of UIKit's 120.
@@ -313,6 +332,173 @@ struct NavigationTransitionRunTests {
         #expect(edgeShadowView.frame == CGRect(x: 0, y: 0, width: 9, height: 300))
         transition.apply(1)
         #expect(edgeShadowView.frame == CGRect(x: 400, y: 0, width: 9, height: 300))
+    }
+
+    // MARK: See-through pages
+
+    /// macOS 26 forces a page to be clear when the window's glass has to show through it, which
+    /// breaks the transition's core assumption — that the arriving page hides the one it covers.
+    @Test("A push slides a stand-in background in under the arriving page")
+    func pushBacksTheArrivingPage() throws {
+        let container = makeContainer()
+        let sourceView = NSView(frame: fullRect)
+        let destinationView = NSView()   // clear: no layer background, not opaque
+        container.addSubview(sourceView)
+
+        let transition = PushViewTransition(
+            containerView: container,
+            sourceView: sourceView,
+            destinationView: destinationView,
+            configuration: .default
+        )
+        transition.prepare()
+
+        let pageBackdropView = try #require(transition.pageBackdropView)
+        #expect(container.subviews.firstIndex(of: pageBackdropView)
+            == container.subviews.firstIndex(of: destinationView).map { $0 - 1 })
+        for fraction in [CGFloat(0), 0.5, 1] {
+            transition.apply(fraction)
+            #expect(pageBackdropView.frame == destinationView.frame)
+        }
+
+        transition.cleanUp(isFinished: true)
+        #expect(pageBackdropView.superview == nil)
+    }
+
+    /// A pop cannot use the push trick. The arriving page comes from off screen, so a view can
+    /// travel in underneath it; the leaving page already fills the container, and anything slipped
+    /// beneath it would appear there instantly rather than arriving with it.
+    @Test("A pop writes the background onto the leaving page and puts it back afterwards")
+    func popBacksTheLeavingPageInPlace() throws {
+        let container = makeContainer()
+        let sourceView = NSView(frame: fullRect)   // clear
+        let destinationView = NSView()
+        container.addSubview(sourceView)
+
+        #expect(sourceView.layer?.backgroundColor == nil)
+
+        let transition = PopViewTransition(
+            containerView: container,
+            sourceView: sourceView,
+            destinationView: destinationView,
+            configuration: .default
+        )
+        transition.prepare()
+
+        // No extra view — the page itself went opaque.
+        #expect(transition.pageBackdropView == nil)
+        let appliedColor = try #require(sourceView.layer?.backgroundColor)
+        #expect(appliedColor.alpha >= 1)
+        // The page being returned to is left alone, so the container shows through it.
+        #expect(destinationView.layer?.backgroundColor == nil)
+
+        transition.cleanUp(isFinished: true)
+        #expect(sourceView.layer?.backgroundColor == nil)
+    }
+
+    @Test("A pop restores whatever background the leaving page already had")
+    func popRestoresAnExistingBackground() {
+        let container = makeContainer()
+        let sourceView = NSView(frame: fullRect)
+        sourceView.wantsLayer = true
+        let originalColor = NSColor.systemTeal.withAlphaComponent(0.4).cgColor
+        sourceView.layer?.backgroundColor = originalColor
+        container.addSubview(sourceView)
+
+        var configuration = NavigationConfiguration()
+        configuration.pageBackdrop = .color(.systemRed)
+        let transition = PopViewTransition(
+            containerView: container,
+            sourceView: sourceView,
+            destinationView: NSView(),
+            configuration: configuration
+        )
+        transition.prepare()
+        #expect(sourceView.layer?.backgroundColor != originalColor)
+
+        transition.cleanUp(isFinished: true)
+        #expect(sourceView.layer?.backgroundColor == originalColor)
+    }
+
+    @Test("A pop leaves an opaque page's background untouched")
+    func popLeavesAnOpaquePageAlone() {
+        let container = makeContainer()
+        let sourceView = makeOpaqueView(frame: fullRect)
+        let originalColor = sourceView.layer?.backgroundColor
+        container.addSubview(sourceView)
+
+        let transition = PopViewTransition(
+            containerView: container,
+            sourceView: sourceView,
+            destinationView: NSView(),
+            configuration: .default
+        )
+        transition.prepare()
+
+        #expect(sourceView.layer?.backgroundColor == originalColor)
+    }
+
+    @Test("An opaque travelling page is left alone")
+    func opaqueTravellerGetsNoBackdrop() {
+        let container = makeContainer()
+        let sourceView = NSView(frame: fullRect)
+        let destinationView = makeOpaqueView(frame: .zero)
+        container.addSubview(sourceView)
+
+        let transition = PushViewTransition(
+            containerView: container,
+            sourceView: sourceView,
+            destinationView: destinationView,
+            configuration: .default
+        )
+        transition.prepare()
+
+        // The page staying behind being see-through is irrelevant — only the traveller is backed.
+        #expect(transition.pageBackdropView == nil)
+    }
+
+    @Test("A travelling page whose layer background is itself translucent still gets one")
+    func translucentTravellerGetsABackdrop() {
+        let container = makeContainer()
+        let destinationView = NSView()
+        destinationView.wantsLayer = true
+        destinationView.layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.5).cgColor
+        container.addSubview(NSView(frame: fullRect))
+
+        let transition = PushViewTransition(
+            containerView: container,
+            sourceView: container.subviews[0],
+            destinationView: destinationView,
+            configuration: .default
+        )
+        transition.prepare()
+
+        #expect(transition.pageBackdropView != nil)
+    }
+
+    @Test("`.none` never adds one, `.color` and `.view` always do")
+    func explicitBackdropModes() {
+        func makeTransition(_ pageBackdrop: NavigationPageBackdrop) -> PushViewTransition {
+            let container = makeContainer()
+            let sourceView = makeOpaqueView(frame: fullRect)
+            let destinationView = makeOpaqueView(frame: .zero)
+            container.addSubview(sourceView)
+            var configuration = NavigationConfiguration()
+            configuration.pageBackdrop = pageBackdrop
+            return PushViewTransition(
+                containerView: container,
+                sourceView: sourceView,
+                destinationView: destinationView,
+                configuration: configuration
+            )
+        }
+
+        #expect(makeTransition(.none).pageBackdropView == nil)
+        // An opaque destination, so only an explicit mode can produce one.
+        #expect(makeTransition(.color(.systemRed)).pageBackdropView != nil)
+
+        let hostSupplied = NSVisualEffectView()
+        #expect(makeTransition(.view { hostSupplied }).pageBackdropView === hostSupplied)
     }
 
     // MARK: Deferral

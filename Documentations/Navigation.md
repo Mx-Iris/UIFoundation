@@ -162,6 +162,7 @@ navigationController.configuration.contentInsets = NSEdgeInsets(top: 44, left: 0
 | `parallaxFactor` | `0.3` | `0.2527` | how far the *outgoing* page counter-moves, as a fraction of the container's width |
 | `dimmingColor` | sRGB black at 10 % | sRGB black at 22 % | laid over the outgoing page only |
 | `edgeShadowWidth` | `9` | `0` | soft shadow trailing the incoming page's leading edge |
+| `pageBackdrop` | `.automatic` | `.automatic` | what stands in behind a see-through page while it travels |
 | `contentInsets` | `.zero` | `.zero` | how far pages are inset from the container's bounds |
 
 Both sets of numbers are measured, not estimated — UIKit's from `_UINavigationParallaxTransition`,
@@ -184,6 +185,51 @@ Two more things worth knowing:
 
 `contentInsets` is honoured by the transition as well as by static layout, so a container that
 sits under a translucent title bar animates within the inset rectangle rather than under the bar.
+
+### See-through pages, and `pageBackdrop`
+
+The transition assumes what every navigation transition assumes: the arriving page hides the one it
+pushes away. **On macOS 26 that assumption breaks**, because a page has to be `.clear` for the
+window's glass to show through it — and two clear pages sliding past each other show both sets of
+content at once, overlapping, for the length of the transition.
+
+`pageBackdrop` fixes it by giving the page running the **full-width slide** a background for the
+duration — the arriving page on a push, the **leaving** page on a pop. That is the page whose
+motion the eye follows, and the one that has to look solid so the page behind it does not read
+through it.
+
+**The two directions get there differently, and that asymmetry is deliberate:**
+
+- A **push** slides a view in underneath the arriving page. The arriving page starts off screen, so
+  its stand-in travels in with it and nothing appears out of nowhere.
+- A **pop** writes the colour onto the leaving page itself and restores it when the transition
+  ends. That page already fills the container, so a view slipped beneath it would appear there
+  instantly — a whole-container flash at the moment you press Back.
+
+Only that page, either way. The other one keeps no background: it moves by the parallax offset
+alone, and what should show through it is the container.
+
+```swift
+navigationController.configuration.pageBackdrop = .automatic                  // default
+navigationController.configuration.pageBackdrop = .color(.underPageBackgroundColor)
+navigationController.configuration.pageBackdrop = .view { NSVisualEffectView() }
+navigationController.configuration.pageBackdrop = .none
+```
+
+- **`.automatic`** adds one only when the travelling page looks see-through — `isOpaque` is false
+  and there is no opaque layer background — filled with `windowBackgroundColor`. A page that paints
+  its own opaque background in `draw(_:)` matches too and gets a backdrop it completely hides,
+  which costs one view and changes nothing on screen.
+- **`.view`** hands the job to you. Return an `NSVisualEffectView` or `NSGlassEffectView` and the
+  arriving page carries its own material on a push. A pop writes a colour onto the page and cannot
+  use a supplied view, so it falls back to `windowBackgroundColor`.
+- **`.none`** keeps the container's glass visible under the page for the whole transition, at the
+  cost of the overlap described above. Also the right choice when every page is already opaque.
+
+On the pop side the colour really is written onto your page's `layer.backgroundColor` and restored
+at the end, followed by `needsDisplay = true`. That last step matters: a page that repaints its own
+background in `updateLayer()` — anything built on this package's `LayerBackedView` — would
+otherwise keep the transition's colour until something else happened to redraw it.
 
 Assigning `configuration` while a transition is running does **not** disturb it: the slide keeps
 the geometry it started with, and the new values take effect on the next transition. (Without that
@@ -295,6 +341,7 @@ transformation.apply(0.5)
 | a stack change during a transition applies immediately | it is deferred to the end | see [3.4](#34-changes-during-a-transition-are-deferred-not-applied). |
 | dimming is an `AppStoreKit.BackgroundView` | a plain layer-backed `NSView` | only ever used for a solid fill. |
 | defaults are the App Store's | defaults are **UIKit's** (`.uiKit`); the App Store's are one preset away (`.appStore`) | the App Store look is flatter than UIKit's — no edge shadow, less parallax, a front-loaded curve — and reads as sliding content rather than a page moving over another. Fidelity is still available, it is just not the default. |
+| a see-through page shows the page it covers | a backdrop is slipped under the travelling page (`pageBackdrop`) | the App Store's pages are opaque, so it never had to solve this. macOS 26 forces clear pages wherever glass has to show through. |
 | there is no edge shadow | a 9 pt edge shadow by default | ported from UIKit's `_UIVerticalEdgeShadowView` (via AppKitPlus). Set `edgeShadowWidth = 0` for the App Store's look. |
 | the swipe's tracking options are the raw value `7` | the same raw value `7` | `NSEvent.SwipeTrackingOptions` names only bits 0 and 1; bit 2 is undocumented. Kept verbatim, because matching the shipped feel is the point. |
 

@@ -25,6 +25,26 @@ struct NavigationParallaxTransitionCore {
     let dimmingView: NavigationDimmingView
     /// `nil` when ``NavigationConfiguration/edgeShadowWidth`` is zero.
     let edgeShadowView: NavigationEdgeShadowView?
+    /// The stand-in background under the arriving page on a **push**, or `nil` when it needs none.
+    /// A pop uses ``leavingPageBackground`` instead. See ``NavigationPageBackdrop``.
+    let pageBackdropView: NSView?
+
+    /// A pop writes the background onto the leaving page itself rather than sliding a view under
+    /// it, and puts it back afterwards. `nil` when the page needs none.
+    ///
+    /// The two directions differ because their starting states do: on a push the arriving page
+    /// comes from off screen, so a view can travel in underneath it, while on a pop the leaving
+    /// page already fills the container and anything slipped beneath it appears there instantly.
+    let leavingPageBackground: LeavingPageBackground?
+
+    /// Carries the leaving page's original background across ``prepare()`` and ``cleanUp(isFinished:)``.
+    /// A reference type because the transition itself is a value and neither method mutates it.
+    final class LeavingPageBackground {
+        let color: NSColor
+        var originalColor: CGColor?
+
+        init(color: NSColor) { self.color = color }
+    }
     let configuration: NavigationConfiguration
     let referenceRect: CGRect
     let interpolator: ViewPropertyInterpolator
@@ -71,22 +91,45 @@ struct NavigationParallaxTransitionCore {
         let curve = configuration.timing.curve
         var interpolator = ViewPropertyInterpolator(curve: curve)
 
-        // The page travelling the full width, and where it starts and ends.
+        // Where each page starts and ends. The one travelling the full width is the arriving page
+        // on a push and the leaving page on a pop; the other one only takes the parallax offset.
+        let sourceStartRect: CGRect
+        let sourceEndRect: CGRect
+        let destinationStartRect: CGRect
+        let destinationEndRect: CGRect
         let topViewStartRect: CGRect
         let topViewEndRect: CGRect
         switch operation {
         case .push:
-            topViewStartRect = offscreenRect
-            topViewEndRect = referenceRect
-            interpolator.append(frameTransformation(for: sourceView, from: referenceRect, to: parallaxRect, curve: curve))
-            interpolator.append(frameTransformation(for: destinationView, from: offscreenRect, to: referenceRect, curve: curve))
+            (sourceStartRect, sourceEndRect) = (referenceRect, parallaxRect)
+            (destinationStartRect, destinationEndRect) = (offscreenRect, referenceRect)
+            (topViewStartRect, topViewEndRect) = (destinationStartRect, destinationEndRect)
             interpolator.append(alphaTransformation(for: dimmingView, from: 0, to: 1, curve: curve))
         case .pop:
-            topViewStartRect = referenceRect
-            topViewEndRect = offscreenRect
-            interpolator.append(frameTransformation(for: sourceView, from: referenceRect, to: offscreenRect, curve: curve))
-            interpolator.append(frameTransformation(for: destinationView, from: parallaxRect, to: referenceRect, curve: curve))
+            (sourceStartRect, sourceEndRect) = (referenceRect, offscreenRect)
+            (destinationStartRect, destinationEndRect) = (parallaxRect, referenceRect)
+            (topViewStartRect, topViewEndRect) = (sourceStartRect, sourceEndRect)
             interpolator.append(alphaTransformation(for: dimmingView, from: 1, to: 0, curve: curve))
+        }
+        interpolator.append(frameTransformation(for: sourceView, from: sourceStartRect, to: sourceEndRect, curve: curve))
+        interpolator.append(frameTransformation(for: destinationView, from: destinationStartRect, to: destinationEndRect, curve: curve))
+
+        // The page running the full-width slide is the one that gets a background: the arriving
+        // page on a push, the leaving page on a pop. It is the page whose motion the eye follows,
+        // and the one that has to look solid so the page behind it does not read through. The other
+        // page keeps none.
+        switch operation {
+        case .push:
+            pageBackdropView = Self.makePageBackdrop(for: destinationView, configuration: configuration)
+            leavingPageBackground = nil
+            if let pageBackdropView {
+                interpolator.append(frameTransformation(
+                    for: pageBackdropView, from: topViewStartRect, to: topViewEndRect, curve: curve
+                ))
+            }
+        case .pop:
+            pageBackdropView = nil
+            leavingPageBackground = Self.makeLeavingPageBackground(for: sourceView, configuration: configuration)
         }
 
         if configuration.edgeShadowWidth > 0 {
@@ -143,6 +186,19 @@ struct NavigationParallaxTransitionCore {
             containerView.addSubview(edgeShadowView, positioned: .below, relativeTo: topView)
         }
 
+        // Immediately under the page it stands in for, so it hides whatever that page covers —
+        // which is what an opaque page would have done itself.
+        if let pageBackdropView {
+            pageBackdropView.wantsLayer = true
+            containerView.addSubview(pageBackdropView, positioned: .below, relativeTo: topView)
+        }
+
+        // A pop writes onto the page instead. `wantsLayer` is on by now, so the layer exists.
+        if let leavingPageBackground {
+            leavingPageBackground.originalColor = sourceView.layer?.backgroundColor
+            sourceView.layer?.backgroundColor = leavingPageBackground.color.cgColor
+        }
+
         apply(0)
     }
 
@@ -155,6 +211,14 @@ struct NavigationParallaxTransitionCore {
     func cleanUp(isFinished: Bool) {
         dimmingView.removeFromSuperview()
         edgeShadowView?.removeFromSuperview()
+        pageBackdropView?.removeFromSuperview()
+
+        if let leavingPageBackground {
+            sourceView.layer?.backgroundColor = leavingPageBackground.originalColor
+            // The page may repaint its own background in `updateLayer()`; ask for that pass now so
+            // it lands on the restored value rather than whenever something else happens to redraw.
+            sourceView.needsDisplay = true
+        }
         // Whichever view is not staying goes; both frames are put back so a view that gets
         // reused later does not start life carrying a parallax offset.
         if isFinished {
@@ -164,6 +228,57 @@ struct NavigationParallaxTransitionCore {
         }
         sourceView.frame = referenceRect
         destinationView.frame = referenceRect
+    }
+
+    /// Builds the stand-in background for `page`, or `nil` when it needs none.
+    @MainActor
+    static func makePageBackdrop(
+        for page: NSView,
+        configuration: NavigationConfiguration
+    ) -> NSView? {
+        switch configuration.pageBackdrop {
+        case .none:
+            return nil
+        case .automatic:
+            guard isSeeThrough(page) else { return nil }
+            return NavigationDimmingView(color: .windowBackgroundColor)
+        case let .color(color):
+            return NavigationDimmingView(color: color)
+        case let .view(makeView):
+            return makeView()
+        }
+    }
+
+    /// The colour a pop writes onto the leaving page, or `nil` when it needs none.
+    @MainActor
+    static func makeLeavingPageBackground(
+        for leavingPage: NSView,
+        configuration: NavigationConfiguration
+    ) -> LeavingPageBackground? {
+        switch configuration.pageBackdrop {
+        case .none:
+            return nil
+        case .automatic:
+            guard isSeeThrough(leavingPage) else { return nil }
+            return LeavingPageBackground(color: .windowBackgroundColor)
+        case let .color(color):
+            return LeavingPageBackground(color: color)
+        case .view:
+            // A host-built view cannot be written onto a page; fall back to the standard fill.
+            guard isSeeThrough(leavingPage) else { return nil }
+            return LeavingPageBackground(color: .windowBackgroundColor)
+        }
+    }
+
+    /// Whether a page would let the one underneath show through it.
+    ///
+    /// Read before ``prepare()`` turns layer backing on, so a page with no layer at all counts as
+    /// see-through — it certainly has no layer background. A page that paints an opaque background
+    /// in `draw(_:)` also counts, and gets a backdrop it then completely hides.
+    private static func isSeeThrough(_ view: NSView) -> Bool {
+        if view.isOpaque { return false }
+        guard let backgroundColor = view.layer?.backgroundColor else { return true }
+        return backgroundColor.alpha < 1
     }
 }
 
@@ -224,6 +339,8 @@ public struct PushViewTransition: InteractiveViewTransition {
     /// The soft strip trailing the incoming view's leading edge, or `nil` when
     /// ``NavigationConfiguration/edgeShadowWidth`` is zero.
     public var edgeShadowView: NSView? { core.edgeShadowView }
+    /// The stand-in background under the arriving view, or `nil` when it needs none.
+    public var pageBackdropView: NSView? { core.pageBackdropView }
     public var timing: AnimationTiming { core.configuration.timing }
 
     public func prepare() { core.prepare() }
@@ -259,6 +376,9 @@ public struct PopViewTransition: InteractiveViewTransition {
     /// The soft strip trailing the outgoing view's leading edge, or `nil` when
     /// ``NavigationConfiguration/edgeShadowWidth`` is zero.
     public var edgeShadowView: NSView? { core.edgeShadowView }
+    /// Always `nil`: a pop writes the background onto the outgoing view itself and restores it
+    /// afterwards, rather than sliding a view underneath.
+    public var pageBackdropView: NSView? { core.pageBackdropView }
     public var timing: AnimationTiming { core.configuration.timing }
 
     public func prepare() { core.prepare() }
