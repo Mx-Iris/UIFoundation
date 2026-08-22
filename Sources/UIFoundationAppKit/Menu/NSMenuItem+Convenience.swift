@@ -103,6 +103,13 @@ extension NSMenuItem {
         return self
     }
 
+    /// Sets the menu item's identifier.
+    @discardableResult
+    public func identifier(_ identifier: NSUserInterfaceItemIdentifier?) -> Self {
+        self.identifier = identifier
+        return self
+    }
+
     /// Sets whether the menu item is enabled.
     @discardableResult
     public func isEnabled(_ isEnabled: Bool) -> Self {
