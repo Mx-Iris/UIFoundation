@@ -12,7 +12,7 @@ enum App {
             app.setActivationPolicy(.regular)
             app.mainMenu = MainMenu.standard { builder in
                 // The demo browser has no document model: keep only Close.
-                builder.replaceItems(of: .file) { _ in [MainMenu.File.close()] }
+//                builder.replaceItems(of: .file) { _ in [MainMenu.File.close()] }
                 builder.item(for: .applicationSettings)?.action = #selector(AppDelegate.openSettings(_:))
             }
             return app
