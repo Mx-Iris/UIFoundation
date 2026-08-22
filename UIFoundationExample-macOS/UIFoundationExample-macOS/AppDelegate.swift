@@ -3,7 +3,23 @@ import UIFoundation
 
 @main
 @MainActor
+enum App {
+    static func main() {
+        // Mirrors NSApplicationMain, which drains a pool over everything before run().
+        let app = autoreleasepool {
+            let app = NSApplication.shared
+            app.delegate = AppDelegate.shared
+            app.setActivationPolicy(.regular)
+            app.mainMenu = MainMenu.standard()
+            return app
+        }
+        app.run()
+    }
+}
+
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    static let shared = AppDelegate()
     private let windowController = DemoBrowserWindowController()
     private var settingsSceneRepresentationExample: (any SettingsSceneRepresentationPresenting)?
 
