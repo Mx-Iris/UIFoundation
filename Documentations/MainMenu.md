@@ -10,7 +10,8 @@
 ## Table of Contents
 
 - [Quick Start](#quick-start)
-- [The Three Levels](#the-three-levels)
+- [The Four Levels](#the-four-levels)
+- [Customizing the Standard Menu](#customizing-the-standard-menu)
 - [The Wiring Contract](#the-wiring-contract)
 - [What AppKit Adds On Its Own](#what-appkit-adds-on-its-own)
 - [Open Recent](#open-recent)
@@ -65,11 +66,25 @@ including why `NSDelegateClass` is consumed only on the storyboard path, and tha
 Window, Help — item for item, and performs all the system wiring the xib would (see
 [The Wiring Contract](#the-wiring-contract)).
 
-## The Three Levels
+## The Four Levels
 
 **Level 1 — the whole bar.** `MainMenu.standard(applicationName:)`. Done.
 
-**Level 2 — pick, reorder, and mix top-level menus.** `MainMenu.menu { … }` takes the existing
+**Level 2 — amend single items in place.** `MainMenu.standard(customizing:)` hands the assembled
+tree to a `MainMenu.Builder` for identifier-addressed amendments — the subject of
+[Customizing the Standard Menu](#customizing-the-standard-menu):
+
+```swift
+app.mainMenu = MainMenu.standard { builder in
+    builder.remove(.filePageSetup)
+    builder.item(for: .applicationSettings)?.action = #selector(AppDelegate.openSettings(_:))
+    builder.insertItems(after: .fileOpen) {
+        NSMenuItem("Open Workspace…", action: #selector(AppDelegate.openWorkspace(_:)), keyEquivalent: "O")
+    }
+}
+```
+
+**Level 3 — pick, reorder, and mix top-level menus.** `MainMenu.menu { … }` takes the existing
 `@MenuBuilder`, so standard menus and fully custom ones interleave freely:
 
 ```swift
@@ -99,7 +114,7 @@ MainMenu.window {
 }
 ```
 
-**Level 3 — standard single items.** Every standard item is a factory on the menu's nested
+**Level 4 — standard single items.** Every standard item is a factory on the menu's nested
 namespace (`MainMenu.File.close()`, `MainMenu.Edit.find()`, `MainMenu.Application.quit()`, …), so a
 rewritten menu never re-types a selector, key equivalent, or tag. The `Settings…` item is the one
 item the template leaves unconnected; pass the host's action:
@@ -107,6 +122,52 @@ item the template leaves unconnected; pass the host's action:
 ```swift
 MainMenu.Application.settings(action: #selector(AppDelegate.openSettings(_:)))
 ```
+
+## Customizing the Standard Menu
+
+`MainMenu.Builder` is `UIMenuBuilder` translated to AppKit (decision record: Evolution
+[`0010`](Evolutions/0010-main-menu-builder.md)). UIKit's three element kinds — menu group,
+action, command — are all `NSMenuItem` here, so its three addressing schemes collapse into
+`MainMenu.ItemIdentifier` and one set of verbs:
+
+| `MainMenu.Builder` | `UIMenuBuilder` counterpart |
+|---|---|
+| `item(for:)` | `menu(for:)` + `action(for:)` |
+| `insertItems(_:before:)` / `insertItems(_:after:)` | `insertSibling`, `insertElements(_:before/afterMenu:/Action:)` |
+| `insertItems(_:atStartOf:)` / `insertItems(_:atEndOf:)` | `insertChild`, `insertElements(_:atStart/atEndOfMenu:)` |
+| `replace(_:with:)` | `replace(menu:with:)`, `replace(action:with:)` |
+| `replaceItems(of:from:)` | `replaceChildren(ofMenu:from:)` |
+| `remove(_:)` | `remove(menu:)`, `remove(action:)` |
+
+Every item `standard()` produces is addressable — the seven top-level menus, each menu's direct
+items, and the nested groups' leaves, down to the Writing Direction section headers. Inserting and
+replacing methods all have `@MenuBuilder` trailing-closure overloads. The contracts:
+
+- **Mutations apply immediately** — later queries see the transformed tree, like `UIMenuBuilder`.
+- **An absent identifier is a silent no-op** (also like `UIMenuBuilder`), so customization code can
+  run unconditionally. Use `item(for:)` when you need to know.
+- **The transformation runs before the wiring.** Removing or replacing the Window / Help /
+  Services / Font menus inside `customizing:` leaves no stale `NSApplication` / `NSFontManager`
+  assignment behind.
+- **Orphaned separators are cleaned up afterwards.** UIKit never shows this problem because its
+  group model draws separators implicitly; here a removal can strand one, so every menu the builder
+  touched is normalized when the closure returns — consecutive separators collapse, leading and
+  trailing ones are dropped. Untouched menus keep their exact built form. Separators themselves are
+  not addressable.
+- **Host items join the addressing scheme** by carrying their own identifier:
+
+  ```swift
+  builder.insertItems(after: .fileOpen) {
+      NSMenuItem("Build").identifier(MainMenu.ItemIdentifier("com.example.build"))
+  }
+  ```
+
+- **AppKit's auto-inserted items are out of reach** — Start Dictation… / Emoji & Symbols and the
+  Window menu's tab items are injected after launch and do not exist at build time.
+
+`MainMenu.ItemIdentifier` is a `RawRepresentable` struct (the same shape as `UIMenu.Identifier`);
+`userInterfaceItemIdentifier` bridges it to the `NSUserInterfaceItemIdentifier` that actually sits
+on the `NSMenuItem`, and the chained `.identifier(_:)` modifier accepts it directly.
 
 ## The Wiring Contract
 
@@ -119,7 +180,7 @@ menu for the identifiers in `MainMenu.ItemIdentifier` and wire what they find:
 |------|-----------|----------|
 | Services | `.services` | `NSApplication.servicesMenu` |
 | Format ▸ Font | `.font` | `NSFontManager.setFontMenu(_:)` |
-| Window | `.windows` | `NSApplication.windowsMenu` |
+| Window | `.window` | `NSApplication.windowsMenu` |
 | Help | `.help` | `NSApplication.helpMenu` |
 | File ▸ Open Recent | `.openRecent` | *nothing — see [Open Recent](#open-recent)* |
 
@@ -133,7 +194,7 @@ Consequences worth knowing:
   through `MainMenu.menu { … }`:
 
   ```swift
-  NSMenuItem("Windows", submenu: myWindowsMenu).identifier(MainMenu.ItemIdentifier.windows)
+  NSMenuItem("Windows", submenu: myWindowsMenu).identifier(MainMenu.ItemIdentifier.window)
   ```
 
 - **Assembling twice re-wires.** The last assembled menu wins, which is what you want when swapping

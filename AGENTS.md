@@ -206,11 +206,22 @@ menu bar Xcode's template ships as `MainMenu.xib`, item for item. No trait (pure
 like the rest of the Menu DSL). Decision record is Evolution
 [`0009`](Documentations/Evolutions/0009-standard-main-menu.md).
 
-Three levels: `MainMenu.standard()` is the whole template bar; `MainMenu.menu { … }` composes
-top-level menus (`MainMenu.application()` / `.file()` / `.edit()` / `.format()` / `.view()` /
-`.window()` / `.help()`, each with a builder overload that replaces its content) mixed with fully
-custom `NSMenuItem`s; nested namespaces (`MainMenu.File.close()`, `MainMenu.Edit.find()`, …) carry
-every standard single item so rewrites never re-type a selector or tag.
+Four levels: `MainMenu.standard()` is the whole template bar; `MainMenu.standard { builder in … }`
+amends single items in place — every standard item down to the nested groups' leaves carries a
+`MainMenu.ItemIdentifier` (a `RawRepresentable` struct, same shape as `UIMenu.Identifier`), and
+`MainMenu.Builder` is `UIMenuBuilder` translated to AppKit (`item(for:)`, four-way `insertItems`,
+`replace(_:with:)`, `replaceItems(of:from:)`, `remove(_:)`; UIKit's menu/action/command kinds all
+collapse to `NSMenuItem`, so its three addressing schemes collapse to one — Evolution
+[`0010`](Documentations/Evolutions/0010-main-menu-builder.md)). Builder contracts: mutations apply
+immediately, absent identifiers are silent no-ops, the transformation runs **before** the wiring
+(removing `.window` leaves no stale `windowsMenu`), and touched menus get orphaned separators
+normalized afterwards. `MainMenu.menu { … }` composes top-level menus (`MainMenu.application()` /
+`.file()` / `.edit()` / `.format()` / `.view()` / `.window()` / `.help()`, each with a builder
+overload that replaces its content) mixed with fully custom `NSMenuItem`s; nested namespaces
+(`MainMenu.File.close()`, `MainMenu.Edit.find()`, …) carry every standard single item so rewrites
+never re-type a selector or tag. Standard selectors are built with `FoundationToolbox`'s
+`#Selector("…")` macro — never `Selector("…")` (warns) or `NSSelectorFromString` (unchecked); the
+macro validates the literal at compile time.
 
 **Wiring happens at assembly, not in factories.** The xib's `systemMenu` markers have no public
 equivalent, so `standard()` / `menu {}` scan the finished menu for `MainMenu.ItemIdentifier` tags
