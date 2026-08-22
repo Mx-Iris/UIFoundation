@@ -87,13 +87,23 @@ enum App {
   autorelease pool），唯一值得手写入口复刻的是 `run()` 之前那个 autorelease pool。
   完整逐段分析见
   [`Researchs/AppKit-NSApplicationMain-Internals.md`](../../Researchs/AppKit-NSApplicationMain-Internals.md)。
-- **Open Recent 是唯一没有公开接线的部分**。已知两条路径：
-  1. 文档型 App（存在 `NSDocumentController`）中，AppKit 会自动在 File 菜单 `openDocument:`
-     项旁维护 Open Recent —— **推测，待实测**；
-  2. 私有 `-[NSMenu _setMenuName:]` 设 `"NSRecentDocumentsMenu"`（Jeff Johnson 的做法）——
-     private API，若需要则只能落在 `UIFoundationAppleInternal`，不进公开面。
-  公开侧先提供带 "Clear Menu"（`clearRecentDocuments:`）的常规子菜单并实测路径 1；路径 2 作为
-  后续可选增强，不阻塞本提案。
+- **Open Recent 是唯一没有公开接线的部分**（落地后实测 + 反编译定论，完整机制见
+  [`Researchs/AppKit-OpenRecentMenu-Internals.md`](../../Researchs/AppKit-OpenRecentMenu-Internals.md)）：
+  1. 文档型 App 中 AppKit 自动维护 Open Recent —— **已证实**，但机制是按私有菜单名
+     `NSRecentDocumentsMenu` 认领：`-[NSDocumentController _installOpenRecentMenus]` 先
+     `+[NSMenu _menusWithName:]` 查名，查到（xib 经 `systemMenu` 属性登记的那种）就接管
+     那一个（清空重灌 + delegate 惰性填充），查不到才按 `openDocument:` action 定位 Open…
+     项另插一个。**代码构建的菜单没有名字 → 系统另插 → File 菜单出现两个 Open Recent**
+     （用户在 document-based App 中实测截图）。因此标准 File 菜单**移除了自带的
+     Open Recent**：文档型系统自动补（能用的那个），非文档型系统不插（插入条件含
+     `documentClassNames` 非空）也本不该有。`File.openRecent()` 工厂保留给手动维护
+     recent 列表的宿主。
+  2. 私有 `-[NSMenu _setMenuName:]` 设 `"NSRecentDocumentsMenu"` —— 反编译确认这不只是
+     Jeff Johnson 的民间技巧，`_installOpenRecentMenus` 自己就用它注册 "Revert To" 子菜单；
+     若需要「与 xib 完全同权」（被接管、带图标）可落 `UIFoundationAppleInternal`，未立项。
+  顺带证实：同函数按 `saveDocument:` 等标准 action 定位后注入 Duplicate / Rename… /
+  Move To… / Revert To / Share —— **「selector 逐字照抄模板」正是文档型 App 全套系统增强
+  能落在代码菜单上的前提**。
 - **标准内容清单已按模板 xib 逐项 dump 定稿**（2026-08-22，Xcode 26 的
   `Templates/File Templates/User Interface/Main Menu.xctemplate/___FILEBASENAME___.xib`，
   与 `Application.xctemplate` 内嵌的主菜单同构）。修正 / 确认的关键点：
@@ -342,3 +352,4 @@ extension MainMenu {
 | 2026-08-22 | 落地修正 | 用户实测发现：删 storyboard 后 `@main` 挂在 NSApplicationDelegate 上界面起不来（`NSApplicationMain` 只经 storyboard/nib 创建 delegate），示例 App 已由用户改为手写 `@main enum App` 入口。同步修正：指南撤下 app-delegate 形式的错误建议、改为入口所有权契约；`AGENTS.md` 的 Main Menu 小节与 Example App 描述更新；本提案前期调研补记该实测事实。 |
 | 2026-08-22 | 落地修正 | 对照 `NSApplicationMain` 反编译逐项核对手写入口的差异后，给示例 App 的 `App.main()` 补上 `autoreleasepool` 包住 `run()` 之前的准备阶段（`NSApplicationMain` 在装载前 push 池、`run()` 前 pop；手写入口没有它时，准备期 autorelease 的对象会活到进程结束）。指南 Quick Start 片段与 `AGENTS.md` 入口契约同步，并补记 `NSApplication.delegate` 是 weak、宿主必须强持有 delegate 的坑（`NSApplicationMain` 靠从不释放实例化出的 delegate 来规避）。其余差异（`NSPrincipalClass` 支持、启动 signpost、ImageIO 预热）经评估不需要在手写入口复刻。 |
 | 2026-08-22 | 调研落盘 | `NSApplicationMain` / `-[NSApplication run]` 的反编译分析写成研究报告 `Researchs/AppKit-NSApplicationMain-Internals.md`（关键发现：`NSDelegateClass` 只在 storyboard 分支被消费；`run()` 兜住其余启动初始化；差异清单与手写入口参考实现）。指南入口契约段与 `AGENTS.md` 的 Main Menu 小节已链接该报告；本提案前期调研同步补记精确机制。 |
+| 2026-08-22 | 落地修正 | 遗留验证项之一定案：用户在 document-based App 实测发现 File 菜单出现**两个 Open Recent**（系统自动插入的 + 本库标准内容自带的），随后反编译 `-[NSDocumentController _installOpenRecentMenus]` 与 `-[NSMenu _finishedMakingConnections]` 定论机制 —— 系统按私有菜单名 `NSRecentDocumentsMenu` 认领 xib 菜单（故 xib 从不重复），代码菜单无名不可见、按 `openDocument:` 另插。修正：**标准 File 菜单移除 Open Recent**（文档型系统自动补、非文档型本不该有），`File.openRecent()` 工厂保留给手动填充场景并新增专项测试；调研写成 `Researchs/AppKit-OpenRecentMenu-Internals.md`，前期调研、指南与 `AGENTS.md` 同步。全量 97 测试通过，示例 App 构建通过。剩余待人工验证：Edit 菜单自动插入项不重复、Window 菜单 tab 项自动出现。 |

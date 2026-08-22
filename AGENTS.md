@@ -228,9 +228,14 @@ equivalent, so `standard()` / `menu {}` scan the finished menu for `MainMenu.Ite
 and wire Services → `NSApp.servicesMenu`, Font → `NSFontManager.setFontMenu(_:)`, Window →
 `NSApp.windowsMenu`, Help → `NSApp.helpMenu`. Item factories touch no global state; a hand-built
 menu opts in by attaching the identifier. Open Recent is the one unwireable piece (no public
-counterpart to `recentDocuments`) — it ships structure only. Standard content deliberately omits
-what AppKit inserts on its own (Edit's dictation/emoji items, Window's tab items, Help's search
-field) — adding them manually duplicates them. Content is asserted verbatim against a template-xib
+counterpart to `recentDocuments`, which is a private menu *name* NSDocumentController adopts
+by lookup — decompile walkthrough in `Researchs/AppKit-OpenRecentMenu-Internals.md`) — it is
+**not** part of the standard File menu: document-based apps get the system's own inserted next to
+`openDocument:` (shipping ours too showed two), non-document apps get none; the
+`File.openRecent()` factory remains for hosts that fill it themselves. Standard content
+deliberately omits everything AppKit inserts on its own (Edit's dictation/emoji items, Window's
+tab items, Help's search field, the document-app File-menu injections) — adding them manually
+duplicates them. Content is asserted verbatim against a template-xib
 dump by `MainMenuTests`; fidelity traps (`print:` not `printDocument:`, `performFindPanelAction:`
 tags, five Font items targeting `NSFontManager` directly) are listed in the guide.
 

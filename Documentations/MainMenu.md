@@ -209,6 +209,10 @@ Don't add these manually — you would get duplicates:
 
 - **Edit menu**: "Start Dictation…" and "Emoji & Symbols" are appended by AppKit (suppress with the
   `NSDisabledDictationMenuItem` / `NSDisabledCharacterPaletteMenuItem` defaults).
+- **File menu, in a document-based app**: `NSDocumentController` inserts Open Recent after the
+  Open… item, and for autosaving document classes injects Duplicate / Rename… / Move To… /
+  Revert To and the Share item around the standard save items — located **by their actions**,
+  which is why this library's verbatim selectors matter. See [Open Recent](#open-recent).
 - **Window menu**: the open-window list, and on systems that have them, the tab items
   (Show Tab Bar / Show All Tabs) and full-screen tiling items — all driven off
   `NSApplication.windowsMenu`.
@@ -222,17 +226,25 @@ Don't add these manually — you would get duplicates:
 
 ## Open Recent
 
-The one piece of the template with no public counterpart. In the xib, Interface Builder marks the
-submenu as the `recentDocuments` system menu; AppKit then populates it from
-`NSDocumentController`. There is no public API that performs that marking on a code-built menu.
+The one piece of the template with no public counterpart — and the reason the standard File menu
+**does not include it**. The mechanism, pinned down by decompiling macOS 26.6 AppKit
+([`Researchs/AppKit-OpenRecentMenu-Internals.md`](../Researchs/AppKit-OpenRecentMenu-Internals.md)):
 
-`MainMenu.File.openRecent()` therefore ships the template's *structure* — the submenu with its
-"Clear Menu" item (`clearRecentDocuments:`) — tagged with `ItemIdentifier.openRecent` but wired to
-nothing. In a document-based app AppKit may maintain the recent-documents list through its own
-File-menu handling; that behavior is undocumented and has not been verified here. If your app
-needs a live Open Recent menu today, populate the submenu yourself from
-`NSDocumentController.shared.recentDocumentURLs` (e.g. from a `menuNeedsUpdate(_:)` delegate), or
-omit the item.
+- The xib's `recentDocuments` marker becomes a private menu *name* (`NSRecentDocumentsMenu`)
+  when the nib finishes loading. `NSDocumentController` looks that name up first and, when it
+  finds a registered menu, **adopts it** — empties it, rebuilds Clear Menu, and fills the rows
+  through its own delegate. That is why a xib's Open Recent never duplicates.
+- A code-built menu has no name, so the lookup fails and — in a document-based app —
+  `NSDocumentController` inserts **its own** Open Recent right after the item with the
+  `openDocument:` action. Shipping one in the standard content produced two Open Recent menus
+  side by side (the system's working one with the clock icon, ours a dead duplicate).
+- In a non-document app the insertion is skipped entirely (the check requires
+  `documentClassNames` to be non-empty), and nothing would ever populate ours.
+
+So: document-based apps get the real Open Recent automatically; non-document apps aren't supposed
+to have one. `MainMenu.File.openRecent()` remains available for the one genuine use — a host that
+fills the submenu itself from `NSDocumentController.shared.recentDocumentURLs` (e.g. in a
+`menuNeedsUpdate(_:)` delegate) — and stays tagged with `ItemIdentifier.openRecent`.
 
 ## Titles, Names, and Localization
 
