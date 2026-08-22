@@ -8,8 +8,15 @@
 
 ## 使用指南
 
-六篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
+七篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
 **接入任何一个组件前先读对应那篇。**
+
+- [MainMenu](MainMenu.md) —— 纯代码构建 MainMenu.xib 等价的标准主菜单，三级粒度自定义。
+  **含一条接线契约**：Services / Window / Help / Font 四处系统接线发生在 `MainMenu.menu {}` /
+  `standard()` 装配时（按 identifier 扫描），单项工厂零副作用。另有 AppKit 自动插入项清单
+  （手工重复添加会出现两份）、Open Recent 无公开接线的现状与替代做法，以及逐项对照模板 xib
+  的保真笔记（`print:` 而非 `printDocument:`、Find 组的 tag、Font 菜单里五项直接 target
+  `NSFontManager` 等）。
 
 - [SettingsWindow](SettingsWindow.md) —— System Settings 形状的设置窗口与原生 SwiftUI
   `SettingsScene`，后者可由 macOS 26 AppKit 通过 `NSHostingSceneRepresentation` 注册；另带一个会自己

@@ -199,6 +199,46 @@ Property wrappers using `_enclosingInstance` subscript: on **get**, calls `loadV
 
 `TableViewProtocol` / `OutlineViewProtocol` provide `scrollableTableView()` / `scrollableSingleColumnOutlineView()` static factories returning `(NSScrollView, Self)` tuples.
 
+### Main Menu — `MainMenu`
+
+`Sources/UIFoundationAppKit/Menu/MainMenu*.swift` builds the standard macOS main menu in code — the
+menu bar Xcode's template ships as `MainMenu.xib`, item for item. No trait (pure public AppKit,
+like the rest of the Menu DSL). Decision record is Evolution
+[`0009`](Documentations/Evolutions/0009-standard-main-menu.md).
+
+Three levels: `MainMenu.standard()` is the whole template bar; `MainMenu.menu { … }` composes
+top-level menus (`MainMenu.application()` / `.file()` / `.edit()` / `.format()` / `.view()` /
+`.window()` / `.help()`, each with a builder overload that replaces its content) mixed with fully
+custom `NSMenuItem`s; nested namespaces (`MainMenu.File.close()`, `MainMenu.Edit.find()`, …) carry
+every standard single item so rewrites never re-type a selector or tag.
+
+**Wiring happens at assembly, not in factories.** The xib's `systemMenu` markers have no public
+equivalent, so `standard()` / `menu {}` scan the finished menu for `MainMenu.ItemIdentifier` tags
+and wire Services → `NSApp.servicesMenu`, Font → `NSFontManager.setFontMenu(_:)`, Window →
+`NSApp.windowsMenu`, Help → `NSApp.helpMenu`. Item factories touch no global state; a hand-built
+menu opts in by attaching the identifier. Open Recent is the one unwireable piece (no public
+counterpart to `recentDocuments`) — it ships structure only. Standard content deliberately omits
+what AppKit inserts on its own (Edit's dictation/emoji items, Window's tab items, Help's search
+field) — adding them manually duplicates them. Content is asserted verbatim against a template-xib
+dump by `MainMenuTests`; fidelity traps (`print:` not `printDocument:`, `performFindPanelAction:`
+tags, five Font items targeting `NSFontManager` directly) are listed in the guide.
+
+**Going storyboard-free forfeits `@main` on the app delegate.** `@main` on an
+`NSApplicationDelegate` synthesizes a call to `NSApplicationMain`, which instantiates and connects
+the delegate only through the principal storyboard/nib (unlike UIKit, it takes no delegate class
+name). With the storyboard gone the delegate is never created — the process runs but no window
+appears (measured in the example app). A storyboard-free app must hand-write its entry point:
+create the delegate, assign it (hold it strongly — `NSApplication.delegate` is weak), set the
+activation policy and `MainMenu.standard()`, then `run()`, with the pre-`run()` setup wrapped in
+`autoreleasepool` the way `NSApplicationMain` drains one over loading. Nothing else needs
+replicating — `-[NSApplication run]` does the rest of the launch initialization on its own;
+the decompile walkthrough is
+[`Researchs/AppKit-NSApplicationMain-Internals.md`](Researchs/AppKit-NSApplicationMain-Internals.md).
+
+**Full guide:** `Documentations/MainMenu.md`. The example app is the reference consumer: its
+`@main enum App` entry point sets `MainMenu.standard()` before `app.run()` (the menu-only
+storyboard was deleted with Evolution 0009).
+
 ### Toolbar DSL — `NSToolbar.Navigation`
 
 `Sources/UIFoundationAppKit/Toolbar/` holds a builder-style `NSToolbar` API: an `ToolbarItem` base
@@ -709,10 +749,10 @@ Reference: full reverse-engineering report at [`Researchs/AppKit-NSToolTipManage
 
 ## Example App (macOS)
 
-`UIFoundationExample-macOS/` is a single-window **demo browser**: a sidebar (source list, grouped by category) on the left, the selected demo's view controller on the right. All code, no storyboard-driven UI (the storyboard is kept **only** for the main menu — it has no initial controller and never auto-opens a window).
+`UIFoundationExample-macOS/` is a single-window **demo browser**: a sidebar (source list, grouped by category) on the left, the selected demo's view controller on the right. All code, no storyboard or xib at all — the main menu comes from `MainMenu.standard()` (see the **Main Menu** section; the menu-only storyboard and its `INFOPLIST_KEY_NSMainStoryboardFile` setting were removed with Evolution 0009).
 
 Structure under `UIFoundationExample-macOS/UIFoundationExample-macOS/`:
-- `AppDelegate.swift` — builds a `DemoBrowserWindowController` on launch and, on macOS 26+, owns and registers the Settings scene representation during `applicationWillFinishLaunching(_:)`.
+- `AppDelegate.swift` — the hand-written `@main enum App` entry point (creates the delegate, sets the activation policy and `MainMenu.standard()`, then `run()`; required because deleting the storyboard breaks `@main` on the delegate — see the **Main Menu** section) plus the `AppDelegate` class, which on macOS 26+ owns and registers the Settings scene representation during `applicationWillFinishLaunching(_:)` and builds a `DemoBrowserWindowController` on launch.
 - `Browser/` — `DemoBrowserWindowController` (code-built `NSWindow`), `DemoBrowserSplitViewController` (sidebar + `DemoDetailViewController`), `DemoSidebarViewController` (source-list `NSOutlineView`; items are a private `SidebarNode` reference type because `NSOutlineView` needs stable item identity).
 - `Catalog/` — `Demo` (a value type: `title` / `category` / `summary` / `minimumMacOS` / `makeViewController`) and `DemoCatalog.all` (the registry) + `DemoCatalog.grouped`.
 - `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `NavigationDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `SettingsDemoViewController`, `SettingsSceneRepresentationDemoViewController`, `ToolbarNavigationDemoViewController`, `CustomTooltipDemoViewController`).
