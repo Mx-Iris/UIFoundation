@@ -19,12 +19,15 @@ extension MainMenu.ItemIdentifier {
 }
 
 extension MainMenu {
-    /// The File menu with the template's standard content.
+    /// The File menu with the template's standard content — minus Open
+    /// Recent, deliberately: in a document-based app `NSDocumentController`
+    /// inserts and adopts its own next to the `openDocument:` item (providing
+    /// one here too shows two of them), and in a non-document app nothing
+    /// populates one. See ``File/openRecent()``.
     public static func file(title: String = "File") -> NSMenuItem {
         file(title: title) {
             File.new()
             File.open()
-            File.openRecent()
             NSMenuItem.separator()
             File.close()
             File.save()
@@ -55,10 +58,16 @@ extension MainMenu {
                 .identifier(ItemIdentifier.fileOpen)
         }
 
-        /// The Open Recent submenu with its Clear Menu item. AppKit has no
-        /// public counterpart to the xib's `recentDocuments` marker, so this
-        /// menu is identifier-tagged but not auto-populated — see the usage
-        /// guide for the current state of that limitation.
+        /// The Open Recent submenu with its Clear Menu item — deliberately
+        /// not part of the standard File menu content. `NSDocumentController`
+        /// recognizes the xib's Open Recent by a private menu name AppKit
+        /// offers no public way to set; a code-built one is invisible to it,
+        /// so in a document-based app the system inserts its own next to the
+        /// `openDocument:` item (and this one would sit beside it as a dead
+        /// duplicate), while in a non-document app nothing populates one. Use
+        /// this factory only when the host fills the submenu itself, e.g.
+        /// from `NSDocumentController.shared.recentDocumentURLs` in a
+        /// `menuNeedsUpdate(_:)` delegate — see the usage guide.
         public static func openRecent() -> NSMenuItem {
             NSMenuItem("Open Recent") {
                 NSMenuItem("Clear Menu", action: #Selector("clearRecentDocuments:"))

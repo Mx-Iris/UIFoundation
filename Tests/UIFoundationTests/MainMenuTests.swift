@@ -68,7 +68,6 @@ struct MainMenuTests {
         let expected: [(title: String, action: String, keyEquivalent: String)] = [
             ("New", "newDocument:", "n"),
             ("Open…", "openDocument:", "o"),
-            ("Open Recent", "submenuAction:", ""),
             ("", "", ""),
             ("Close", "performClose:", "w"),
             ("Save…", "saveDocument:", "s"),
@@ -84,9 +83,15 @@ struct MainMenuTests {
             #expect(selectorName(menuItem) == expectation.action)
             #expect(menuItem.keyEquivalent == expectation.keyEquivalent)
         }
-        #expect(fileMenu.items[9].keyEquivalentModifierMask == [.shift, .command])
+        #expect(fileMenu.items[8].keyEquivalentModifierMask == [.shift, .command])
+    }
 
-        let openRecentItem = fileMenu.items[2]
+    @Test("Open Recent stays out of the standard File menu but keeps its shape")
+    func openRecentIsOptIn() throws {
+        let fileMenu = try #require(MainMenu.file().submenu)
+        #expect(!fileMenu.items.contains { $0.title == "Open Recent" })
+
+        let openRecentItem = MainMenu.File.openRecent()
         #expect(openRecentItem.identifier == MainMenu.ItemIdentifier.openRecent.userInterfaceItemIdentifier)
         let openRecentMenu = try #require(openRecentItem.submenu)
         #expect(openRecentMenu.items.map(\.title) == ["Clear Menu"])

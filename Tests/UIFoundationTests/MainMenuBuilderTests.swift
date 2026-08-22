@@ -157,7 +157,7 @@ struct MainMenuBuilderTests {
 
         let items = fileMenu(of: rootMenu).items
         #expect(items.filter(\.isSeparatorItem).count == 1)
-        #expect(items.map(\.title) == ["New", "Open…", "Open Recent", "", "Page Setup…", "Print…"])
+        #expect(items.map(\.title) == ["New", "Open…", "", "Page Setup…", "Print…"])
     }
 
     @Test("removing the leading section leaves no leading separator")
@@ -165,7 +165,6 @@ struct MainMenuBuilderTests {
         let (rootMenu, builder) = makeStandardTree()
         builder.remove(.fileNew)
         builder.remove(.fileOpen)
-        builder.remove(.openRecent)
         builder.normalizeTouchedMenus()
 
         #expect(fileMenu(of: rootMenu).items.first?.isSeparatorItem == false)
