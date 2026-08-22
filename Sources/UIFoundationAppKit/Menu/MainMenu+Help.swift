@@ -1,6 +1,11 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
+import FoundationToolbox
+
+extension MainMenu.ItemIdentifier {
+    public static let helpApplicationHelp = standard("helpApplicationHelp")
+}
 
 extension MainMenu {
     /// The Help menu with the template's standard content. The assembly step
@@ -23,7 +28,8 @@ extension MainMenu {
     @MainActor
     public enum Help {
         public static func applicationHelp(applicationName: String? = nil) -> NSMenuItem {
-            NSMenuItem("\(resolvedApplicationName(applicationName)) Help", action: Selector(("showHelp:")), keyEquivalent: "?")
+            NSMenuItem("\(resolvedApplicationName(applicationName)) Help", action: #Selector("showHelp:"), keyEquivalent: "?")
+                .identifier(ItemIdentifier.helpApplicationHelp)
         }
     }
 }

@@ -1,6 +1,22 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
+import FoundationToolbox
+
+extension MainMenu.ItemIdentifier {
+    public static let fileNew = standard("fileNew")
+    public static let fileOpen = standard("fileOpen")
+    /// Tagged but wired to nothing — AppKit has no public counterpart to the
+    /// xib's `recentDocuments` marker (see the usage guide).
+    public static let openRecent = standard("openRecent")
+    public static let openRecentClearMenu = standard("openRecentClearMenu")
+    public static let fileClose = standard("fileClose")
+    public static let fileSave = standard("fileSave")
+    public static let fileSaveAs = standard("fileSaveAs")
+    public static let fileRevertToSaved = standard("fileRevertToSaved")
+    public static let filePageSetup = standard("filePageSetup")
+    public static let filePrint = standard("filePrint")
+}
 
 extension MainMenu {
     /// The File menu with the template's standard content.
@@ -23,17 +39,20 @@ extension MainMenu {
     /// The File menu with custom content.
     public static func file(title: String = "File", @MenuBuilder _ items: () -> [NSMenuItem]) -> NSMenuItem {
         NSMenuItem(title, submenu: items)
+            .identifier(ItemIdentifier.file)
     }
 
     /// Standard items of the File menu.
     @MainActor
     public enum File {
         public static func new() -> NSMenuItem {
-            NSMenuItem("New", action: Selector(("newDocument:")), keyEquivalent: "n")
+            NSMenuItem("New", action: #Selector("newDocument:"), keyEquivalent: "n")
+                .identifier(ItemIdentifier.fileNew)
         }
 
         public static func open() -> NSMenuItem {
-            NSMenuItem("Open…", action: Selector(("openDocument:")), keyEquivalent: "o")
+            NSMenuItem("Open…", action: #Selector("openDocument:"), keyEquivalent: "o")
+                .identifier(ItemIdentifier.fileOpen)
         }
 
         /// The Open Recent submenu with its Clear Menu item. AppKit has no
@@ -42,33 +61,40 @@ extension MainMenu {
         /// guide for the current state of that limitation.
         public static func openRecent() -> NSMenuItem {
             NSMenuItem("Open Recent") {
-                NSMenuItem("Clear Menu", action: Selector(("clearRecentDocuments:")))
+                NSMenuItem("Clear Menu", action: #Selector("clearRecentDocuments:"))
+                    .identifier(ItemIdentifier.openRecentClearMenu)
             }
             .identifier(ItemIdentifier.openRecent)
         }
 
         public static func close() -> NSMenuItem {
-            NSMenuItem("Close", action: Selector(("performClose:")), keyEquivalent: "w")
+            NSMenuItem("Close", action: #Selector("performClose:"), keyEquivalent: "w")
+                .identifier(ItemIdentifier.fileClose)
         }
 
         public static func save() -> NSMenuItem {
-            NSMenuItem("Save…", action: Selector(("saveDocument:")), keyEquivalent: "s")
+            NSMenuItem("Save…", action: #Selector("saveDocument:"), keyEquivalent: "s")
+                .identifier(ItemIdentifier.fileSave)
         }
 
         public static func saveAs() -> NSMenuItem {
-            NSMenuItem("Save As…", action: Selector(("saveDocumentAs:")), keyEquivalent: "S")
+            NSMenuItem("Save As…", action: #Selector("saveDocumentAs:"), keyEquivalent: "S")
+                .identifier(ItemIdentifier.fileSaveAs)
         }
 
         public static func revertToSaved() -> NSMenuItem {
-            NSMenuItem("Revert to Saved", action: Selector(("revertDocumentToSaved:")), keyEquivalent: "r")
+            NSMenuItem("Revert to Saved", action: #Selector("revertDocumentToSaved:"), keyEquivalent: "r")
+                .identifier(ItemIdentifier.fileRevertToSaved)
         }
 
         public static func pageSetup() -> NSMenuItem {
-            NSMenuItem("Page Setup…", action: Selector(("runPageLayout:")), keyEquivalent: "P", modifiers: [.shift, .command])
+            NSMenuItem("Page Setup…", action: #Selector("runPageLayout:"), keyEquivalent: "P", modifiers: [.shift, .command])
+                .identifier(ItemIdentifier.filePageSetup)
         }
 
         public static func print() -> NSMenuItem {
-            NSMenuItem("Print…", action: Selector(("print:")), keyEquivalent: "p")
+            NSMenuItem("Print…", action: #Selector("print:"), keyEquivalent: "p")
+                .identifier(ItemIdentifier.filePrint)
         }
     }
 }

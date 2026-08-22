@@ -43,7 +43,7 @@ struct MainMenuTests {
 
         let servicesItem = applicationMenu.items[4]
         #expect(servicesItem.submenu != nil)
-        #expect(servicesItem.identifier == MainMenu.ItemIdentifier.services)
+        #expect(servicesItem.identifier == MainMenu.ItemIdentifier.services.userInterfaceItemIdentifier)
 
         let hideItem = applicationMenu.items[6]
         #expect(selectorName(hideItem) == "hide:")
@@ -87,7 +87,7 @@ struct MainMenuTests {
         #expect(fileMenu.items[9].keyEquivalentModifierMask == [.shift, .command])
 
         let openRecentItem = fileMenu.items[2]
-        #expect(openRecentItem.identifier == MainMenu.ItemIdentifier.openRecent)
+        #expect(openRecentItem.identifier == MainMenu.ItemIdentifier.openRecent.userInterfaceItemIdentifier)
         let openRecentMenu = try #require(openRecentItem.submenu)
         #expect(openRecentMenu.items.map(\.title) == ["Clear Menu"])
         #expect(selectorName(openRecentMenu.items[0]) == "clearRecentDocuments:")
@@ -168,10 +168,10 @@ struct MainMenuTests {
         let mainMenu = MainMenu.standard(applicationName: "Example")
 
         let servicesMenu = try #require(
-            mainMenu.items[0].submenu?.items.first { $0.identifier == MainMenu.ItemIdentifier.services }?.submenu
+            mainMenu.items[0].submenu?.items.first { $0.identifier == MainMenu.ItemIdentifier.services.userInterfaceItemIdentifier }?.submenu
         )
         let fontMenu = try #require(
-            mainMenu.items[3].submenu?.items.first { $0.identifier == MainMenu.ItemIdentifier.font }?.submenu
+            mainMenu.items[3].submenu?.items.first { $0.identifier == MainMenu.ItemIdentifier.font.userInterfaceItemIdentifier }?.submenu
         )
         let windowsMenu = try #require(mainMenu.items[5].submenu)
         let helpMenu = try #require(mainMenu.items[6].submenu)
@@ -194,6 +194,21 @@ struct MainMenuTests {
         let windowsMenu = try #require(mainMenu.items[1].submenu)
         #expect(windowsMenu.items.map(\.title) == ["Minimize"])
         #expect(NSApplication.shared.windowsMenu === windowsMenu)
+    }
+
+    @Test("a customization removing the Window menu runs before wiring")
+    func customizationPrecedesWiring() throws {
+        let sentinelMenu = NSMenu(title: "Sentinel")
+        NSApplication.shared.windowsMenu = sentinelMenu
+
+        let mainMenu = MainMenu.standard(applicationName: "Example") { builder in
+            builder.remove(.window)
+        }
+
+        #expect(!mainMenu.items.contains { $0.title == "Window" })
+        #expect(NSApplication.shared.windowsMenu === sentinelMenu)
+        let helpMenu = try #require(mainMenu.items.last?.submenu)
+        #expect(NSApplication.shared.helpMenu === helpMenu)
     }
 
     // MARK: Names and titles

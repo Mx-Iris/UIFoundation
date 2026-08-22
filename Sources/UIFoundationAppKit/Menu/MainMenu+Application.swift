@@ -1,6 +1,19 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
+import FoundationToolbox
+
+extension MainMenu.ItemIdentifier {
+    public static let applicationAbout = standard("applicationAbout")
+    public static let applicationSettings = standard("applicationSettings")
+    /// Wiring marker: the assembly step assigns this submenu to
+    /// `NSApplication.servicesMenu`.
+    public static let services = standard("services")
+    public static let applicationHide = standard("applicationHide")
+    public static let applicationHideOthers = standard("applicationHideOthers")
+    public static let applicationShowAll = standard("applicationShowAll")
+    public static let applicationQuit = standard("applicationQuit")
+}
 
 extension MainMenu {
     /// The application menu (the bold menu beside the Apple menu) with the
@@ -26,13 +39,15 @@ extension MainMenu {
     /// The application menu with custom content.
     public static func application(applicationName: String? = nil, @MenuBuilder _ items: () -> [NSMenuItem]) -> NSMenuItem {
         NSMenuItem(resolvedApplicationName(applicationName), submenu: items)
+            .identifier(ItemIdentifier.application)
     }
 
     /// Standard items of the application menu.
     @MainActor
     public enum Application {
         public static func about(applicationName: String? = nil) -> NSMenuItem {
-            NSMenuItem("About \(resolvedApplicationName(applicationName))", action: Selector(("orderFrontStandardAboutPanel:")))
+            NSMenuItem("About \(resolvedApplicationName(applicationName))", action: #Selector("orderFrontStandardAboutPanel:"))
+                .identifier(ItemIdentifier.applicationAbout)
         }
 
         /// The Settings… (macOS 12 and earlier: Preferences…) item, ⌘,.
@@ -40,7 +55,9 @@ extension MainMenu {
         /// attach one with the chained `.action(_:)` modifier.
         public static func settings(action: Selector? = nil, target: AnyObject? = nil) -> NSMenuItem {
             let title = if #available(macOS 13.0, *) { "Settings…" } else { "Preferences…" }
-            return NSMenuItem(title, action: action, keyEquivalent: ",").target(target)
+            return NSMenuItem(title, action: action, keyEquivalent: ",")
+                .target(target)
+                .identifier(ItemIdentifier.applicationSettings)
         }
 
         /// The Services submenu. Its content is populated by AppKit once the
@@ -51,19 +68,23 @@ extension MainMenu {
         }
 
         public static func hide(applicationName: String? = nil) -> NSMenuItem {
-            NSMenuItem("Hide \(resolvedApplicationName(applicationName))", action: Selector(("hide:")), keyEquivalent: "h")
+            NSMenuItem("Hide \(resolvedApplicationName(applicationName))", action: #Selector("hide:"), keyEquivalent: "h")
+                .identifier(ItemIdentifier.applicationHide)
         }
 
         public static func hideOthers() -> NSMenuItem {
-            NSMenuItem("Hide Others", action: Selector(("hideOtherApplications:")), keyEquivalent: "h", modifiers: [.option, .command])
+            NSMenuItem("Hide Others", action: #Selector("hideOtherApplications:"), keyEquivalent: "h", modifiers: [.option, .command])
+                .identifier(ItemIdentifier.applicationHideOthers)
         }
 
         public static func showAll() -> NSMenuItem {
-            NSMenuItem("Show All", action: Selector(("unhideAllApplications:")))
+            NSMenuItem("Show All", action: #Selector("unhideAllApplications:"))
+                .identifier(ItemIdentifier.applicationShowAll)
         }
 
         public static func quit(applicationName: String? = nil) -> NSMenuItem {
-            NSMenuItem("Quit \(resolvedApplicationName(applicationName))", action: Selector(("terminate:")), keyEquivalent: "q")
+            NSMenuItem("Quit \(resolvedApplicationName(applicationName))", action: #Selector("terminate:"), keyEquivalent: "q")
+                .identifier(ItemIdentifier.applicationQuit)
         }
     }
 }
