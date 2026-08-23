@@ -261,4 +261,5 @@ extension WelcomePanelController.Style {
 | 2026-08-23 | 落地证否第 7 项 | 列表的 10 pt 首行内边距与 16 pt 单元格缩进是 `.sourceList` 自带的，不是 Xcode 配的；我们已经在用该样式，故右侧列表零改动。同时测出 `intercellSpacing.width` 在视图型表格里被忽略。改为加断言钉住表格样式。 |
 | 2026-08-23 | 记录一条测试工具陷阱 | 实现期间撞上：`#expect` 里 `CGFloat` 与 **`Double` 变量**比较，值相同也判 false（宏外同一比较为 true），错误信息里两侧还打印得一模一样。已写进 `AGENTS.md` 的 Build & Test 一节 —— 本套件几何断言密集，不记会反复踩。 |
 | 2026-08-23 | In Progress → Implemented | 样式表新增 11 个 internal 属性；两侧材质改 `.fullScreenUI`、圆角 20、标题 36 bold、胶囊操作行、行内间距与首行位置对齐、关闭按钮 13、深色自带图标辉光；两处漏判修掉。测试 13 → **18**（两个 canary 反转为「已修复」断言，新增材质 / chrome / 首行位置 / 辉光 / `.sourceList` 五项），`swift test` 退出码 0，全库 115 测试通过；示例 App `xcodebuild` 通过；关 trait 构建通过。**收尾判断**：① 不另写实现说明 —— 逆向报告已落盘，该记的都在里面，指南与 `AGENTS.md` 已同批更新；② 无新术语。**人工验收未做** —— 需作者把 demo 面板与真的 Xcode 26 欢迎窗口并排比对。 |
+| 2026-08-23 | 人工验收通过 | 作者把示例 App 的 Welcome Panel demo 与真实 Xcode 26 欢迎窗口并排比对，观感确认无误 —— 这是唯一无法自动化的一环（圆角、两侧材质明暗差、标题字号、胶囊形状、深色图标辉光）。0012 至此无遗留项。 |
 | 2026-08-23 | 材质定为公开 API | 实测证明 `.fullScreenUI` 与抓包滤镜链逐位一致（模糊半径差是设备像素 vs 点的单位差），因此不引入 `UIFoundationAppleInternal`，trait 保持可上架。 |
