@@ -24,16 +24,18 @@ struct WelcomePanelTests {
         #expect(xcode14.actionTableViewCellHeight == 46)
         #expect(xcode14.actionTableViewSpacing == 0)
 
-        // xcode15 and xcode26 share every measurement; only the backdrop differs.
+        // xcode15 and xcode26 share the window size and the action-row metrics.
         for style in [WelcomePanelController.Style.xcode15, .xcode26] {
             #expect(style.windowRect == CGRect(x: 0, y: 0, width: 740, height: 460))
             #expect(style.projectViewWidth == 280)
             #expect(style.appImageViewTopSpacing == 52)
-            #expect(style.windowCornerRadius == 8)
             #expect(style.actionTableViewHeight == 132)
             #expect(style.actionTableViewCellHeight == 36)
             #expect(style.actionTableViewSpacing == 8)
         }
+
+        #expect(WelcomePanelController.Style.xcode15.windowCornerRadius == 8)
+        #expect(WelcomePanelController.Style.xcode26.windowCornerRadius == 20)
     }
 
     @Test("only xcode14 gets window chrome")
@@ -126,9 +128,11 @@ struct WelcomePanelTests {
         #expect(flatCell.cornerRadius == 0)
         #expect(flatCell.backgroundColor == nil)
 
-        for style in [WelcomePanelController.Style.xcode15, .xcode26] {
+        let expectedCornerRadii: [(WelcomePanelController.Style, CGFloat)] = [(.xcode15, 8), (.xcode26, 18)]
+        for (style, expectedCornerRadius) in expectedCornerRadii {
             let pillCell = WelcomePanelController.ActionCellView(style: style)
-            #expect(pillCell.cornerRadius == 8)
+            let cornerRadius = pillCell.cornerRadius
+            #expect(cornerRadius == expectedCornerRadius, "style \(style)")
             // The library's renderer clips on `clipsToBounds`, which defaults to false for anything
             // linked against macOS 14 or later — the original clipped on `cornerRadius != 0`.
             #expect(pillCell.clipsToBounds)
@@ -169,36 +173,120 @@ struct WelcomePanelTests {
         }
     }
 
-    // MARK: - Known gaps carried over verbatim from WelcomeKit
 
-    // Both tests below pin behaviour the port deliberately did NOT fix (Evolution 0011, 非目标):
-    // `.xcode26` was added by appending `, .xcode26` to every `case .xcode15:` and two equality
-    // checks were missed. They are canaries — if someone fixes the gap, these fail and the guide's
-    // "known issues" section has to be updated in the same batch.
+    // MARK: - The Xcode 26 replica (Evolution 0012)
 
-    @Test("KNOWN GAP: the close button has no icon under xcode26")
-    func closeButtonIconIsMissingUnderXcode26() {
+    // Every number below was measured off two view-hierarchy captures of Xcode 26's own welcome
+    // window; see Researchs/Xcode26-WelcomeWindow-Internals.md.
+
+    @Test("xcode26 uses the material measured off Xcode's own window")
+    func xcode26UsesTheMeasuredMaterial() {
+        guard #available(macOS 11.0, *) else { return }
+
+        // `.fullScreenUI` is the one material whose backdrop filter chain matches the capture:
+        // colorSaturate 1.8, tint 0.1569 @ 0.5, lighten layer 0.095, chameleon 0.05.
+        #expect(WelcomePanelController.Style.xcode26.welcomeViewMaterial == .fullScreenUI)
+        #expect(WelcomePanelController.Style.xcode26.projectViewMaterial == .fullScreenUI)
+
+        // The older styles keep what they had: xcode14 paints flat, xcode15 keeps its own backdrop.
+        #expect(WelcomePanelController.Style.xcode14.welcomeViewMaterial == nil)
+        #expect(WelcomePanelController.Style.xcode15.welcomeViewMaterial == .underWindowBackground)
+        #expect(WelcomePanelController.Style.xcode15.projectViewMaterial == .underWindowBackground)
+    }
+
+    @Test("xcode26 chrome matches the capture, and xcode15's is untouched")
+    func xcode26ChromeMatchesTheCapture() {
+        guard #available(macOS 11.0, *) else { return }
+
+        let xcode26 = WelcomePanelController.Style.xcode26
+        #expect(xcode26.welcomeLabelDefaultFont == .systemFont(ofSize: 36, weight: .bold))
+        #expect(xcode26.closeButtonInset == 13)
+        #expect(xcode26.actionCellCornerRadius == 18)
+        #expect(xcode26.actionCellIconCenterOffset == 19.5)
+        #expect(xcode26.actionCellLabelLeading == 38)
+
+        // xcode15's two offsets are the old `leading 11.5 + width 24` and `icon.trailing + 11`
+        // expressed against the row's leading edge — same layout, new spelling.
+        let xcode15 = WelcomePanelController.Style.xcode15
+        #expect(xcode15.welcomeLabelDefaultFont == .systemFont(ofSize: 30, weight: .bold))
+        #expect(xcode15.closeButtonInset == 12)
+        #expect(xcode15.actionCellCornerRadius == 8)
+        #expect(xcode15.actionCellIconCenterOffset == 23.5)
+        #expect(xcode15.actionCellLabelLeading == 46.5)
+    }
+
+    @Test("the action list starts where the capture puts it")
+    func actionListStartsAtTheMeasuredOffset() {
+        guard #available(macOS 11.0, *) else { return }
+
+        // The list is pinned to the pane's bottom, so its top edge — where the first row starts —
+        // is what the bottom spacing has to produce. Xcode 26 puts it at y = 287.
+        func firstRowOffset(_ style: WelcomePanelController.Style) -> CGFloat {
+            style.windowRect.height - style.actionTableViewBottomSpacing - style.actionTableViewHeight
+        }
+        #expect(firstRowOffset(.xcode26) == 287)
+        #expect(firstRowOffset(.xcode15) == 278)
+    }
+
+    @Test("xcode26 brings its own icon glow")
+    func xcode26BringsItsOwnIconGlow() throws {
+        guard #available(macOS 11.0, *) else { return }
+
+        #expect(WelcomePanelController.Style.xcode14.appIconDefaultShadow == nil)
+        #expect(WelcomePanelController.Style.xcode15.appIconDefaultShadow == nil)
+
+        let glow = try #require(WelcomePanelController.Style.xcode26.appIconDefaultShadow)
+        #expect(glow.shadowBlurRadius == 50)
+        #expect(glow.shadowOffset == CGSize(width: 0, height: 2))
+        let glowColor = try #require(glow.shadowColor?.usingColorSpace(.sRGB))
+        #expect(abs(glowColor.redComponent - 0.0902) < 0.001)
+        #expect(abs(glowColor.greenComponent - 0.4157) < 0.001)
+        #expect(abs(glowColor.blueComponent - 0.8784) < 0.001)
+        #expect(abs(glowColor.alphaComponent - 0.55) < 0.001)
+    }
+
+    @Test("the project list is a source list, which is where its insets come from")
+    func projectListRunsAsASourceList() {
+        guard #available(macOS 11.0, *) else { return }
+
+        let panel = WelcomePanelController(configuration: .init(style: .xcode26))
+        // Measured: `.sourceList` is what gives the list Xcode's 10 pt first-row inset and 16 pt
+        // cell insets — AppKit applies both, and `intercellSpacing.width` is ignored in view-based
+        // mode. Change the style and both silently go away.
+        #expect(panel.projectsViewController.tableView.style == .sourceList)
+        #expect(panel.projectsViewController.tableView.rowHeight == 44)
+    }
+
+    // MARK: - The two gaps Evolution 0012 closed
+
+    // Both were carried over verbatim from WelcomeKit by 0011 and fixed by 0012, which rewrote the
+    // xcode26 branch anyway. Upstream had written both checks as `style == .xcode15`, so xcode26 —
+    // added later by appending `, .xcode26` to every `case .xcode15:` — silently missed them.
+
+    @Test("every titlebar-less style gets a close-button glyph")
+    func closeButtonCarriesAGlyphWithoutATitlebar() {
         guard #available(macOS 11.0, *) else { return }
 
         #expect(WelcomePanelController.HoverButton(style: .xcode15).image != nil)
-        #expect(WelcomePanelController.HoverButton(style: .xcode26).image == nil)
+        #expect(WelcomePanelController.HoverButton(style: .xcode26).image != nil)
         // xcode14 supplies its icon through `notHoveringImage`, from the asset catalog.
         #expect(WelcomePanelController.HoverButton(style: .xcode14).image == nil)
     }
 
-    @Test("KNOWN GAP: pressing an action cell only highlights under xcode15")
-    func actionCellHighlightIsMissingUnderXcode26() throws {
+    @Test("pressing an action cell highlights it under every pill style")
+    func actionCellHighlightsWhilePressed() throws {
         guard #available(macOS 11.0, *) else { return }
 
         let mouseDown = try Self.makeMouseEvent(type: .leftMouseDown)
+        let mouseUp = try Self.makeMouseEvent(type: .leftMouseUp)
 
-        let xcode15Cell = WelcomePanelController.ActionCellView(style: .xcode15)
-        xcode15Cell.mouseDown(with: mouseDown)
-        #expect(xcode15Cell.backgroundColor === xcode15Cell.highlightBackgroundColor)
-
-        let xcode26Cell = WelcomePanelController.ActionCellView(style: .xcode26)
-        xcode26Cell.mouseDown(with: mouseDown)
-        #expect(xcode26Cell.backgroundColor === xcode26Cell.normalBackgroundColor)
+        for style in [WelcomePanelController.Style.xcode15, .xcode26] {
+            let cell = WelcomePanelController.ActionCellView(style: style)
+            cell.mouseDown(with: mouseDown)
+            #expect(cell.backgroundColor === cell.highlightBackgroundColor, "style \(style)")
+            cell.mouseUp(with: mouseUp)
+            #expect(cell.backgroundColor === cell.normalBackgroundColor, "style \(style)")
+        }
     }
 
     // MARK: - Helpers
