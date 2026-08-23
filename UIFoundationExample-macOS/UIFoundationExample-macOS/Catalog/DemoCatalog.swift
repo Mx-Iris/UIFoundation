@@ -79,7 +79,7 @@ enum DemoCatalog {
         Demo(
             title: "Welcome Panel",
             category: "Controls",
-            summary: "The Xcode-style welcome window in all three of its generations — it opens in a window of its own, which is also where the two known .xcode26 gaps get eyeballed.",
+            summary: "The Xcode-style welcome window in all three of its generations — it opens in a window of its own, which is also where the Xcode 26 replica gets compared against the real thing.",
             makeViewController: { WelcomePanelDemoViewController() }
         ),
         Demo(

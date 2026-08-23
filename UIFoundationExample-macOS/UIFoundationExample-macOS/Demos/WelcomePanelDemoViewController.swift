@@ -9,9 +9,9 @@
 //  `window` property, so it can only be shown through `showWindow(_:)`.
 //
 //  This is also where the things no headless test can judge get checked by
-//  hand: the two known `.xcode26` gaps the port carried over verbatim (see
-//  Evolution 0011), and whether the borderless styles actually clip their
-//  rounded corners.
+//  hand: whether the Xcode 26 style actually looks like Xcode 26 (Evolution
+//  0012 rebuilt it off two view-hierarchy captures), and whether the borderless
+//  styles clip their rounded corners.
 //
 
 import AppKit
@@ -61,15 +61,15 @@ final class WelcomePanelDemoViewController: NSViewController {
             wrappingLabelWithString: """
             What to check by hand, because no headless test can see it:
 
-            1.  Under Xcode 15 / 26 the window is borderless with an 8 pt \
-            radius — the corners must be clipped, not square. That clipping now \
-            rides on `clipsToBounds`, which defaults to off on modern SDKs.
-            2.  Under Xcode 14 the close button and the "show on launch" \
+            1.  Open the real Xcode 26 welcome window beside the Xcode 26 style \
+            and compare: corner radius, how much brighter the right pane is than \
+            the left, title size, capsule action rows, and — in dark mode only — \
+            the blue glow under the app icon.
+            2.  Corners must be clipped, not square: 8 pt under Xcode 15, 20 pt \
+            under Xcode 26. That clipping rides on `clipsToBounds`, which \
+            defaults to off on modern SDKs.
+            3.  Under Xcode 14 the close button and the "show on launch" \
             checkbox fade in on hover and out again when the pointer leaves.
-            3.  KNOWN GAP (ported verbatim): under Xcode 26 the close button has \
-            no icon at all, and pressing an action row gives no highlight. Both \
-            work under Xcode 15. Fixing either one means updating \
-            Documentations/WelcomePanel.md and the two canary tests.
             4.  Double-click a project row to fire didDoubleClick; right-click \
             one for "Show in Finder".
             """
