@@ -76,9 +76,9 @@ tree to a `MainMenu.Builder` for identifier-addressed amendments — the subject
 
 ```swift
 app.mainMenu = MainMenu.standard { builder in
-    builder.remove(.filePageSetup)
-    builder.item(for: .applicationSettings)?.action = #selector(AppDelegate.openSettings(_:))
-    builder.insertItems(after: .fileOpen) {
+    builder.remove(.File.pageSetup)
+    builder.item(for: .Application.settings)?.action = #selector(AppDelegate.openSettings(_:))
+    builder.insertItems(after: .File.open) {
         NSMenuItem("Open Workspace…", action: #selector(AppDelegate.openWorkspace(_:)), keyEquivalent: "O")
     }
 }
@@ -140,8 +140,11 @@ action, command — are all `NSMenuItem` here, so its three addressing schemes c
 | `remove(_:)` | `remove(menu:)`, `remove(action:)` |
 
 Every item `standard()` produces is addressable — the seven top-level menus, each menu's direct
-items, and the nested groups' leaves, down to the Writing Direction section headers. Inserting and
-replacing methods all have `@MenuBuilder` trailing-closure overloads. The contracts:
+items, and the nested groups' leaves, down to the Writing Direction section headers. The constants
+mirror the factory namespaces: top-level menus sit on the identifier itself (`.file`), a menu's
+content sits in a nested namespace named after it (`.File.new`, `.Application.settings`), and a
+group's own items nest one level further (`.Edit.Find.next`, `.Format.Font.Kern.tighten`).
+Inserting and replacing methods all have `@MenuBuilder` trailing-closure overloads. The contracts:
 
 - **Mutations apply immediately** — later queries see the transformed tree, like `UIMenuBuilder`.
 - **An absent identifier is a silent no-op** (also like `UIMenuBuilder`), so customization code can
@@ -157,7 +160,7 @@ replacing methods all have `@MenuBuilder` trailing-closure overloads. The contra
 - **Host items join the addressing scheme** by carrying their own identifier:
 
   ```swift
-  builder.insertItems(after: .fileOpen) {
+  builder.insertItems(after: .File.open) {
       NSMenuItem("Build").identifier(MainMenu.ItemIdentifier("com.example.build"))
   }
   ```
@@ -178,11 +181,11 @@ menu for the identifiers in `MainMenu.ItemIdentifier` and wire what they find:
 
 | Menu | Identifier | Wired to |
 |------|-----------|----------|
-| Services | `.services` | `NSApplication.servicesMenu` |
-| Format ▸ Font | `.font` | `NSFontManager.setFontMenu(_:)` |
+| Services | `.Application.services` | `NSApplication.servicesMenu` |
+| Format ▸ Font | `.Format.font` | `NSFontManager.setFontMenu(_:)` |
 | Window | `.window` | `NSApplication.windowsMenu` |
 | Help | `.help` | `NSApplication.helpMenu` |
-| File ▸ Open Recent | `.openRecent` | *nothing — see [Open Recent](#open-recent)* |
+| File ▸ Open Recent | `.File.openRecent` | *nothing — see [Open Recent](#open-recent)* |
 
 Consequences worth knowing:
 
@@ -244,7 +247,7 @@ The one piece of the template with no public counterpart — and the reason the 
 So: document-based apps get the real Open Recent automatically; non-document apps aren't supposed
 to have one. `MainMenu.File.openRecent()` remains available for the one genuine use — a host that
 fills the submenu itself from `NSDocumentController.shared.recentDocumentURLs` (e.g. in a
-`menuNeedsUpdate(_:)` delegate) — and stays tagged with `ItemIdentifier.openRecent`.
+`menuNeedsUpdate(_:)` delegate) — and stays tagged with `ItemIdentifier.File.openRecent`.
 
 ## Titles, Names, and Localization
 

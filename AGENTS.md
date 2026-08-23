@@ -208,7 +208,10 @@ like the rest of the Menu DSL). Decision record is Evolution
 
 Four levels: `MainMenu.standard()` is the whole template bar; `MainMenu.standard { builder in … }`
 amends single items in place — every standard item down to the nested groups' leaves carries a
-`MainMenu.ItemIdentifier` (a `RawRepresentable` struct, same shape as `UIMenu.Identifier`), and
+`MainMenu.ItemIdentifier` (a `RawRepresentable` struct, same shape as `UIMenu.Identifier`; the
+constants mirror the factory namespaces — `.file` for the top-level menu, `.File.new` for its
+content, `.Edit.Find.next` / `.Format.Font.Kern.tighten` for group leaves, relying on implicit
+member chains through nested types), and
 `MainMenu.Builder` is `UIMenuBuilder` translated to AppKit (`item(for:)`, four-way `insertItems`,
 `replace(_:with:)`, `replaceItems(of:from:)`, `remove(_:)`; UIKit's menu/action/command kinds all
 collapse to `NSMenuItem`, so its three addressing schemes collapse to one — Evolution
