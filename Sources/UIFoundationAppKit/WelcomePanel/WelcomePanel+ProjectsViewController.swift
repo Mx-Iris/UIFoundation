@@ -29,7 +29,7 @@ extension WelcomePanelController {
 
         lazy var visualEffectView = NSVisualEffectView().then {
             $0.blendingMode = .behindWindow
-            $0.material = .underWindowBackground
+            $0.material = configuration.style.projectViewMaterial
         }
 
         lazy var scrollView: BackgroundScrollView = .init().then {

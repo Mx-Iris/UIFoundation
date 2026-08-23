@@ -24,7 +24,7 @@ extension WelcomePanelController {
             self.style = style
             super.init(frame: .zero)
             addTrackingArea()
-            if style == .xcode15 {
+            if style != .xcode14 {
                 image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Close")
                 symbolConfiguration = .init(pointSize: 13, weight: .regular)
                 contentTintColor = .tertiaryLabelColor

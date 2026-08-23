@@ -51,7 +51,7 @@ extension WelcomePanelController {
         }
 
         lazy var visualEffectView = NSVisualEffectView().then {
-            $0.material = .underWindowBackground
+            $0.material = configuration.style.welcomeViewMaterial ?? .underWindowBackground
             $0.blendingMode = .behindWindow
             $0.isEmphasized = false
             $0.state = .followsWindowActiveState
@@ -69,10 +69,9 @@ extension WelcomePanelController {
 
         override func loadView() {
             contentView.backgroundColor = configuration.style.welcomeViewBackgroundColor
-            switch configuration.style {
-            case .xcode14, .xcode26:
+            if configuration.style.welcomeViewMaterial == nil {
                 view = contentView
-            case .xcode15:
+            } else {
                 view = visualEffectView
                 visualEffectView.box.addSubview(contentView, fill: true)
             }
@@ -87,12 +86,7 @@ extension WelcomePanelController {
         /// Where the subviews go: straight into the root view, unless a vibrancy backdrop is the
         /// root, in which case they go into the content view layered on top of it.
         var effectView: NSView {
-            switch configuration.style {
-            case .xcode14, .xcode26:
-                return view
-            case .xcode15:
-                return contentView
-            }
+            configuration.style.welcomeViewMaterial == nil ? view : contentView
         }
 
         func setup() {
@@ -107,8 +101,8 @@ extension WelcomePanelController {
             view.addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self, userInfo: nil))
 
             closeButton.makeConstraints { make in
-                make.topAnchor.constraint(equalTo: effectView.topAnchor, constant: 12)
-                make.leftAnchor.constraint(equalTo: effectView.leftAnchor, constant: 12)
+                make.topAnchor.constraint(equalTo: effectView.topAnchor, constant: configuration.style.closeButtonInset)
+                make.leftAnchor.constraint(equalTo: effectView.leftAnchor, constant: configuration.style.closeButtonInset)
                 make.widthAnchor.constraint(equalToConstant: 15)
                 make.heightAnchor.constraint(equalToConstant: 15)
             }
@@ -136,7 +130,7 @@ extension WelcomePanelController {
                     make.leftAnchor.constraint(equalTo: effectView.leftAnchor, constant: 54)
                     make.rightAnchor.constraint(equalTo: effectView.rightAnchor)
                 } else {
-                    make.bottomAnchor.constraint(equalTo: effectView.bottomAnchor, constant: -50)
+                    make.bottomAnchor.constraint(equalTo: effectView.bottomAnchor, constant: -configuration.style.actionTableViewBottomSpacing)
                     make.leftAnchor.constraint(equalTo: effectView.leftAnchor, constant: 56)
                     make.rightAnchor.constraint(equalTo: effectView.rightAnchor, constant: -56)
                 }
@@ -166,7 +160,9 @@ extension WelcomePanelController {
                 showOnLaunchCheckbox.state = configuration.checkShowOnLaunch ? .on : .off
             }
             appImageView.image = configuration.appIconImage ?? NSApplication.shared.applicationIconImage
-            appImageView.shadow = NSAppearance.currentDrawing().box.isDark ? configuration.appIconImageShadow : nil
+            // Dark only: the light capture of Xcode 26 has no shadow layer at all.
+            let iconShadow = configuration.appIconImageShadow ?? configuration.style.appIconDefaultShadow
+            appImageView.shadow = NSAppearance.currentDrawing().box.isDark ? iconShadow : nil
             actionTableView.reloadData()
             actionTableView.sizeToFit()
         }

@@ -21,18 +21,18 @@ extension WelcomePanelController {
 
         let style: Style
 
-        let normalBackgroundColor = NSColor(name: "WelcomeActionCellView.normalBackgroundColor") {
-            $0.box.isDark ? .white.withAlphaComponent(0.03) : .black.withAlphaComponent(0.05)
-        }
+        // Resolved once from the style rather than read through it, so the two states stay the
+        // same objects for the lifetime of the cell.
+        let normalBackgroundColor: NSColor
 
-        let highlightBackgroundColor = NSColor(name: "WelcomeActionCellView.highlightBackgroundColor") {
-            $0.box.isDark ? .white.withAlphaComponent(0.05) : .black.withAlphaComponent(0.08)
-        }
+        let highlightBackgroundColor: NSColor
 
         var didClick: () -> Void = {}
 
         init(style: Style) {
             self.style = style
+            self.normalBackgroundColor = style.actionCellBackgroundColor
+            self.highlightBackgroundColor = style.actionCellHighlightBackgroundColor
             super.init(frame: .zero)
         }
 
@@ -85,20 +85,22 @@ extension WelcomePanelController {
                 addSubview(iconImageView)
                 addSubview(titleLabel)
 
-                cornerRadius = 8
+                cornerRadius = style.actionCellCornerRadius
                 // The original painted `masksToBounds = cornerRadius != 0` from its own
                 // `updateLayer()`; the library's renderer reads `clipsToBounds` instead, whose
                 // default is `false` for anything linked against macOS 14 or later.
                 clipsToBounds = true
                 backgroundColor = normalBackgroundColor
+                // Both offsets are measured from the row's leading edge, which is how the Xcode 26
+                // capture reports them — the icon's own width varies with the symbol.
                 iconImageView.makeConstraints { make in
-                    make.leftAnchor.constraint(equalTo: leftAnchor, constant: 11.5)
+                    make.centerXAnchor.constraint(equalTo: leftAnchor, constant: style.actionCellIconCenterOffset)
                     make.centerYAnchor.constraint(equalTo: centerYAnchor)
                     make.widthAnchor.constraint(equalToConstant: 24)
                 }
 
                 titleLabel.makeConstraints { make in
-                    make.leftAnchor.constraint(equalTo: iconImageView.rightAnchor, constant: 11)
+                    make.leftAnchor.constraint(equalTo: leftAnchor, constant: style.actionCellLabelLeading)
                     make.centerYAnchor.constraint(equalTo: centerYAnchor)
                     make.rightAnchor.constraint(equalTo: rightAnchor)
                 }
@@ -110,13 +112,13 @@ extension WelcomePanelController {
         }
 
         override func mouseDown(with event: NSEvent) {
-            if style == .xcode15 {
+            if style != .xcode14 {
                 backgroundColor = highlightBackgroundColor
             }
         }
 
         override func mouseUp(with event: NSEvent) {
-            if style == .xcode15 {
+            if style != .xcode14 {
                 backgroundColor = normalBackgroundColor
             }
             didClick()
