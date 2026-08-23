@@ -92,6 +92,7 @@ let package = Package(
         .trait(name: "StatusItemController"),
         .trait(name: "SystemHUD"),
         .trait(name: "TabBar"),
+        .trait(name: "WelcomePanel"),
     ],
     dependencies: [
         .package(
