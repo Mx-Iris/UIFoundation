@@ -20,6 +20,27 @@ swift build 2>&1 | xcsift --print-warnings
 - Test target: `UIFoundationTests` (minimal coverage — test suite is sparse)
 - Run a single test: `swift test --filter UIFoundationTests.testName 2>&1 | xcsift`
 
+### Swift Testing: never compare a `CGFloat` against a `Double` inside `#expect`
+
+Measured on this toolchain (macOS 26, swift-testing bundled with Swift 6.2): inside `#expect`, a
+`CGFloat` compared against a **`Double` variable** reports **false even when the two hold the same
+value**, and the failure message prints both sides identically (`(cornerRadius → 8.0) == (plainDouble
+→ 8.0)`). The identical comparison outside the macro is `true` — SE-0307's implicit CGFloat↔Double
+conversion does not survive the macro's operand capture.
+
+```swift
+let cornerRadius: CGFloat = 8
+let expected: Double = 8
+cornerRadius == expected            // true
+#expect(cornerRadius == expected)   // FAILS
+#expect(cornerRadius == 8.0)        // passes — an untyped literal infers as CGFloat
+```
+
+It fails loudly rather than passing wrongly, so it cannot hide a bug — but it will send you hunting
+for one that isn't there. **Type both sides the same**: annotate expectation tables as
+`[(Style, CGFloat)]`, or wrap with `CGFloat(...)`. Bare literals are fine. This matters here because
+most of the suite asserts geometry.
+
 ## Architecture
 
 ### Products
@@ -612,12 +633,27 @@ the price of entry, not a cleanup. Two consequences worth not re-deriving:
 `showWindow(_:)`, and whenever the window's occlusion state turns visible. `reloadData()` exists for
 the case those three moments miss.
 
-**Two `.xcode26` gaps were carried over on purpose.** Upstream added that style by appending
-`, .xcode26` to every `case .xcode15:` and missed two equality checks, so under `.xcode26` the close
-button has **no icon** and pressing an action row gives **no highlight**. Porting and bug-fixing
-were kept apart so "is the port faithful?" stayed answerable; both gaps are pinned by canary tests
-named `KNOWN GAP: …` in `WelcomePanelTests`. Fixing either means updating those tests and the
-guide's known-issues section in the same batch.
+**`.xcode26` is a measured replica of Xcode 26's own welcome window** (Evolution
+[`0012`](Documentations/Evolutions/0012-xcode26-faithful-style.md); evidence in
+[`Researchs/Xcode26-WelcomeWindow-Internals.md`](Researchs/Xcode26-WelcomeWindow-Internals.md)).
+Xcode's window is a single `NSHostingView<IDEKit.WelcomeView>` in a borderless window — nothing to
+copy structurally — but every surface it uses is reproducible with public AppKit. Three findings
+worth not re-deriving:
+
+- **The blur is `NSVisualEffectView.material = .fullScreenUI`, not private API.** Its backdrop chain
+  (`colorSaturate` 1.8, tint 0.1569 @ 0.5, lighten layer 0.095, chameleon 0.05) matches the capture
+  value for value; no other material comes close. The capture's `gaussianBlur` radius of 60 against
+  the live 30 is a **unit difference** — the capture reads the presentation layer in device pixels at
+  2× backing.
+- **The list's 10 pt first-row inset and 16 pt cell insets come from `.sourceList`, not from
+  configuration.** Measured: AppKit applies both, and `intercellSpacing.width` is ignored entirely in
+  view-based mode. Change the table style and both silently vanish — `WelcomePanelTests` guards it.
+- **Geometry is appearance-independent; only colours change**, plus the app-icon glow, which the
+  light capture shows does not exist at all. The existing `isDark ? shadow : nil` gate already covers
+  that, so the style's default glow needs no branch of its own.
+
+The two `.xcode26` gaps that 0011 carried over verbatim (iconless close button, no pressed state)
+were fixed by 0012, which rewrote that branch anyway. `.xcode14` and `.xcode15` were left untouched.
 
 Host contracts (all fail quietly): the window object is unreachable — `window` and
 `contentViewController` are `@available(*, unavailable)`, so `showWindow(_:)` / `close()` are the

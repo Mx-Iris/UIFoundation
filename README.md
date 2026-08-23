@@ -294,11 +294,11 @@ panel.delegate = self
 panel.showWindow(nil)
 ```
 
-Three styles imitate three Xcode generations: `.xcode14` is a titled window with a "show this window on launch" checkbox and two-line action rows; `.xcode15` is borderless and rounded over a vibrancy backdrop with title-only pills; `.xcode26` keeps that geometry without the backdrop.
+Three styles imitate three Xcode generations: `.xcode14` is a titled window with a "show this window on launch" checkbox and two-line action rows; `.xcode15` is borderless and rounded over a vibrancy backdrop with title-only pills; `.xcode26` is a measured replica of Xcode 26's own welcome window — a 20 pt radius, `.fullScreenUI` material behind both panes, a 36 pt bold title, capsule action rows, and the blue icon glow Xcode draws in dark mode.
 
 The project list is pulled, not pushed — the data source is re-asked when it is assigned, on every `showWindow(_:)`, and whenever the window becomes visible again. Return `true` from `welcomePanelUsesRecentDocumentURLs(_:)` to take the list straight from `NSDocumentController` instead of supplying one.
 
-See [`Documentations/WelcomePanel.md`](Documentations/WelcomePanel.md) for the full guide — the seven host contracts, the style table, and the two known `.xcode26` gaps carried over from the original library.
+See [`Documentations/WelcomePanel.md`](Documentations/WelcomePanel.md) for the full guide — the seven host contracts and the style table — and [`Researchs/Xcode26-WelcomeWindow-Internals.md`](Researchs/Xcode26-WelcomeWindow-Internals.md) for how the Xcode 26 style was measured.
 
 ### Cross-Platform Typealias
 

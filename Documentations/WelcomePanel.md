@@ -92,16 +92,23 @@ ones are dropped and the rest keep that order.
 
 | | `.xcode14` | `.xcode15` | `.xcode26` |
 |---|---|---|---|
-| Window | titled, full-size content | borderless, 8 pt radius | borderless, 8 pt radius |
+| Window | titled, full-size content | borderless, 8 pt radius | borderless, **20 pt** radius |
 | Size | 800 × 460 | 740 × 460 | 740 × 460 |
-| Backdrop | opaque | `NSVisualEffectView` behind the content | none — plain background |
+| Backdrop | opaque | `.underWindowBackground` behind the left pane | **`.fullScreenUI` behind both panes**, each with its own flat overlay |
+| Title | 36 pt regular | 30 pt bold | **36 pt bold** |
 | Project pane | 307 pt | 280 pt | 280 pt |
-| Action rows | 46 pt, icon + title + subtitle | 36 pt rounded pills, title only | 36 pt rounded pills, title only |
+| Action rows | 46 pt, icon + title + subtitle | 36 pt pills, 8 pt radius, title only | 36 pt **capsules** (18 pt radius), title only |
+| App icon glow | host-supplied only | host-supplied only | **built in** (dark appearance only) |
 | "Show on launch" checkbox | yes | no | no |
-| Close button | fades in on hover, asset image | always visible, SF Symbol | **none — see [known issues](#5-known-issues)** |
+| Close button | fades in on hover, asset image | always visible, SF Symbol | always visible, SF Symbol |
 
-`.xcode15` and `.xcode26` share every measurement; the only difference is the vibrancy backdrop,
-which `.xcode26` drops.
+`.xcode14` and `.xcode15` reproduce their Xcode generations as the original WelcomeKit wrote them.
+`.xcode26` is a **measured** replica: every number in its column was read off two view-hierarchy
+captures of Xcode 26's own welcome window, one dark and one light (Evolution
+[`0012`](Evolutions/0012-xcode26-faithful-style.md), evidence in
+[`Researchs/Xcode26-WelcomeWindow-Internals.md`](../Researchs/Xcode26-WelcomeWindow-Internals.md)).
+Geometry is identical across appearances; only colours change, plus the icon glow, which exists in
+dark only.
 
 ---
 
@@ -155,19 +162,22 @@ directly. A row therefore never looks selected, by design.
 
 ## 5. Known issues
 
-Two gaps were carried over verbatim from the original library (see Evolution
-[`0011`](Evolutions/0011-welcome-panel.md) — porting and bug-fixing were kept apart on purpose so
-that "is the port faithful?" stayed answerable). Both are specific to `.xcode26`, which was added
-upstream by appending `, .xcode26` to every `case .xcode15:` — two equality checks were missed:
+Two `.xcode26` gaps that shipped with the port — an iconless close button and an action row with no
+pressed state — were **fixed** by Evolution [`0012`](Evolutions/0012-xcode26-faithful-style.md),
+which rewrote that style anyway. Both had the same cause upstream: the style was added by appending
+`, .xcode26` to every `case .xcode15:`, and two `style == .xcode15` checks were missed.
 
-1. **The close button has no icon under `.xcode26`.** It is still there and still works; it is just
-   invisible. `.xcode15` sets `xmark.circle.fill`, `.xcode14` uses the bundled asset, `.xcode26`
-   sets neither.
-2. **Pressing an action row gives no highlight under `.xcode26`.** The click still fires; only the
-   pressed-state background is missing.
+What is still worth knowing about `.xcode26`:
 
-Both are pinned by canary tests in `WelcomePanelTests` (named `KNOWN GAP: …`). Fixing either one
-means updating those tests and this section in the same batch.
+- **The pressed fill is derived, not measured.** A static view-hierarchy capture cannot show a
+  pressed row, so the pressed colour applies the same alpha step `.xcode15` uses between its two
+  states. Everything else in that style is measured.
+- **The click band is the pill, not the full pane.** Xcode makes the whole 460 pt row clickable while
+  the pill is 348 pt; here they are the same. Visually identical, but clicking 20 pt to the left of a
+  pill does nothing.
+- **The dark right-pane tint sits 4/255 off neutral** — that is what the capture says, and whether
+  the cast comes from the desktop wallpaper (a `CAChameleonLayer` sits in the same tree) could not be
+  settled. Under 2 %, so it is used verbatim.
 
 Smaller oddities kept as they were, listed so nobody "fixes" them by accident:
 
@@ -216,19 +226,28 @@ The port is behaviour-for-behaviour identical. What changed is shape and plumbin
 - **Deployment floor.** The original package declared macOS 12 without using any macOS 12 API; the
   ported types are annotated `@available(macOS 11.0, *)`, which is what `NSTableView.style`,
   `NSAppearance.currentDrawing()` and the SF Symbol initialisers actually require.
+- **`.xcode26` is no longer WelcomeKit's.** Upstream's version of that style was `.xcode15`'s
+  geometry with the backdrop removed — it matched no shipping Xcode. Evolution 0012 replaced it with
+  a measured replica; `.xcode14` and `.xcode15` are untouched.
 
 ---
 
 ## 7. How this is verified
 
-`Tests/UIFoundationTests/WelcomePanelTests.swift` (13 tests, gated on the trait) pins the style
+`Tests/UIFoundationTests/WelcomePanelTests.swift` (18 tests, gated on the trait) pins the style
 geometry table, the window chrome per style, `allActions` ordering, the three data-source contracts
 from [§4](#4-contracts-a-host-has-to-know), the cells' reuse identifiers, fonts and pill geometry,
-and the two known gaps.
+the measured `.xcode26` values (material, corner radius, title font, row offsets, icon glow), and
+that both former gaps stay closed.
+
+One of those tests asserts the project list still uses `.sourceList`. That is not decoration:
+measured on macOS 26, `.sourceList` is what supplies the list's 10 pt first-row inset and 16 pt cell
+insets — the same numbers Xcode 26 shows — while `intercellSpacing.width` is ignored entirely in
+view-based mode. Change the table style and both insets silently disappear.
 
 What a test cannot judge is the look. The example app's **Welcome Panel** demo opens each style in a
-real window and lists the four things only a human can check — corner clipping, the `.xcode14` hover
-fade, the two `.xcode26` gaps, and the double-click / context-menu paths.
+real window and lists the four things only a human can check — chiefly holding the `.xcode26` panel
+next to Xcode 26's own welcome window.
 
 ---
 
