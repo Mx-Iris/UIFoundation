@@ -268,6 +268,38 @@ There is no navigation bar: titles and back buttons stay the host's, driven off 
 
 See [`Documentations/Navigation.md`](Documentations/Navigation.md) for the full guide — the contracts a host has to keep, the configuration surface, and how to write a custom transition.
 
+### Welcome Panel
+
+Enable the `WelcomePanel` trait for the Xcode-style welcome window — app icon, name and version above a short action list on the left, a recent-project list on the right. macOS 11+:
+
+```swift
+.package(
+    url: "https://github.com/Mx-Iris/UIFoundation",
+    from: "0.13.0",
+    traits: ["WelcomePanel"]
+)
+```
+
+```swift
+var configuration = WelcomePanelController.Configuration(style: .xcode15)
+configuration.primaryAction = .init(
+    image: NSImage(systemSymbolName: "plus.square", accessibilityDescription: nil),
+    title: "Create New File…",
+    action: { _ in NSDocumentController.shared.newDocument(nil) }
+)
+
+let panel = WelcomePanelController(configuration: configuration)
+panel.dataSource = self
+panel.delegate = self
+panel.showWindow(nil)
+```
+
+Three styles imitate three Xcode generations: `.xcode14` is a titled window with a "show this window on launch" checkbox and two-line action rows; `.xcode15` is borderless and rounded over a vibrancy backdrop with title-only pills; `.xcode26` keeps that geometry without the backdrop.
+
+The project list is pulled, not pushed — the data source is re-asked when it is assigned, on every `showWindow(_:)`, and whenever the window becomes visible again. Return `true` from `welcomePanelUsesRecentDocumentURLs(_:)` to take the list straight from `NSDocumentController` instead of supplying one.
+
+See [`Documentations/WelcomePanel.md`](Documentations/WelcomePanel.md) for the full guide — the seven host contracts, the style table, and the two known `.xcode26` gaps carried over from the original library.
+
 ### Cross-Platform Typealias
 
 `UIFoundationTypealias` provides `NSUI`-prefixed aliases (`NSUIView`, `NSUIColor`, `NSUIFont`, etc.) enabling cross-platform code without `#if canImport` branching:

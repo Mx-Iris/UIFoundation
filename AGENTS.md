@@ -570,6 +570,69 @@ Differences from the original `Mx-Iris/SystemHUD` package: internal types nested
 
 **Full guide:** `Documentations/SystemHUD.md`.
 
+### Welcome Panel (ported from `Mx-Iris/WelcomeKit`)
+
+The Xcode-style welcome window: app icon, name and version above up to three actions on the left, a
+recent-project list on the right, in three styles imitating three Xcode generations. Ships as the
+opt-in SPM trait `WelcomePanel` (default: disabled); every file under
+`Sources/UIFoundationAppKit/WelcomePanel/**` is wrapped in `#if WelcomePanel && os(macOS)`. Pure
+AppKit, no private API, no external dependencies. macOS 11+ (`NSTableView.style`,
+`NSAppearance.currentDrawing()`, SF Symbols); the decision record is Evolution
+[`0011`](Documentations/Evolutions/0011-welcome-panel.md).
+
+```swift
+let panel = WelcomePanelController(configuration: .init(style: .xcode26))
+panel.dataSource = self
+panel.delegate = self
+panel.showWindow(nil)
+```
+
+**One top-level symbol.** `WelcomePanelController` carries everything else as nested types —
+`.Configuration` / `.Style` / `.Action` / `.DataSource` / `.Delegate`, plus every internal helper
+(`Window`, `WelcomeViewController`, `ProjectsViewController`, `ActionCellView`, `ProjectCellView`,
+`HoverButton`, `BackgroundScrollView`). The original's six top-level names are gone and no
+`typealias` is provided — they never existed in this library.
+
+**The port reuses this library's base classes rather than the ones WelcomeKit shipped.** About 500
+of its 1444 lines duplicated `LayerBackedView`, `LayerBackedTableCellView`, `XiblessViewController`,
+`ScrollView`, `Then`, `ConstraintMaker`, `ArrayBuilder`, `.box.addSubview(_:fill:)` and
+`.box.isDark` — four of them colliding outright with this module's top-level names, so deduping was
+the price of entry, not a cleanup. Two consequences worth not re-deriving:
+
+- **Corner clipping is now explicit.** The original clipped whenever `cornerRadius != 0`;
+  `LayerBackgroundRenderer` clips on `clipsToBounds`, whose default is `false` for anything linked
+  against macOS 14+. The rounded container and the pill cells set `clipsToBounds = true` themselves.
+  Delete those lines and the borderless styles show square corners.
+- **`BackgroundScrollView` overrides `NSScrollView.backgroundColor` instead of conforming to
+  `LayerBackgroundProviding`.** `NSScrollView` already owns that property name, so the protocol
+  extension's would be shadowed at every call site (the collision the `LayerBackgroundProviding`
+  section warns about). Painting through the layer, as upstream did, is the working shape here.
+
+**Data is pulled, never pushed** — the data source is re-asked when it is assigned, on every
+`showWindow(_:)`, and whenever the window's occlusion state turns visible. `reloadData()` exists for
+the case those three moments miss.
+
+**Two `.xcode26` gaps were carried over on purpose.** Upstream added that style by appending
+`, .xcode26` to every `case .xcode15:` and missed two equality checks, so under `.xcode26` the close
+button has **no icon** and pressing an action row gives **no highlight**. Porting and bug-fixing
+were kept apart so "is the port faithful?" stayed answerable; both gaps are pinned by canary tests
+named `KNOWN GAP: …` in `WelcomePanelTests`. Fixing either means updating those tests and the
+guide's known-issues section in the same batch.
+
+Host contracts (all fail quietly): the window object is unreachable — `window` and
+`contentViewController` are `@available(*, unavailable)`, so `showWindow(_:)` / `close()` are the
+only doors; a negative `numberOfProjects` is clamped to zero; returning `true` from
+`welcomePanelUsesRecentDocumentURLs` skips the other two data-source methods entirely; the "show on
+launch" checkbox exists only under `.xcode14`, and persisting it is the host's job.
+
+The `.xcode14` close button's two images live in `Sources/UIFoundationAppKit/Resources/Assets.xcassets`
+(`WelcomePanelCloseButton` / `WelcomePanelCloseButtonHovered`) and therefore inherit the catalog
+caveat below — a command-line `swift build` does not run `actool`, so those two resolve to `nil` in
+CLI runs. Apps built through Xcode are unaffected.
+
+**Full guide:** `Documentations/WelcomePanel.md`. Demo: **Welcome Panel** in the example app — it
+opens each style in its own window and lists the four checks only a human can perform.
+
 ### Navigation (ported from the macOS App Store)
 
 A `UINavigationController`-shaped container for AppKit — a view controller stack, a push / pop parallax transition, and a two-finger swipe back. Ships as the opt-in SPM trait `Navigation` (default: disabled); every file under `Sources/UIFoundationAppKit/Navigation/**` is wrapped in `#if Navigation && os(macOS)`. Pure AppKit, no private API, no resources.
@@ -774,7 +837,7 @@ Structure under `UIFoundationExample-macOS/UIFoundationExample-macOS/`:
 - `AppDelegate.swift` — the hand-written `@main enum App` entry point (creates the delegate, sets the activation policy and `MainMenu.standard()`, then `run()`; required because deleting the storyboard breaks `@main` on the delegate — see the **Main Menu** section) plus the `AppDelegate` class, which on macOS 26+ owns and registers the Settings scene representation during `applicationWillFinishLaunching(_:)` and builds a `DemoBrowserWindowController` on launch.
 - `Browser/` — `DemoBrowserWindowController` (code-built `NSWindow`), `DemoBrowserSplitViewController` (sidebar + `DemoDetailViewController`), `DemoSidebarViewController` (source-list `NSOutlineView`; items are a private `SidebarNode` reference type because `NSOutlineView` needs stable item identity).
 - `Catalog/` — `Demo` (a value type: `title` / `category` / `summary` / `minimumMacOS` / `makeViewController`) and `DemoCatalog.all` (the registry) + `DemoCatalog.grouped`.
-- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `NavigationDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `SettingsDemoViewController`, `SettingsSceneRepresentationDemoViewController`, `ToolbarNavigationDemoViewController`, `CustomTooltipDemoViewController`).
+- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `NavigationDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `SettingsDemoViewController`, `SettingsSceneRepresentationDemoViewController`, `ToolbarNavigationDemoViewController`, `CustomTooltipDemoViewController`, `WelcomePanelDemoViewController`).
 
 **To add a demo:** drop a new `NSViewController` file under `Demos/` and append one `Demo` to `DemoCatalog.all`. Nothing else changes.
 
@@ -788,7 +851,7 @@ The shared summary label at the top of the detail pane is already set up this wa
 
 Two project facts that make this work (and matter when extending it):
 - The Xcode project's app source group is a **file-system-synchronized group** (`PBXFileSystemSynchronizedRootGroup`, Xcode 16+). Any file added under the app folder is auto-included in the target — **no `project.pbxproj` edits needed** to add/move/delete demos.
-- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabBar`, `SystemHUD` and `Navigation` are enabled alongside `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder`); otherwise the control's symbols won't be compiled into the package and the demo won't link.
+- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabBar`, `SystemHUD`, `Navigation` and `WelcomePanel` are enabled alongside `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder` / `QuickActionBar` / `Settings` / `StatusItemController`); otherwise the control's symbols won't be compiled into the package and the demo won't link.
 
 Build the example from the command line with `xcodebuild -project UIFoundationExample-macOS/UIFoundationExample-macOS.xcodeproj -scheme UIFoundationExample-macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build 2>&1 | xcsift`.
 
