@@ -77,6 +77,12 @@ enum DemoCatalog {
             }
         ),
         Demo(
+            title: "Welcome Panel",
+            category: "Controls",
+            summary: "The Xcode-style welcome window in all three of its generations — it opens in a window of its own, which is also where the two known .xcode26 gaps get eyeballed.",
+            makeViewController: { WelcomePanelDemoViewController() }
+        ),
+        Demo(
             title: "Toolbar Navigation",
             category: "Controls",
             summary: "NSToolbar.Navigation driving a pretend documentation site in its own window — click to step, press and hold for the history menu.",

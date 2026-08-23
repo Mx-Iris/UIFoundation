@@ -359,6 +359,7 @@
 				StatusItemController,
 				SystemHUD,
 				TabBar,
+				WelcomePanel,
 			);
 		};
 /* End XCLocalSwiftPackageReference section */
