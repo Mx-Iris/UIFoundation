@@ -31,9 +31,9 @@ import AppKit
 /// // 2. Amend single items in place — every standard item is addressable
 /// //    by identifier through a UIMenuBuilder-style transformation:
 /// app.mainMenu = MainMenu.standard { builder in
-///     builder.remove(.filePageSetup)
-///     builder.item(for: .applicationSettings)?.action = #selector(AppDelegate.openSettings(_:))
-///     builder.insertItems(after: .fileOpen) {
+///     builder.remove(.File.pageSetup)
+///     builder.item(for: .Application.settings)?.action = #selector(AppDelegate.openSettings(_:))
+///     builder.insertItems(after: .File.open) {
 ///         NSMenuItem("Open Workspace…", action: #selector(AppDelegate.openWorkspace(_:)), keyEquivalent: "O")
 ///     }
 /// }
@@ -121,16 +121,20 @@ public enum MainMenu {
     /// identifier — the top-level menus, each menu's direct items, and the
     /// nested groups' leaves — so a ``Builder`` transformation can query,
     /// insert around, replace, or remove any of them without rewriting the
-    /// menu. Hosts give their own items an identifier (via
-    /// `NSMenuItem.identifier(_:)`) to make them addressable too.
+    /// menu. The constants mirror the factory namespaces: top-level menus sit
+    /// on the identifier itself (`.file`), a menu's content sits in a nested
+    /// namespace named after it (`.File.new`), and a group's leaves nest one
+    /// level further (`.Edit.Find.next`, `.Format.Font.Kern.tighten`). Hosts
+    /// give their own items an identifier (via `NSMenuItem.identifier(_:)`)
+    /// to make them addressable too.
     ///
     /// A handful of identifiers double as wiring markers, the code-side
-    /// equivalent of the xib's `systemMenu` attribute: ``services`` →
-    /// `NSApplication.servicesMenu`, ``font`` → `NSFontManager.setFontMenu(_:)`,
+    /// equivalent of the xib's `systemMenu` attribute: `Application.services` →
+    /// `NSApplication.servicesMenu`, `Format.font` → `NSFontManager.setFontMenu(_:)`,
     /// ``window`` → `NSApplication.windowsMenu`, ``help`` →
-    /// `NSApplication.helpMenu`. ``openRecent`` is tagged but wired to nothing —
-    /// AppKit offers no public counterpart to the xib's `recentDocuments`
-    /// marker (see the usage guide).
+    /// `NSApplication.helpMenu`. `File.openRecent` is tagged but wired to
+    /// nothing — AppKit offers no public counterpart to the xib's
+    /// `recentDocuments` marker (see the usage guide).
     public struct ItemIdentifier: Hashable, RawRepresentable, Sendable {
         public let rawValue: String
 
@@ -166,9 +170,9 @@ public enum MainMenu {
         enumerateItems(in: menu) { menuItem in
             guard let submenu = menuItem.submenu, let identifier = menuItem.identifier else { return }
             switch identifier {
-            case ItemIdentifier.services.userInterfaceItemIdentifier:
+            case ItemIdentifier.Application.services.userInterfaceItemIdentifier:
                 application.servicesMenu = submenu
-            case ItemIdentifier.font.userInterfaceItemIdentifier:
+            case ItemIdentifier.Format.font.userInterfaceItemIdentifier:
                 NSFontManager.shared.setFontMenu(submenu)
             case ItemIdentifier.window.userInterfaceItemIdentifier:
                 application.windowsMenu = submenu

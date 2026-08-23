@@ -55,17 +55,17 @@ struct MainMenuBuilderTests {
     func addressingReachesEveryDepth() throws {
         let (_, builder) = makeStandardTree()
         #expect(builder.item(for: .file)?.title == "File")
-        #expect(builder.item(for: .applicationSettings)?.keyEquivalent == ",")
-        #expect(builder.item(for: .editFindNext)?.tag == 2)
-        #expect(builder.item(for: .formatFontKernTighten) != nil)
-        #expect(builder.item(for: .formatTextWritingDirectionSelectionRightToLeft) != nil)
+        #expect(builder.item(for: .Application.settings)?.keyEquivalent == ",")
+        #expect(builder.item(for: .Edit.Find.next)?.tag == 2)
+        #expect(builder.item(for: .Format.Font.Kern.tighten) != nil)
+        #expect(builder.item(for: .Format.Text.WritingDirection.selectionRightToLeft) != nil)
     }
 
     @Test("item(for:) hands out the live item for direct mutation")
     func directMutationThroughQuery() throws {
         let (rootMenu, builder) = makeStandardTree()
         let action = #selector(NSApplication.orderFrontStandardAboutPanel(_:))
-        builder.item(for: .applicationSettings)?.action = action
+        builder.item(for: .Application.settings)?.action = action
 
         let settingsItem = rootMenu.items[0].submenu!.items[2]
         #expect(settingsItem.action == action)
@@ -76,10 +76,10 @@ struct MainMenuBuilderTests {
     @Test("sibling insertion lands immediately around the identified item")
     func siblingInsertion() throws {
         let (rootMenu, builder) = makeStandardTree()
-        builder.insertItems(after: .fileOpen) {
+        builder.insertItems(after: .File.open) {
             NSMenuItem("Open Workspace…")
         }
-        builder.insertItems([NSMenuItem("Prelude")], before: .fileNew)
+        builder.insertItems([NSMenuItem("Prelude")], before: .File.new)
 
         let titles = fileMenu(of: rootMenu).items.prefix(4).map(\.title)
         #expect(titles == ["Prelude", "New", "Open…", "Open Workspace…"])
@@ -104,7 +104,7 @@ struct MainMenuBuilderTests {
     func childInsertionNeedsSubmenu() throws {
         let (rootMenu, builder) = makeStandardTree()
         let itemCountBefore = fileMenu(of: rootMenu).items.count
-        builder.insertItems([NSMenuItem("Nowhere")], atEndOf: .fileClose)
+        builder.insertItems([NSMenuItem("Nowhere")], atEndOf: .File.close)
         #expect(fileMenu(of: rootMenu).items.count == itemCountBefore)
     }
 
@@ -113,7 +113,7 @@ struct MainMenuBuilderTests {
     @Test("replace swaps one identified item for many, in place")
     func replaceItem() throws {
         let (rootMenu, builder) = makeStandardTree()
-        builder.replace(.fileNew) {
+        builder.replace(.File.new) {
             NSMenuItem("New Project")
             NSMenuItem("New File")
         }
@@ -126,7 +126,7 @@ struct MainMenuBuilderTests {
     func replaceItemsOfSubmenu() throws {
         let (rootMenu, builder) = makeStandardTree()
         builder.replaceItems(of: .file) { currentItems in
-            currentItems.filter { $0.identifier == MainMenu.ItemIdentifier.fileClose.userInterfaceItemIdentifier }
+            currentItems.filter { $0.identifier == MainMenu.ItemIdentifier.File.close.userInterfaceItemIdentifier }
         }
 
         #expect(fileMenu(of: rootMenu).items.map(\.title) == ["Close"])
@@ -137,8 +137,8 @@ struct MainMenuBuilderTests {
     @Test("removing a whole trailing section leaves no trailing separator")
     func removalNormalizesTrailingSeparator() throws {
         let (rootMenu, builder) = makeStandardTree()
-        builder.remove(.filePageSetup)
-        builder.remove(.filePrint)
+        builder.remove(.File.pageSetup)
+        builder.remove(.File.print)
         builder.normalizeTouchedMenus()
 
         let titles = fileMenu(of: rootMenu).items.map(\.title)
@@ -149,10 +149,10 @@ struct MainMenuBuilderTests {
     @Test("removing everything between two separators collapses them into one")
     func removalCollapsesAdjacentSeparators() throws {
         let (rootMenu, builder) = makeStandardTree()
-        builder.remove(.fileClose)
-        builder.remove(.fileSave)
-        builder.remove(.fileSaveAs)
-        builder.remove(.fileRevertToSaved)
+        builder.remove(.File.close)
+        builder.remove(.File.save)
+        builder.remove(.File.saveAs)
+        builder.remove(.File.revertToSaved)
         builder.normalizeTouchedMenus()
 
         let items = fileMenu(of: rootMenu).items
@@ -163,8 +163,8 @@ struct MainMenuBuilderTests {
     @Test("removing the leading section leaves no leading separator")
     func removalNormalizesLeadingSeparator() throws {
         let (rootMenu, builder) = makeStandardTree()
-        builder.remove(.fileNew)
-        builder.remove(.fileOpen)
+        builder.remove(.File.new)
+        builder.remove(.File.open)
         builder.normalizeTouchedMenus()
 
         #expect(fileMenu(of: rootMenu).items.first?.isSeparatorItem == false)
@@ -175,7 +175,7 @@ struct MainMenuBuilderTests {
     func untouchedMenusAreLeftAlone() throws {
         let (rootMenu, builder) = makeStandardTree()
         let editTitlesBefore = rootMenu.items[2].submenu!.items.map(\.title)
-        builder.remove(.filePrint)
+        builder.remove(.File.print)
         builder.normalizeTouchedMenus()
 
         #expect(rootMenu.items[2].submenu!.items.map(\.title) == editTitlesBefore)
@@ -203,7 +203,7 @@ struct MainMenuBuilderTests {
     func hostItemsAreAddressable() throws {
         let (_, builder) = makeStandardTree()
         let hostIdentifier = MainMenu.ItemIdentifier("com.example.build")
-        builder.insertItems(after: .fileOpen) {
+        builder.insertItems(after: .File.open) {
             NSMenuItem("Build").identifier(hostIdentifier)
         }
 

@@ -4,7 +4,10 @@ import AppKit
 import FoundationToolbox
 
 extension MainMenu.ItemIdentifier {
-    public static let helpApplicationHelp = standard("helpApplicationHelp")
+    /// Standard items of the Help menu, addressed as `.Help.applicationHelp`.
+    public enum Help {
+        public static let applicationHelp = standard("Help.applicationHelp")
+    }
 }
 
 extension MainMenu {
@@ -29,7 +32,7 @@ extension MainMenu {
     public enum Help {
         public static func applicationHelp(applicationName: String? = nil) -> NSMenuItem {
             NSMenuItem("\(resolvedApplicationName(applicationName)) Help", action: #Selector("showHelp:"), keyEquivalent: "?")
-                .identifier(ItemIdentifier.helpApplicationHelp)
+                .identifier(ItemIdentifier.Help.applicationHelp)
         }
     }
 }

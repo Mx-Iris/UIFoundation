@@ -4,15 +4,18 @@ import AppKit
 import FoundationToolbox
 
 extension MainMenu.ItemIdentifier {
-    public static let applicationAbout = standard("applicationAbout")
-    public static let applicationSettings = standard("applicationSettings")
-    /// Wiring marker: the assembly step assigns this submenu to
-    /// `NSApplication.servicesMenu`.
-    public static let services = standard("services")
-    public static let applicationHide = standard("applicationHide")
-    public static let applicationHideOthers = standard("applicationHideOthers")
-    public static let applicationShowAll = standard("applicationShowAll")
-    public static let applicationQuit = standard("applicationQuit")
+    /// Standard items of the application menu, addressed as `.Application.about` etc.
+    public enum Application {
+        public static let about = standard("Application.about")
+        public static let settings = standard("Application.settings")
+        /// Wiring marker: the assembly step assigns this submenu to
+        /// `NSApplication.servicesMenu`.
+        public static let services = standard("Application.services")
+        public static let hide = standard("Application.hide")
+        public static let hideOthers = standard("Application.hideOthers")
+        public static let showAll = standard("Application.showAll")
+        public static let quit = standard("Application.quit")
+    }
 }
 
 extension MainMenu {
@@ -47,7 +50,7 @@ extension MainMenu {
     public enum Application {
         public static func about(applicationName: String? = nil) -> NSMenuItem {
             NSMenuItem("About \(resolvedApplicationName(applicationName))", action: #Selector("orderFrontStandardAboutPanel:"))
-                .identifier(ItemIdentifier.applicationAbout)
+                .identifier(ItemIdentifier.Application.about)
         }
 
         /// The Settings… (macOS 12 and earlier: Preferences…) item, ⌘,.
@@ -57,34 +60,34 @@ extension MainMenu {
             let title = if #available(macOS 13.0, *) { "Settings…" } else { "Preferences…" }
             return NSMenuItem(title, action: action, keyEquivalent: ",")
                 .target(target)
-                .identifier(ItemIdentifier.applicationSettings)
+                .identifier(ItemIdentifier.Application.settings)
         }
 
         /// The Services submenu. Its content is populated by AppKit once the
         /// assembly step wires it to `NSApplication.servicesMenu`.
         public static func services() -> NSMenuItem {
             NSMenuItem("Services", submenu: NSMenu(title: "Services"))
-                .identifier(ItemIdentifier.services)
+                .identifier(ItemIdentifier.Application.services)
         }
 
         public static func hide(applicationName: String? = nil) -> NSMenuItem {
             NSMenuItem("Hide \(resolvedApplicationName(applicationName))", action: #Selector("hide:"), keyEquivalent: "h")
-                .identifier(ItemIdentifier.applicationHide)
+                .identifier(ItemIdentifier.Application.hide)
         }
 
         public static func hideOthers() -> NSMenuItem {
             NSMenuItem("Hide Others", action: #Selector("hideOtherApplications:"), keyEquivalent: "h", modifiers: [.option, .command])
-                .identifier(ItemIdentifier.applicationHideOthers)
+                .identifier(ItemIdentifier.Application.hideOthers)
         }
 
         public static func showAll() -> NSMenuItem {
             NSMenuItem("Show All", action: #Selector("unhideAllApplications:"))
-                .identifier(ItemIdentifier.applicationShowAll)
+                .identifier(ItemIdentifier.Application.showAll)
         }
 
         public static func quit(applicationName: String? = nil) -> NSMenuItem {
             NSMenuItem("Quit \(resolvedApplicationName(applicationName))", action: #Selector("terminate:"), keyEquivalent: "q")
-                .identifier(ItemIdentifier.applicationQuit)
+                .identifier(ItemIdentifier.Application.quit)
         }
     }
 }

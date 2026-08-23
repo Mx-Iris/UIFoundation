@@ -43,7 +43,7 @@ struct MainMenuTests {
 
         let servicesItem = applicationMenu.items[4]
         #expect(servicesItem.submenu != nil)
-        #expect(servicesItem.identifier == MainMenu.ItemIdentifier.services.userInterfaceItemIdentifier)
+        #expect(servicesItem.identifier == MainMenu.ItemIdentifier.Application.services.userInterfaceItemIdentifier)
 
         let hideItem = applicationMenu.items[6]
         #expect(selectorName(hideItem) == "hide:")
@@ -92,7 +92,7 @@ struct MainMenuTests {
         #expect(!fileMenu.items.contains { $0.title == "Open Recent" })
 
         let openRecentItem = MainMenu.File.openRecent()
-        #expect(openRecentItem.identifier == MainMenu.ItemIdentifier.openRecent.userInterfaceItemIdentifier)
+        #expect(openRecentItem.identifier == MainMenu.ItemIdentifier.File.openRecent.userInterfaceItemIdentifier)
         let openRecentMenu = try #require(openRecentItem.submenu)
         #expect(openRecentMenu.items.map(\.title) == ["Clear Menu"])
         #expect(selectorName(openRecentMenu.items[0]) == "clearRecentDocuments:")
@@ -173,10 +173,10 @@ struct MainMenuTests {
         let mainMenu = MainMenu.standard(applicationName: "Example")
 
         let servicesMenu = try #require(
-            mainMenu.items[0].submenu?.items.first { $0.identifier == MainMenu.ItemIdentifier.services.userInterfaceItemIdentifier }?.submenu
+            mainMenu.items[0].submenu?.items.first { $0.identifier == MainMenu.ItemIdentifier.Application.services.userInterfaceItemIdentifier }?.submenu
         )
         let fontMenu = try #require(
-            mainMenu.items[3].submenu?.items.first { $0.identifier == MainMenu.ItemIdentifier.font.userInterfaceItemIdentifier }?.submenu
+            mainMenu.items[3].submenu?.items.first { $0.identifier == MainMenu.ItemIdentifier.Format.font.userInterfaceItemIdentifier }?.submenu
         )
         let windowsMenu = try #require(mainMenu.items[5].submenu)
         let helpMenu = try #require(mainMenu.items[6].submenu)

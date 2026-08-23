@@ -4,10 +4,13 @@ import AppKit
 import FoundationToolbox
 
 extension MainMenu.ItemIdentifier {
-    public static let viewShowToolbar = standard("viewShowToolbar")
-    public static let viewCustomizeToolbar = standard("viewCustomizeToolbar")
-    public static let viewShowSidebar = standard("viewShowSidebar")
-    public static let viewEnterFullScreen = standard("viewEnterFullScreen")
+    /// Standard items of the View menu, addressed as `.View.showToolbar` etc.
+    public enum View {
+        public static let showToolbar = standard("View.showToolbar")
+        public static let customizeToolbar = standard("View.customizeToolbar")
+        public static let showSidebar = standard("View.showSidebar")
+        public static let enterFullScreen = standard("View.enterFullScreen")
+    }
 }
 
 extension MainMenu {
@@ -34,22 +37,22 @@ extension MainMenu {
     public enum View {
         public static func showToolbar() -> NSMenuItem {
             NSMenuItem("Show Toolbar", action: #Selector("toggleToolbarShown:"), keyEquivalent: "t", modifiers: [.option, .command])
-                .identifier(ItemIdentifier.viewShowToolbar)
+                .identifier(ItemIdentifier.View.showToolbar)
         }
 
         public static func customizeToolbar() -> NSMenuItem {
             NSMenuItem("Customize Toolbar…", action: #Selector("runToolbarCustomizationPalette:"))
-                .identifier(ItemIdentifier.viewCustomizeToolbar)
+                .identifier(ItemIdentifier.View.customizeToolbar)
         }
 
         public static func showSidebar() -> NSMenuItem {
             NSMenuItem("Show Sidebar", action: #Selector("toggleSidebar:"), keyEquivalent: "s", modifiers: [.control, .command])
-                .identifier(ItemIdentifier.viewShowSidebar)
+                .identifier(ItemIdentifier.View.showSidebar)
         }
 
         public static func enterFullScreen() -> NSMenuItem {
             NSMenuItem("Enter Full Screen", action: #Selector("toggleFullScreen:"), keyEquivalent: "f", modifiers: [.control, .command])
-                .identifier(ItemIdentifier.viewEnterFullScreen)
+                .identifier(ItemIdentifier.View.enterFullScreen)
         }
     }
 }

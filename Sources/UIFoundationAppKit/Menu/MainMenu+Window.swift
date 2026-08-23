@@ -4,9 +4,12 @@ import AppKit
 import FoundationToolbox
 
 extension MainMenu.ItemIdentifier {
-    public static let windowMinimize = standard("windowMinimize")
-    public static let windowZoom = standard("windowZoom")
-    public static let windowBringAllToFront = standard("windowBringAllToFront")
+    /// Standard items of the Window menu, addressed as `.Window.minimize` etc.
+    public enum Window {
+        public static let minimize = standard("Window.minimize")
+        public static let zoom = standard("Window.zoom")
+        public static let bringAllToFront = standard("Window.bringAllToFront")
+    }
 }
 
 extension MainMenu {
@@ -35,17 +38,17 @@ extension MainMenu {
     public enum Window {
         public static func minimize() -> NSMenuItem {
             NSMenuItem("Minimize", action: #Selector("performMiniaturize:"), keyEquivalent: "m")
-                .identifier(ItemIdentifier.windowMinimize)
+                .identifier(ItemIdentifier.Window.minimize)
         }
 
         public static func zoom() -> NSMenuItem {
             NSMenuItem("Zoom", action: #Selector("performZoom:"))
-                .identifier(ItemIdentifier.windowZoom)
+                .identifier(ItemIdentifier.Window.zoom)
         }
 
         public static func bringAllToFront() -> NSMenuItem {
             NSMenuItem("Bring All to Front", action: #Selector("arrangeInFront:"))
-                .identifier(ItemIdentifier.windowBringAllToFront)
+                .identifier(ItemIdentifier.Window.bringAllToFront)
         }
     }
 }
