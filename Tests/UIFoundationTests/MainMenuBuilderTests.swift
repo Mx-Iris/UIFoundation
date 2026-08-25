@@ -211,6 +211,168 @@ struct MainMenuBuilderTests {
         builder.remove(hostIdentifier)
         #expect(builder.item(for: hostIdentifier) == nil)
     }
+
+    // MARK: Item-rooted builders
+
+    @Test("an item-rooted builder addresses the root item itself, and its subtree")
+    func itemRootReachesItselfAndItsSubtree() throws {
+        let fileItem = MainMenu.file()
+        let builder = MainMenu.Builder(rootItem: fileItem)
+
+        #expect(builder.item(for: .file) === fileItem)
+        #expect(builder.item(for: .File.print)?.title == "Print…")
+    }
+
+    @Test("an item-rooted builder sees nothing outside its subtree")
+    func itemRootIsScoped() throws {
+        let builder = MainMenu.Builder(rootItem: MainMenu.file())
+
+        #expect(builder.item(for: .edit) == nil)
+        #expect(builder.item(for: .Edit.undo) == nil)
+    }
+
+    @Test("an item-rooted builder on a submenu-less item reaches only that item")
+    func itemRootWithoutSubmenu() throws {
+        let closeItem = MainMenu.File.close()
+        let builder = MainMenu.Builder(rootItem: closeItem)
+
+        #expect(builder.item(for: .File.close) === closeItem)
+        #expect(builder.item(for: .File.print) == nil)
+    }
+
+    @Test("the verbs needing a containing menu do nothing when aimed at the root item")
+    func rootItemHasNoContainingMenu() throws {
+        let fileItem = MainMenu.file()
+        let builder = MainMenu.Builder(rootItem: fileItem)
+        let titlesBefore = try #require(fileItem.submenu).items.map(\.title)
+
+        builder.insertItems([NSMenuItem("Before")], before: .file)
+        builder.insertItems([NSMenuItem("After")], after: .file)
+        builder.replace(.file, with: [NSMenuItem("Replacement")])
+        builder.remove(.file)
+        builder.normalizeTouchedMenus()
+
+        #expect(fileItem.title == "File")
+        #expect(fileItem.submenu?.items.map(\.title) == titlesBefore)
+    }
+
+    @Test("the child-side verbs act on the root item's own submenu")
+    func rootItemChildVerbs() throws {
+        let fileItem = MainMenu.file()
+        let builder = MainMenu.Builder(rootItem: fileItem)
+
+        builder.insertItems(atStartOf: .file) {
+            NSMenuItem("First")
+        }
+        builder.replaceItems(of: .file) { currentItems in
+            currentItems.filter { !$0.isSeparatorItem }
+        }
+
+        #expect(fileItem.submenu?.items.first?.title == "First")
+        #expect(fileItem.submenu?.items.contains(where: \.isSeparatorItem) == false)
+    }
+
+    // MARK: Factory customization
+
+    @Test("a factory customization amends that menu, and normalizes it")
+    func factoryCustomizationAmendsAndNormalizes() throws {
+        let fileItem = MainMenu.file { builder in
+            builder.remove(.File.pageSetup)
+            builder.remove(.File.print)
+        }
+
+        let items = try #require(fileItem.submenu).items
+        #expect(!items.map(\.title).contains("Page Setup…"))
+        #expect(items.last?.title == "Revert to Saved")
+        #expect(items.last?.isSeparatorItem == false)
+    }
+
+    @Test("a factory customization reaches the menu's own item")
+    func factoryCustomizationReachesOwnItem() throws {
+        let fileItem = MainMenu.file { builder in
+            builder.item(for: .file)?.title = "Dossier"
+        }
+
+        #expect(fileItem.title == "Dossier")
+        // Retitling through the builder touches the item, not the submenu it
+        // owns — unlike the `title:` parameter, which names both. Harmless
+        // (AppKit shows the item's title, never a submenu's), but pinned so a
+        // future change to either path is a visible one.
+        #expect(fileItem.submenu?.title == "File")
+        #expect(MainMenu.file(title: "Dossier").submenu?.title == "Dossier")
+    }
+
+    @Test("an empty customization produces exactly the standard menu")
+    func emptyCustomizationMatchesTheStandardFactory() throws {
+        func outline(of menuItem: NSMenuItem) -> [String] {
+            var lines = [menuItem.title]
+            func walk(_ menu: NSMenu, depth: Int) {
+                for item in menu.items {
+                    lines.append(String(repeating: "\t", count: depth) + item.title)
+                    if let submenu = item.submenu {
+                        walk(submenu, depth: depth + 1)
+                    }
+                }
+            }
+            if let submenu = menuItem.submenu {
+                walk(submenu, depth: 1)
+            }
+            return lines
+        }
+
+        #expect(outline(of: MainMenu.application(customizing: { _ in })) == outline(of: MainMenu.application()))
+        #expect(outline(of: MainMenu.file(customizing: { _ in })) == outline(of: MainMenu.file()))
+        #expect(outline(of: MainMenu.edit(customizing: { _ in })) == outline(of: MainMenu.edit()))
+        #expect(outline(of: MainMenu.format(customizing: { _ in })) == outline(of: MainMenu.format()))
+        #expect(outline(of: MainMenu.view(customizing: { _ in })) == outline(of: MainMenu.view()))
+        #expect(outline(of: MainMenu.window(customizing: { _ in })) == outline(of: MainMenu.window()))
+        #expect(outline(of: MainMenu.help(customizing: { _ in })) == outline(of: MainMenu.help()))
+        #expect(outline(of: MainMenu.Edit.find(customizing: { _ in })) == outline(of: MainMenu.Edit.find()))
+        #expect(outline(of: MainMenu.Edit.spellingAndGrammar(customizing: { _ in })) == outline(of: MainMenu.Edit.spellingAndGrammar()))
+        #expect(outline(of: MainMenu.Edit.substitutions(customizing: { _ in })) == outline(of: MainMenu.Edit.substitutions()))
+        #expect(outline(of: MainMenu.Edit.transformations(customizing: { _ in })) == outline(of: MainMenu.Edit.transformations()))
+        #expect(outline(of: MainMenu.Edit.speech(customizing: { _ in })) == outline(of: MainMenu.Edit.speech()))
+        #expect(outline(of: MainMenu.Format.font(customizing: { _ in })) == outline(of: MainMenu.Format.font()))
+        #expect(outline(of: MainMenu.Format.text(customizing: { _ in })) == outline(of: MainMenu.Format.text()))
+    }
+
+    @Test("a group factory customizes its own item and its inline leaves")
+    func groupFactoryCustomization() throws {
+        let findItem = MainMenu.Edit.find { builder in
+            builder.item(for: .Edit.find)?.title = "Search"
+            builder.item(for: .Edit.Find.next)?.keyEquivalent = "n"
+        }
+        #expect(findItem.title == "Search")
+        #expect(findItem.submenu?.items.first { $0.tag == 2 }?.keyEquivalent == "n")
+
+        let fontItem = MainMenu.Format.font { builder in
+            builder.remove(.Format.Font.Kern.tighten)
+        }
+        let kernMenu = try #require(
+            fontItem.submenu?
+                .items.first { $0.identifier == MainMenu.ItemIdentifier.Format.Font.kern.userInterfaceItemIdentifier }?
+                .submenu
+        )
+        #expect(kernMenu.items.map(\.title) == ["Use Default", "Use None", "Loosen"])
+    }
+
+    @Test("a content closure still selects the content overload")
+    func contentClosuresAreNotStolenByTheCustomizingOverload() throws {
+        // A single-expression content closure is *also* a valid
+        // `(Builder) -> Void` — the parameter may be omitted and the result
+        // discarded — so this is the call shape the new overload could
+        // silently take over.
+        let windowItem = MainMenu.window {
+            MainMenu.Window.minimize()
+        }
+        #expect(windowItem.submenu?.items.map(\.title) == ["Minimize"])
+
+        let fileItem = MainMenu.file {
+            MainMenu.File.new()
+            MainMenu.File.open()
+        }
+        #expect(fileItem.submenu?.items.map(\.title) == ["New", "Open…"])
+    }
 }
 
 #endif

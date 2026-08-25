@@ -216,6 +216,33 @@ struct MainMenuTests {
         #expect(NSApplication.shared.helpMenu === helpMenu)
     }
 
+    @Test("menu(_:customizing:) runs the transformation before wiring")
+    func assemblyCustomizationPrecedesWiring() throws {
+        let sentinelMenu = NSMenu(title: "Sentinel")
+        NSApplication.shared.windowsMenu = sentinelMenu
+
+        let mainMenu = MainMenu.menu {
+            MainMenu.application(applicationName: "Example")
+            MainMenu.file()
+            MainMenu.window()
+            MainMenu.help(applicationName: "Example")
+        } customizing: { builder in
+            builder.remove(.window)
+            builder.remove(.File.pageSetup)
+            builder.remove(.File.print)
+        }
+
+        #expect(!mainMenu.items.contains { $0.title == "Window" })
+        #expect(NSApplication.shared.windowsMenu === sentinelMenu)
+
+        let helpMenu = try #require(mainMenu.items.last?.submenu)
+        #expect(NSApplication.shared.helpMenu === helpMenu)
+
+        // The touched File menu is normalized, like it is under standard(customizing:).
+        let fileMenu = try #require(mainMenu.items[1].submenu)
+        #expect(fileMenu.items.last?.title == "Revert to Saved")
+    }
+
     // MARK: Names and titles
 
     @Test("the application name override reaches every named item")
