@@ -12,6 +12,7 @@
 - [Quick Start](#quick-start)
 - [The Four Levels](#the-four-levels)
 - [Customizing the Standard Menu](#customizing-the-standard-menu)
+- [Where a Customization Attaches](#where-a-customization-attaches)
 - [The Wiring Contract](#the-wiring-contract)
 - [What AppKit Adds On Its Own](#what-appkit-adds-on-its-own)
 - [Open Recent](#open-recent)
@@ -85,7 +86,8 @@ app.mainMenu = MainMenu.standard { builder in
 ```
 
 **Level 3 — pick, reorder, and mix top-level menus.** `MainMenu.menu { … }` takes the existing
-`@MenuBuilder`, so standard menus and fully custom ones interleave freely:
+`@MenuBuilder`, so standard menus and fully custom ones interleave freely, and it takes the same
+transformation as a second trailing closure:
 
 ```swift
 app.mainMenu = MainMenu.menu {
@@ -97,6 +99,8 @@ app.mainMenu = MainMenu.menu {
     }
     MainMenu.window()
     MainMenu.help()
+} customizing: { builder in
+    builder.remove(.File.pageSetup)
 }
 ```
 
@@ -114,6 +118,15 @@ MainMenu.window {
 }
 ```
 
+— and a `customizing:` overload that **keeps** the standard content and amends it, so the common
+case of "the template's File menu, minus one item" costs one line instead of nine:
+
+```swift
+MainMenu.file { builder in
+    builder.remove(.File.pageSetup)
+}
+```
+
 **Level 4 — standard single items.** Every standard item is a factory on the menu's nested
 namespace (`MainMenu.File.close()`, `MainMenu.Edit.find()`, `MainMenu.Application.quit()`, …), so a
 rewritten menu never re-types a selector, key equivalent, or tag. The `Settings…` item is the one
@@ -121,6 +134,15 @@ item the template leaves unconnected; pass the host's action:
 
 ```swift
 MainMenu.Application.settings(action: #selector(AppDelegate.openSettings(_:)))
+```
+
+The seven factories that produce a *group* — a submenu with several rows — take `customizing:`
+too, which is the only way to reach into one without re-listing it:
+
+```swift
+MainMenu.Edit.find { builder in
+    builder.item(for: .Edit.Find.next)?.keyEquivalent = "n"
+}
 ```
 
 ## Customizing the Standard Menu
@@ -171,6 +193,76 @@ Inserting and replacing methods all have `@MenuBuilder` trailing-closure overloa
 `MainMenu.ItemIdentifier` is a `RawRepresentable` struct (the same shape as `UIMenu.Identifier`);
 `userInterfaceItemIdentifier` bridges it to the `NSUserInterfaceItemIdentifier` that actually sits
 on the `NSMenuItem`, and the chained `.identifier(_:)` modifier accepts it directly.
+
+## Where a Customization Attaches
+
+The `customizing:` parameter is not special to `standard()` (decision record: Evolution
+[`0013`](Evolutions/0013-main-menu-factory-customizing.md)). **Every factory that produces a
+submenu with more than one row takes it**, and the transformation is scoped to whatever that call
+produces — nothing more:
+
+| Level | Entry points |
+|---|---|
+| Whole bar | `standard(applicationName:customizing:)`, `menu(_:customizing:)` |
+| One top-level menu | `application` · `file` · `edit` · `format` · `view` · `window` · `help`, each `(…, customizing:)` |
+| One group | `Edit.find` · `Edit.spellingAndGrammar` · `Edit.substitutions` · `Edit.transformations` · `Edit.speech` · `Format.font` · `Format.text`, each `(customizing:)` |
+
+Scope is the point. A transformation written on `MainMenu.file` reads as "the File menu, amended",
+and cannot silently reach the Edit menu; the same amendment written on `standard()` is a statement
+about the whole bar. Both are available — pick the one that says what you mean:
+
+```swift
+app.mainMenu = MainMenu.menu {
+    MainMenu.application()
+    MainMenu.file { builder in                  // scoped: only the File menu
+        builder.remove(.File.pageSetup)
+    }
+    MainMenu.edit()
+    MainMenu.help()
+} customizing: { builder in                     // scoped: the whole bar
+    builder.remove(.Edit.speech)
+}
+```
+
+Three contracts:
+
+- **The layers do not leak into each other.** `standard()` builds its seven menus from the *plain*
+  factories, so a customization you wrote on `MainMenu.file { … }` elsewhere in your code does not
+  appear in `standard()`'s File menu — that is a different File menu object.
+
+- **The menu's own item is addressable.** In a factory-level customization the builder's reach
+  includes the item the factory returns, so `builder.item(for: .file)` / `.item(for: .Edit.find)`
+  hands it to you. For the seven group factories, which take no `title` parameter, this is the only
+  way to retitle them:
+
+  ```swift
+  MainMenu.Edit.substitutions { builder in
+      builder.item(for: .Edit.substitutions)?.title = "Text Replacement"
+  }
+  ```
+
+  Note that this retitles the *item*, not the `NSMenu` hanging off it — the `title:` parameter on
+  the top-level factories names both. AppKit shows the item's title, so the difference is invisible;
+  it is pinned by a test only so a change to either path is a visible one.
+
+- **Four verbs have nowhere to act on that root item**, since nothing within the builder's reach
+  contains it. They do nothing, the same silence as addressing an identifier that is not there:
+
+  | Verb | Aimed at the factory's own item |
+  |---|---|
+  | `item(for:)` | ✅ returns it |
+  | `insertItems(_:atStartOf:)` / `insertItems(_:atEndOf:)` | ✅ acts on its submenu |
+  | `replaceItems(of:from:)` | ✅ acts on its submenu |
+  | `insertItems(_:before:)` / `insertItems(_:after:)` | no-op |
+  | `replace(_:with:)` / `remove(_:)` | no-op |
+
+  Everything *inside* the subtree behaves exactly as it does at bar level, orphan-separator
+  normalization included.
+
+Three factories deliberately have **no** `customizing:` overload: `Application.services()` (its
+submenu is empty — AppKit fills it after wiring, so there would be nothing to address),
+`File.openRecent()` (one row), and the ~70 single-item factories (`Edit.undo()` and friends — they
+return the item itself, so the chained modifiers already reach everything).
 
 ## The Wiring Contract
 

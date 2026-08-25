@@ -239,7 +239,27 @@ collapse to `NSMenuItem`, so its three addressing schemes collapse to one — Ev
 [`0010`](Documentations/Evolutions/0010-main-menu-builder.md)). Builder contracts: mutations apply
 immediately, absent identifiers are silent no-ops, the transformation runs **before** the wiring
 (removing `.window` leaves no stale `windowsMenu`), and touched menus get orphaned separators
-normalized afterwards. `MainMenu.menu { … }` composes top-level menus (`MainMenu.application()` /
+normalized afterwards.
+
+**`customizing:` is not `standard()`'s alone — every factory producing a submenu with more than one
+row takes it** (`menu(_:customizing:)` as a second trailing closure, the seven top-level menus, and
+the seven group factories `Edit.find` / `spellingAndGrammar` / `substitutions` / `transformations` /
+`speech` / `Format.font` / `text` — Evolution
+[`0013`](Documentations/Evolutions/0013-main-menu-factory-customizing.md)).
+The transformation is scoped to what that call produces, which is the point: an amendment written on
+`MainMenu.file` cannot reach the Edit menu. Two things follow. **A factory-level builder also
+addresses the item the factory returns** — the only way to retitle a group, since group factories
+take no `title` parameter — but nothing within its reach *contains* that item, so
+`insertItems(_:before:)` / `insertItems(_:after:)` / `replace(_:with:)` / `remove(_:)` aimed at it
+are silent no-ops. And **the layers do not leak**: `standard()` builds from the plain factories, so
+a customization written on `MainMenu.file { … }` elsewhere describes a different File menu object.
+Three factories deliberately have no such overload — `Application.services()` (empty submenu, AppKit
+fills it), `File.openRecent()` (one row), and the single-item factories. Adding a `customizing:`
+overload beside a `@MenuBuilder` content overload is safe **but not obviously so**: a
+single-expression content closure such as `MainMenu.window { MainMenu.Window.minimize() }` is *also*
+a valid `(Builder) -> Void`, so the two overloads could steal each other's call sites. Measured on
+Swift 6.2: they do not — resolution splits on whether the closure takes a parameter, and
+`MainMenuBuilderTests` keeps a canary on it. `MainMenu.menu { … }` composes top-level menus (`MainMenu.application()` /
 `.file()` / `.edit()` / `.format()` / `.view()` / `.window()` / `.help()`, each with a builder
 overload that replaces its content) mixed with fully custom `NSMenuItem`s; nested namespaces
 (`MainMenu.File.close()`, `MainMenu.Edit.find()`, …) carry every standard single item so rewrites
