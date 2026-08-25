@@ -27,6 +27,18 @@ extension MainMenu {
             .identifier(ItemIdentifier.help)
     }
 
+    /// The Help menu with the template's standard content, amended by
+    /// `customize`. The transformation reaches the menu's own item (`.help`)
+    /// as well as everything under it, and the menu stays wired as the
+    /// application's help menu.
+    public static func help(
+        applicationName: String? = nil,
+        title: String = "Help",
+        customizing customize: (Builder) -> Void
+    ) -> NSMenuItem {
+        customized(help(applicationName: applicationName, title: title), by: customize)
+    }
+
     /// Standard items of the Help menu.
     @MainActor
     public enum Help {

@@ -94,6 +94,14 @@ extension MainMenu {
             .identifier(ItemIdentifier.edit)
     }
 
+    /// The Edit menu with the template's standard content, amended by
+    /// `customize`. The transformation reaches the menu's own item (`.edit`)
+    /// as well as everything under it, the groups' leaves included
+    /// (`.Edit.Find.next` and friends).
+    public static func edit(title: String = "Edit", customizing customize: (Builder) -> Void) -> NSMenuItem {
+        customized(edit(title: title), by: customize)
+    }
+
     /// Standard items of the Edit menu.
     @MainActor
     public enum Edit {
@@ -162,6 +170,13 @@ extension MainMenu {
             .identifier(ItemIdentifier.Edit.find)
         }
 
+        /// The Find submenu amended by `customize`, which reaches the group's
+        /// own item (`.Edit.find`) — the only way to retitle it — as well as
+        /// its rows.
+        public static func find(customizing customize: (Builder) -> Void) -> NSMenuItem {
+            customized(find(), by: customize)
+        }
+
         public static func spellingAndGrammar() -> NSMenuItem {
             NSMenuItem("Spelling and Grammar", submenu: NSMenu(title: "Spelling") {
                 NSMenuItem("Show Spelling and Grammar", action: #Selector("showGuessPanel:"), keyEquivalent: ":")
@@ -177,6 +192,13 @@ extension MainMenu {
                     .identifier(ItemIdentifier.Edit.Spelling.correctSpellingAutomatically)
             })
             .identifier(ItemIdentifier.Edit.spellingAndGrammar)
+        }
+
+        /// The Spelling and Grammar submenu amended by `customize`, which
+        /// reaches the group's own item (`.Edit.spellingAndGrammar`) as well as
+        /// its rows.
+        public static func spellingAndGrammar(customizing customize: (Builder) -> Void) -> NSMenuItem {
+            customized(spellingAndGrammar(), by: customize)
         }
 
         public static func substitutions() -> NSMenuItem {
@@ -200,6 +222,12 @@ extension MainMenu {
             .identifier(ItemIdentifier.Edit.substitutions)
         }
 
+        /// The Substitutions submenu amended by `customize`, which reaches the
+        /// group's own item (`.Edit.substitutions`) as well as its rows.
+        public static func substitutions(customizing customize: (Builder) -> Void) -> NSMenuItem {
+            customized(substitutions(), by: customize)
+        }
+
         public static func transformations() -> NSMenuItem {
             NSMenuItem("Transformations") {
                 NSMenuItem("Make Upper Case", action: #Selector("uppercaseWord:"))
@@ -212,6 +240,12 @@ extension MainMenu {
             .identifier(ItemIdentifier.Edit.transformations)
         }
 
+        /// The Transformations submenu amended by `customize`, which reaches
+        /// the group's own item (`.Edit.transformations`) as well as its rows.
+        public static func transformations(customizing customize: (Builder) -> Void) -> NSMenuItem {
+            customized(transformations(), by: customize)
+        }
+
         public static func speech() -> NSMenuItem {
             NSMenuItem("Speech") {
                 NSMenuItem("Start Speaking", action: #Selector("startSpeaking:"))
@@ -220,6 +254,12 @@ extension MainMenu {
                     .identifier(ItemIdentifier.Edit.Speech.stopSpeaking)
             }
             .identifier(ItemIdentifier.Edit.speech)
+        }
+
+        /// The Speech submenu amended by `customize`, which reaches the group's
+        /// own item (`.Edit.speech`) as well as its rows.
+        public static func speech(customizing customize: (Builder) -> Void) -> NSMenuItem {
+            customized(speech(), by: customize)
         }
     }
 }

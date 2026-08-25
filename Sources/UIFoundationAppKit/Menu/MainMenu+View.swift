@@ -31,6 +31,13 @@ extension MainMenu {
             .identifier(ItemIdentifier.view)
     }
 
+    /// The View menu with the template's standard content, amended by
+    /// `customize`. The transformation reaches the menu's own item (`.view`)
+    /// as well as everything under it.
+    public static func view(title: String = "View", customizing customize: (Builder) -> Void) -> NSMenuItem {
+        customized(view(title: title), by: customize)
+    }
+
     /// Standard items of the View menu. AppKit's validation retitles the
     /// toggling items (Show/Hide Toolbar, Show/Hide Sidebar) on its own.
     @MainActor

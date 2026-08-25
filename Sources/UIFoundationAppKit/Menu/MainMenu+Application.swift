@@ -45,6 +45,16 @@ extension MainMenu {
             .identifier(ItemIdentifier.application)
     }
 
+    /// The application menu with the template's standard content, amended by
+    /// `customize`. The transformation reaches the menu's own item (`.application`)
+    /// as well as everything under it.
+    public static func application(
+        applicationName: String? = nil,
+        customizing customize: (Builder) -> Void
+    ) -> NSMenuItem {
+        customized(application(applicationName: applicationName), by: customize)
+    }
+
     /// Standard items of the application menu.
     @MainActor
     public enum Application {

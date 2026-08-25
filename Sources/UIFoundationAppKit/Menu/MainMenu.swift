@@ -59,6 +59,32 @@ import AppKit
 /// }
 /// ```
 ///
+/// The `customizing:` transformation of level 2 is available at **every** level:
+/// each factory producing a submenu with more than one row takes it, scoped to
+/// what that call produces and nothing else. A group factory, which takes no
+/// `title` parameter, can only be amended this way.
+///
+/// ```swift
+/// app.mainMenu = MainMenu.menu {
+///     MainMenu.application()
+///     MainMenu.file { builder in                  // scoped to the File menu
+///         builder.remove(.File.pageSetup)
+///     }
+///     MainMenu.edit { builder in
+///         builder.replace(.Edit.find, with: [MainMenu.Edit.find { findBuilder in
+///             findBuilder.item(for: .Edit.Find.next)?.keyEquivalent = "n"
+///         }])
+///     }
+///     MainMenu.help()
+/// } customizing: { builder in                     // scoped to the whole bar
+///     builder.remove(.Edit.speech)
+/// }
+/// ```
+///
+/// The layers do not leak into each other: ``standard(applicationName:)``
+/// builds its seven menus from the plain factories, so a customization written
+/// on `MainMenu.file { … }` elsewhere describes a different File menu object.
+///
 /// ``standard(applicationName:)`` and ``menu(_:)`` also perform the wiring
 /// `MainMenu.xib` gets from Interface Builder's system-menu markers: the
 /// Services, Window, and Help submenus are assigned to `NSApplication`, and the
@@ -88,7 +114,7 @@ public enum MainMenu {
     /// The complete template-equivalent main menu with identifier-addressed
     /// amendments applied by `customize` before the special-menu wiring runs.
     public static func standard(applicationName: String? = nil, customizing customize: (Builder) -> Void) -> NSMenu {
-        let mainMenu = NSMenu(title: "Main Menu", items: [
+        let mainMenu = customized(NSMenu(title: "Main Menu", items: [
             application(applicationName: applicationName),
             file(),
             edit(),
@@ -96,10 +122,7 @@ public enum MainMenu {
             view(),
             window(),
             help(applicationName: applicationName),
-        ])
-        let builder = Builder(rootMenu: mainMenu)
-        customize(builder)
-        builder.normalizeTouchedMenus()
+        ]), by: customize)
         wireSpecialMenus(in: mainMenu)
         return mainMenu
     }
@@ -111,6 +134,40 @@ public enum MainMenu {
         let mainMenu = NSMenu(title: "Main Menu", items: items())
         wireSpecialMenus(in: mainMenu)
         return mainMenu
+    }
+
+    /// Assembles a main menu from top-level items, applies `customize` to the
+    /// assembled tree, and only then wires the special submenus — so removing
+    /// the Window or Help menu in the transformation leaves no stale
+    /// `NSApplication` assignment behind.
+    public static func menu(
+        @MenuBuilder _ items: () -> [NSMenuItem],
+        customizing customize: (Builder) -> Void
+    ) -> NSMenu {
+        let mainMenu = customized(NSMenu(title: "Main Menu", items: items()), by: customize)
+        wireSpecialMenus(in: mainMenu)
+        return mainMenu
+    }
+
+    // MARK: - Customization
+
+    /// Runs an identifier-addressed transformation over a freshly built menu,
+    /// then normalizes the menus it touched. Shared by every `customizing`
+    /// overload.
+    static func customized(_ menu: NSMenu, by customize: (Builder) -> Void) -> NSMenu {
+        let builder = Builder(rootMenu: menu)
+        customize(builder)
+        builder.normalizeTouchedMenus()
+        return menu
+    }
+
+    /// The item-rooted counterpart: the transformation reaches `menuItem`
+    /// itself as well as its submenu subtree.
+    static func customized(_ menuItem: NSMenuItem, by customize: (Builder) -> Void) -> NSMenuItem {
+        let builder = Builder(rootItem: menuItem)
+        customize(builder)
+        builder.normalizeTouchedMenus()
+        return menuItem
     }
 
     // MARK: - Item identifiers

@@ -21,13 +21,48 @@ extension MainMenu {
     /// normalized: consecutive separators collapse into one and leading /
     /// trailing separators are dropped. Untouched menus are left exactly as
     /// built.
+    ///
+    /// A builder reaches either a whole menu — the form
+    /// ``MainMenu/standard(applicationName:customizing:)`` and
+    /// ``MainMenu/menu(_:customizing:)`` hand out — or a single menu item plus
+    /// its submenu subtree, which is what the per-menu factories
+    /// (``MainMenu/file(title:customizing:)``, ``MainMenu/Edit/find(customizing:)``, …)
+    /// hand out. In the item-rooted form the root item is addressable *itself*,
+    /// so its title, key equivalent, and image can be changed — the only way to
+    /// retitle a group whose factory takes no `title` parameter. Nothing in the
+    /// builder's reach holds that root item, though, so the verbs needing a
+    /// containing menu — ``insertItems(_:before:)``, ``insertItems(_:after:)``,
+    /// ``replace(_:with:)``, ``remove(_:)`` — do nothing when addressed at it,
+    /// the same silence as addressing an identifier that is not there.
     @MainActor
     public final class Builder {
-        private let rootMenu: NSMenu
+        /// What a builder can reach: a whole menu, or one item and its subtree.
+        private enum Root {
+            case menu(NSMenu)
+            case item(NSMenuItem)
+        }
+
+        /// An addressed item together with the menu holding it. `container` is
+        /// `nil` only for an item-rooted builder's root item.
+        private struct LocatedItem {
+            let item: NSMenuItem
+            let container: Container?
+
+            struct Container {
+                let menu: NSMenu
+                let index: Int
+            }
+        }
+
+        private let root: Root
         private var touchedMenus: [NSMenu] = []
 
         init(rootMenu: NSMenu) {
-            self.rootMenu = rootMenu
+            self.root = .menu(rootMenu)
+        }
+
+        init(rootItem: NSMenuItem) {
+            self.root = .item(rootItem)
         }
 
         // MARK: Querying
@@ -41,14 +76,14 @@ extension MainMenu {
 
         /// Inserts items immediately before the identified item.
         public func insertItems(_ items: [NSMenuItem], before identifier: ItemIdentifier) {
-            guard let located = locate(identifier) else { return }
-            insert(items, into: located.menu, at: located.index)
+            guard let container = locate(identifier)?.container else { return }
+            insert(items, into: container.menu, at: container.index)
         }
 
         /// Inserts items immediately after the identified item.
         public func insertItems(_ items: [NSMenuItem], after identifier: ItemIdentifier) {
-            guard let located = locate(identifier) else { return }
-            insert(items, into: located.menu, at: located.index + 1)
+            guard let container = locate(identifier)?.container else { return }
+            insert(items, into: container.menu, at: container.index + 1)
         }
 
         /// Inserts items at the start of the identified item's submenu.
@@ -83,9 +118,9 @@ extension MainMenu {
 
         /// Replaces the identified item with the given items.
         public func replace(_ identifier: ItemIdentifier, with items: [NSMenuItem]) {
-            guard let located = locate(identifier) else { return }
-            located.menu.removeItem(at: located.index)
-            insert(items, into: located.menu, at: located.index)
+            guard let container = locate(identifier)?.container else { return }
+            container.menu.removeItem(at: container.index)
+            insert(items, into: container.menu, at: container.index)
         }
 
         public func replace(_ identifier: ItemIdentifier, @MenuBuilder with items: () -> [NSMenuItem]) {
@@ -107,24 +142,34 @@ extension MainMenu {
 
         /// Removes the identified item.
         public func remove(_ identifier: ItemIdentifier) {
-            guard let located = locate(identifier) else { return }
-            located.menu.removeItem(at: located.index)
-            markTouched(located.menu)
+            guard let container = locate(identifier)?.container else { return }
+            container.menu.removeItem(at: container.index)
+            markTouched(container.menu)
         }
 
         // MARK: Internals
 
-        private func locate(_ identifier: ItemIdentifier) -> (menu: NSMenu, item: NSMenuItem, index: Int)? {
-            locate(identifier.userInterfaceItemIdentifier, in: rootMenu)
+        private func locate(_ identifier: ItemIdentifier) -> LocatedItem? {
+            let userInterfaceIdentifier = identifier.userInterfaceItemIdentifier
+            switch root {
+            case .menu(let rootMenu):
+                return locate(userInterfaceIdentifier, in: rootMenu)
+            case .item(let rootItem):
+                if rootItem.identifier == userInterfaceIdentifier {
+                    return LocatedItem(item: rootItem, container: nil)
+                }
+                guard let submenu = rootItem.submenu else { return nil }
+                return locate(userInterfaceIdentifier, in: submenu)
+            }
         }
 
         private func locate(
             _ identifier: NSUserInterfaceItemIdentifier,
             in menu: NSMenu
-        ) -> (menu: NSMenu, item: NSMenuItem, index: Int)? {
+        ) -> LocatedItem? {
             for (index, menuItem) in menu.items.enumerated() {
                 if menuItem.identifier == identifier {
-                    return (menu, menuItem, index)
+                    return LocatedItem(item: menuItem, container: .init(menu: menu, index: index))
                 }
                 if let submenu = menuItem.submenu,
                    let located = locate(identifier, in: submenu) {

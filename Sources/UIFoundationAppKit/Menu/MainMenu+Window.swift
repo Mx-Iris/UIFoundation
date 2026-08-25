@@ -33,6 +33,14 @@ extension MainMenu {
             .identifier(ItemIdentifier.window)
     }
 
+    /// The Window menu with the template's standard content, amended by
+    /// `customize`. The transformation reaches the menu's own item (`.window`)
+    /// as well as everything under it, and the menu stays wired as the
+    /// application's windows menu.
+    public static func window(title: String = "Window", customizing customize: (Builder) -> Void) -> NSMenuItem {
+        customized(window(title: title), by: customize)
+    }
+
     /// Standard items of the Window menu.
     @MainActor
     public enum Window {

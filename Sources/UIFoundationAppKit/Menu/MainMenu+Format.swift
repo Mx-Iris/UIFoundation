@@ -87,6 +87,19 @@ extension MainMenu {
             .identifier(ItemIdentifier.format)
     }
 
+    /// The Format menu with the template's standard content, amended by
+    /// `customize`. The transformation reaches the menu's own item (`.format`)
+    /// as well as everything under it, the nested groups' leaves included
+    /// (`.Format.Font.Kern.tighten` and friends).
+    ///
+    /// Wiring is unaffected: the Font submenu is installed on `NSFontManager`
+    /// later, by the assembly step, and by identifier — so clearing
+    /// `.Format.font`'s identifier here is what opts it out, exactly as it
+    /// would anywhere else.
+    public static func format(title: String = "Format", customizing customize: (Builder) -> Void) -> NSMenuItem {
+        customized(format(title: title), by: customize)
+    }
+
     /// Standard items of the Format menu.
     @MainActor
     public enum Format {
@@ -166,6 +179,17 @@ extension MainMenu {
             .identifier(ItemIdentifier.Format.font)
         }
 
+        /// The Font submenu amended by `customize`, which reaches the group's
+        /// own item (`.Format.font`) as well as everything under it, the
+        /// nested Kern / Ligatures / Baseline leaves included.
+        ///
+        /// Clearing `.Format.font`'s identifier here opts the submenu out of
+        /// being installed as the font manager's font menu, since the assembly
+        /// step wires by identifier.
+        public static func font(customizing customize: (Builder) -> Void) -> NSMenuItem {
+            customized(font(), by: customize)
+        }
+
         /// The Text submenu. The Writing Direction section headers are the
         /// template's disabled plain items, and the direction items keep the
         /// template's tab-prefixed titles — both are how the xib renders the
@@ -212,6 +236,13 @@ extension MainMenu {
                     .identifier(ItemIdentifier.Format.Text.pasteRuler)
             }
             .identifier(ItemIdentifier.Format.text)
+        }
+
+        /// The Text submenu amended by `customize`, which reaches the group's
+        /// own item (`.Format.text`) as well as everything under it, the
+        /// Writing Direction leaves included.
+        public static func text(customizing customize: (Builder) -> Void) -> NSMenuItem {
+            customized(text(), by: customize)
         }
     }
 }

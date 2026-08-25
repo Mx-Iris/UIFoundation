@@ -52,6 +52,13 @@ extension MainMenu {
             .identifier(ItemIdentifier.file)
     }
 
+    /// The File menu with the template's standard content, amended by
+    /// `customize`. The transformation reaches the menu's own item (`.file`)
+    /// as well as everything under it.
+    public static func file(title: String = "File", customizing customize: (Builder) -> Void) -> NSMenuItem {
+        customized(file(title: title), by: customize)
+    }
+
     /// Standard items of the File menu.
     @MainActor
     public enum File {
