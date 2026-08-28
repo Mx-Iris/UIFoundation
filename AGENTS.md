@@ -62,6 +62,12 @@ UIFoundation (umbrella: @_exported imports)
 
 UIFoundationAppleInternal    (separate product)
 └── UIFoundationAppleInternalObjC  (private ObjC headers)
+
+UIFoundationRunningApplication  (separate product, macOS 11+, Swift 6 language mode)
+├── UIFoundationAppKit
+├── UIFoundationToolbox
+├── UIFoundationUtilities
+└── UIFoundationShared
 ```
 
 ### External Dependencies
@@ -721,6 +727,79 @@ Host contracts (all four are in the guide, and each fails confusingly rather tha
 
 **Full guide:** `Documentations/Navigation.md`.
 
+### Running Application / Process Picker
+
+Value-type models for running applications and BSD processes (architecture, platform, sandbox
+detection), two observer actors, and a picker UI with search, sorting, context menus and a
+skeleton loading state. Ported from `Mx-Iris/RunningApplicationKit`; decision record is Evolution
+[`0014`](Documentations/Evolutions/0014-running-application-merge.md), and the two proposals that
+came with it are [`0015`](Documentations/Evolutions/0015-simulator-platform-detection.md) /
+[`0016`](Documentations/Evolutions/0016-picker-presentation-styles.md).
+
+Ships behind the opt-in SPM trait `RunningApplication` (default: disabled) as **one target**,
+`UIFoundationRunningApplication`, macOS 11+, every file wrapped in
+`#if RunningApplication && os(macOS)`. Pure AppKit + Darwin syscalls, no resources, no ObjC target,
+no new external dependencies.
+
+**It is not in the umbrella, and that is the whole reason it is a separate target** — its macOS 11
+floor is higher than the package's 10.15, so joining `UIFoundation` would raise the floor for every
+consumer. Same reasoning as `UIFoundationSettings`. Consumers depend on the product and
+`import UIFoundationRunningApplication` directly. SPM's `platforms:` is package-level, so the floor
+is expressed as `@available(macOS 11.0, *)` on each declaration that needs it — 21 of them,
+arrived at by fixing what the compiler actually reported rather than annotating everything.
+
+**This target runs Swift 6 language mode** via a per-target `.swiftLanguageMode(.v6)`, while the
+rest of the package is `.v5`. Worth not re-deriving: rewriting the cells onto this library's
+`TableCellView` briefly produced a wall of `main actor-isolated default value in a nonisolated
+context`, which looks exactly like v6-against-v5 friction and tempts a downgrade. It was not — the
+old base class had been deleted and the new one not yet imported, so the classes momentarily had no
+superclass and lost the MainActor isolation they inherit from `NSTableCellView`. **Check that the
+superclass resolves before reading those errors as a language-mode conflict.**
+
+Public API keeps its original names — `RunningPickerTabViewController`, `RunningApplication`,
+`RunningProcess`, `RunningItem`, `Platform`, `Architecture`, `RunningProcessEnumerator`, the two
+observers. Nothing was renamed or nested into a namespace: the import is explicit, and four
+downstream repos already call these names. The individual picker view controllers and the generic
+base `RunningItemPickerViewController` stay internal.
+
+**Two things the type system will not tell you.** `platform` is `nil` for roughly 5% of processes —
+protected system processes whose path `proc_pidpath` will not report — and that means *unknown*,
+not *not a simulator*; `architecture` is `nil` for the same set. And `rowHeight` / `cellSpacing` /
+`iconSize` have no stored defaults: they fall back to the current style's value until assigned once,
+after which they are pinned and stop following the style.
+
+**Deduped against this library's own base classes** rather than ported as-is: `.box.makeView(ofClass:)`,
+`TableCellView`, `makeConstraints`, `HStackView` / `VStackView`, `XiblessViewController`. Two of
+those replacements are not mechanical. `.box.makeView`'s `viewBuilder` runs **only when nothing was
+reused**, whereas the original's `modify` closure ran on both paths — every call site was rewritten
+to configure after the call, not renamed. And this library's `TableCellView` carries a
+`setup()` / `firstLayout()` lifecycle and sets `identifier` itself, so each cell's assembly moved
+out of `init(frame:)` into `setup()`.
+
+The skeleton cells deliberately keep their hand-written `layout()` — they size placeholders as
+fractions of `bounds`, which constraints cannot express — and `BadgeView` keeps the one
+`translatesAutoresizingMaskIntoConstraints = false` on *itself*, since it is always positioned by
+whoever adds it.
+
+**Layout has a real test floor, and it was built before the rewrite, not after.** The original
+package records four layout faults that compiled cleanly and passed every other test, surfacing only
+in screenshots. `ListRowLayoutTests` / `PickerStructureTests` came from upstream; `TableCellLayoutTests`
+(15 tests) was added here to cover the table cells, which had no geometric assertions at all — and
+was confirmed green against the *old* implementation first, so it pins geometry rather than
+implementation. Cells are sized by constraints inside a real container or `NSWindow`, never by
+assigning a frame (a frame-sized view picks up autoresizing that hides exactly these faults).
+
+> **Assert on alignment rects, not frames.** `NSTextField` draws 2 pt wider than it lays out on each
+> side, and Auto Layout constrains alignment rects. Asserting on `frame` means asserting on AppKit's
+> drawing margin and needs a ±2 fudge factor — which is precisely wide enough to swallow a real 2 pt
+> regression. `TableCellLayoutTests.alignmentFrame(_:in:)` exists for this.
+
+**Full guide:** `Documentations/RunningApplication.md`. Implementation notes:
+`Documentations/Internal/PlatformDetection.md` (why the kernel cannot answer, the four-level slice
+fallback) and `Documentations/Internal/PresentationStyles.md` (why the list is still an
+`NSTableView`). Terms: `Documentations/Glossary.md`. Demo: **Running Application Picker** in the
+example app, with the skeleton/content and table/list switches side by side.
+
 ### Settings Window
 
 A System Settings-shaped window plus a settings model that persists itself. Extracted from
@@ -893,7 +972,7 @@ Structure under `UIFoundationExample-macOS/UIFoundationExample-macOS/`:
 - `AppDelegate.swift` — the hand-written `@main enum App` entry point (creates the delegate, sets the activation policy and `MainMenu.standard()`, then `run()`; required because deleting the storyboard breaks `@main` on the delegate — see the **Main Menu** section) plus the `AppDelegate` class, which on macOS 26+ owns and registers the Settings scene representation during `applicationWillFinishLaunching(_:)` and builds a `DemoBrowserWindowController` on launch.
 - `Browser/` — `DemoBrowserWindowController` (code-built `NSWindow`), `DemoBrowserSplitViewController` (sidebar + `DemoDetailViewController`), `DemoSidebarViewController` (source-list `NSOutlineView`; items are a private `SidebarNode` reference type because `NSOutlineView` needs stable item identity).
 - `Catalog/` — `Demo` (a value type: `title` / `category` / `summary` / `minimumMacOS` / `makeViewController`) and `DemoCatalog.all` (the registry) + `DemoCatalog.grouped`.
-- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `NavigationDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `SettingsDemoViewController`, `SettingsSceneRepresentationDemoViewController`, `ToolbarNavigationDemoViewController`, `CustomTooltipDemoViewController`, `WelcomePanelDemoViewController`).
+- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `NavigationDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `SettingsDemoViewController`, `SettingsSceneRepresentationDemoViewController`, `ToolbarNavigationDemoViewController`, `CustomTooltipDemoViewController`, `WelcomePanelDemoViewController`, `RunningApplicationPickerDemoViewController`).
 
 **To add a demo:** drop a new `NSViewController` file under `Demos/` and append one `Demo` to `DemoCatalog.all`. Nothing else changes.
 
@@ -907,7 +986,7 @@ The shared summary label at the top of the detail pane is already set up this wa
 
 Two project facts that make this work (and matter when extending it):
 - The Xcode project's app source group is a **file-system-synchronized group** (`PBXFileSystemSynchronizedRootGroup`, Xcode 16+). Any file added under the app folder is auto-included in the target — **no `project.pbxproj` edits needed** to add/move/delete demos.
-- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabBar`, `SystemHUD`, `Navigation` and `WelcomePanel` are enabled alongside `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder` / `QuickActionBar` / `Settings` / `StatusItemController`); otherwise the control's symbols won't be compiled into the package and the demo won't link.
+- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabBar`, `SystemHUD`, `Navigation`, `WelcomePanel` and `RunningApplication` are enabled alongside `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder` / `QuickActionBar` / `Settings` / `StatusItemController`). **A product outside the umbrella needs more than its trait** — `UIFoundationRunningApplication`, like `UIFoundationSettings`/`UIFoundationSettingsUI`, also has to be added as an `XCSwiftPackageProductDependency` and linked in the target's Frameworks phase, or the demo will not resolve its import; otherwise the control's symbols won't be compiled into the package and the demo won't link.
 
 Build the example from the command line with `xcodebuild -project UIFoundationExample-macOS/UIFoundationExample-macOS.xcodeproj -scheme UIFoundationExample-macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build 2>&1 | xcsift`.
 

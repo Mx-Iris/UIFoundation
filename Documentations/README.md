@@ -8,7 +8,7 @@
 
 ## 使用指南
 
-八篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
+九篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
 **接入任何一个组件前先读对应那篇。**
 
 - [MainMenu](MainMenu.md) —— 纯代码构建 MainMenu.xib 等价的标准主菜单，四级粒度自定义，
@@ -49,3 +49,26 @@
   （`window` 被标为 unavailable，只能走 `showWindow(_:)` / `close()`）与
   「启动时显示」复选框只有 `.xcode14` 才有。`.xcode26` 是**按 Xcode 26 抓包实测重做的复刻**
   （毛玻璃 = `.fullScreenUI`，圆角 20，标题 36 bold，胶囊操作行，深色自带图标辉光）。
+
+- [RunningApplication](RunningApplication.md) —— 运行中的应用与 BSD 进程：值类型模型（架构 /
+  平台 / 沙盒判定）、两个观察者，以及一个带搜索与排序的选择器（表格与列表两种呈现）。
+  **不在伞包里**，要单独依赖 product 并 `import UIFoundationRunningApplication`。
+  含四条宿主契约，最容易踩的是 **`platform` 为 `nil` 的含义是「不知道」而不是「不是模拟器」**
+  （约 5% 的受保护进程读不到路径），以及行高 / 图标尺寸的默认值**随样式变、显式设过就锁死**。
+  另有「架构判不出模拟器」的成因、只标 guest 进程的判据，以及两种样式对「不值一提的值」
+  刚好相反的处理。
+
+## 实现说明
+
+面向维护者：最终怎么实现的、为什么这么实现、有什么降级。
+
+| 文档 | 说明 |
+|------|------|
+| [Internal/PlatformDetection.md](Internal/PlatformDetection.md) | 平台识别的落地细节：内核为什么问不到、slice 四级回退的实测依据、变异测试结论与已知降级 |
+| [Internal/PresentationStyles.md](Internal/PresentationStyles.md) | 表格与列表两种呈现的落地细节：为什么列表仍是 NSTableView、样式默认值怎么不破坏公开类型、骨架屏与提案的差异 |
+
+## 术语表
+
+| 文档 | 说明 |
+|------|------|
+| [Glossary.md](Glossary.md) | 本库术语：field 与 column 之别、style、guest 进程、platform 与 architecture 之别、ExclaveCore / ExclaveKit |
