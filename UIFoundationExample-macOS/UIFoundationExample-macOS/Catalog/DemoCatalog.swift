@@ -89,6 +89,19 @@ enum DemoCatalog {
             makeViewController: { ToolbarNavigationDemoViewController() }
         ),
         Demo(
+            title: "Running Application Picker",
+            category: "Controls",
+            summary: "The running-application / BSD-process picker, with switches for skeleton vs. content and table vs. list — the four combinations are how the list style gets judged by eye.",
+            minimumMacOS: OperatingSystemVersion(majorVersion: 11, minorVersion: 0, patchVersion: 0),
+            makeViewController: {
+                if #available(macOS 11.0, *) {
+                    RunningApplicationPickerDemoViewController()
+                } else {
+                    Demo.unavailablePlaceholderViewController(requiring: "macOS 11")
+                }
+            }
+        ),
+        Demo(
             title: "Custom Tooltip",
             category: "AppKit Private",
             summary: "CustomToolTipManager playground — live color/slider editing, per-view override, plus an unmodified system control for visual comparison.",
