@@ -7,27 +7,42 @@ import Testing
 @testable import UIFoundationSettings
 
 /// Records every write so tests can count them, and plays back the last one.
-private actor RecordingStorage: SettingsStorage {
-    private(set) var saveCount = 0
+///
+/// Implements only the synchronous `SettingsStorage` pair — the synchronous
+/// methods witness the async requirements too, which is exactly the
+/// conformance shape real storages use.
+private final class RecordingStorage: SettingsStorage, @unchecked Sendable {
+    private let lock = NSLock()
+    private var recordedSaveCount = 0
     private var storedData: Data?
-    private let initialData: Data?
 
     init(initialData: Data? = nil) {
-        self.initialData = initialData
         self.storedData = initialData
     }
 
-    func save(_ data: Data) async throws {
-        saveCount += 1
+    var saveCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return recordedSaveCount
+    }
+
+    func save(_ data: Data) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        recordedSaveCount += 1
         storedData = data
     }
 
-    func load() async throws -> Data {
+    func load() throws -> Data {
+        lock.lock()
+        defer { lock.unlock() }
         guard let storedData else { throw FileSystemSettingsStorage.LoadError.noStoredData }
         return storedData
     }
 
     func decodedValue<Value: Decodable>(as type: Value.Type) throws -> Value? {
+        lock.lock()
+        defer { lock.unlock() }
         guard let storedData else { return nil }
         return try JSONDecoder().decode(Value.self, from: storedData)
     }
@@ -169,8 +184,8 @@ struct SettingsStoreTests {
 
         store.value.general.depth = 7
 
-        #expect(await waitUntil { await storage.saveCount == 1 }, "the write was never persisted")
-        let persisted = try await storage.decodedValue(as: DemoSettings.self)
+        #expect(await waitUntil { storage.saveCount == 1 }, "the write was never persisted")
+        let persisted = try storage.decodedValue(as: DemoSettings.self)
         #expect(persisted?.general.depth == 7)
     }
 
@@ -185,10 +200,10 @@ struct SettingsStoreTests {
         store.value.general.depth = 3
         store.value.title = "renamed"
 
-        #expect(await waitUntil { await storage.saveCount >= 1 }, "the burst was never persisted")
+        #expect(await waitUntil { storage.saveCount >= 1 }, "the burst was never persisted")
         await waitPastAutoSave()
-        #expect(await storage.saveCount == 1, "the burst produced more than one write")
-        let persisted = try await storage.decodedValue(as: DemoSettings.self)
+        #expect(storage.saveCount == 1, "the burst produced more than one write")
+        let persisted = try storage.decodedValue(as: DemoSettings.self)
         #expect(persisted?.general.depth == 3)
         #expect(persisted?.title == "renamed")
     }
@@ -210,7 +225,7 @@ struct SettingsStoreTests {
             Issue.record("expected .loaded, got \(outcome)")
         }
         #expect(store.value == storedSettings)
-        #expect(await storage.saveCount == 0)
+        #expect(storage.saveCount == 0)
     }
 
     @Test("an empty store keeps its default value")
@@ -252,12 +267,35 @@ struct SettingsStoreTests {
         store.value.title = "quitting"
         try await store.save()
 
-        #expect(await storage.saveCount == 1)
+        #expect(storage.saveCount == 1)
 
         // Neither the debounced task nor Observation's deferred re-arm may
         // produce a second write after the explicit save.
         await waitPastAutoSave()
-        #expect(await storage.saveCount == 1)
+        #expect(storage.saveCount == 1)
+    }
+
+    @Test("a synchronous save persists before returning and cancels deferred work")
+    func synchronousSaveWritesImmediately() async throws {
+        guard #available(macOS 14.0, *) else { return }
+        let storage = RecordingStorage()
+        let store = SettingsStore(defaultValue: DemoSettings(), storage: storage, autoSaveDelay: autoSaveDelay)
+
+        store.value.title = "quitting"
+        // In this async test a plain `store.save()` would resolve to the
+        // async overload; binding a synchronous function value forces the
+        // one under test.
+        let saveWithoutSuspending: () throws -> Void = store.save
+        try saveWithoutSuspending()
+
+        // The point of the synchronous path: the write has landed by the time
+        // the call returns, with nothing left to await.
+        #expect(storage.saveCount == 1)
+        let persisted = try storage.decodedValue(as: DemoSettings.self)
+        #expect(persisted?.title == "quitting")
+
+        await waitPastAutoSave()
+        #expect(storage.saveCount == 1, "the debounced task produced a second write")
     }
 
     @Test("mutating settings immediately after a load still saves")
@@ -269,8 +307,8 @@ struct SettingsStoreTests {
         await store.load()
         store.value.general.isEnabled = true
 
-        #expect(await waitUntil { await storage.saveCount == 1 }, "the post-load write was never persisted")
-        let persisted = try await storage.decodedValue(as: DemoSettings.self)
+        #expect(await waitUntil { storage.saveCount == 1 }, "the post-load write was never persisted")
+        let persisted = try storage.decodedValue(as: DemoSettings.self)
         #expect(persisted?.general.isEnabled == true)
     }
 }
@@ -285,7 +323,10 @@ struct FileSystemSettingsStorageTests {
             .appendingPathComponent("Settings.json")
         defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
 
-        let storage = FileSystemSettingsStorage(fileURL: fileURL)
+        // Typed as the existential so the calls go through the async
+        // requirements — pinning that the synchronous implementations
+        // witness them.
+        let storage: any SettingsStorage = FileSystemSettingsStorage(fileURL: fileURL)
         let payload = Data(#"{"title":"hello"}"#.utf8)
 
         try await storage.save(payload)
@@ -298,15 +339,43 @@ struct FileSystemSettingsStorageTests {
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("UIFoundationSettingsTests-\(UUID().uuidString)")
             .appendingPathComponent("Settings.json")
-        let storage = FileSystemSettingsStorage(fileURL: fileURL)
+        let storage: any SettingsStorage = FileSystemSettingsStorage(fileURL: fileURL)
 
         await #expect(throws: FileSystemSettingsStorage.LoadError.self) {
             _ = try await storage.load()
         }
     }
 
+    @Test("round-trips synchronously through a real file")
+    func synchronousRoundTrip() throws {
+        guard #available(macOS 14.0, *) else { return }
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("UIFoundationSettingsTests-\(UUID().uuidString)")
+            .appendingPathComponent("Settings.json")
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let storage = FileSystemSettingsStorage(fileURL: fileURL)
+        let payload = Data(#"{"title":"hello"}"#.utf8)
+
+        try storage.save(payload)
+        #expect(try storage.load() == payload)
+    }
+
+    @Test("the synchronous load reports missing data too")
+    func synchronousMissingFile() {
+        guard #available(macOS 14.0, *) else { return }
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("UIFoundationSettingsTests-\(UUID().uuidString)")
+            .appendingPathComponent("Settings.json")
+        let storage = FileSystemSettingsStorage(fileURL: fileURL)
+
+        #expect(throws: FileSystemSettingsStorage.LoadError.self) {
+            _ = try storage.load()
+        }
+    }
+
     @Test("creates the enclosing directory on first save")
-    func createsDirectory() async throws {
+    func createsDirectory() throws {
         guard #available(macOS 14.0, *) else { return }
         let directoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("UIFoundationSettingsTests-\(UUID().uuidString)")
@@ -314,7 +383,7 @@ struct FileSystemSettingsStorageTests {
         defer { try? FileManager.default.removeItem(at: directoryURL) }
 
         #expect(!FileManager.default.fileExists(atPath: fileURL.path))
-        try await FileSystemSettingsStorage(fileURL: fileURL).save(Data("{}".utf8))
+        try FileSystemSettingsStorage(fileURL: fileURL).save(Data("{}".utf8))
         #expect(FileManager.default.fileExists(atPath: fileURL.path))
     }
 }

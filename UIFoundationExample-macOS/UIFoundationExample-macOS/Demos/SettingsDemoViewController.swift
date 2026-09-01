@@ -323,6 +323,17 @@ private struct CountingSettingsStorage: SettingsStorage {
     func load() async throws -> Data {
         try await wrapped.load()
     }
+
+    func save(_ data: Data) throws {
+        try wrapped.save(data)
+        // The synchronous overload is only reached through the store, which
+        // is main-actor isolated.
+        MainActor.assumeIsolated { DemoActivity.recordSave(byteCount: data.count) }
+    }
+
+    func load() throws -> Data {
+        try wrapped.load()
+    }
 }
 
 // MARK: - Counters

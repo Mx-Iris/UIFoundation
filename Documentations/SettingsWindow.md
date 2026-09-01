@@ -462,7 +462,8 @@ coalesced into one write; hosts never call save after ordinary edits.
 | Concern | Behaviour |
 |---|---|
 | Where | `FileSystemSettingsStorage(applicationDirectoryName:)` → `~/Library/Application Support/<name>/Settings.json`. `init(fileURL:)` writes anywhere else; conform `SettingsStorage` to persist somewhere other than a file. |
-| When | `autoSaveDelay` after the last change (default 1 s). `save()` writes immediately and cancels the pending write — call it when terminating. |
+| When | `autoSaveDelay` after the last change (default 1 s). `save()` writes immediately and cancels the pending write. |
+| Terminating | The synchronous `save()` overload — the same immediate write, finished before the call returns; the compiler picks it in synchronous contexts. Call it from `applicationShouldTerminate(_:)` and reply `.terminateNow`. Do **not** reply `.terminateLater` and `await save()` from a task: when `terminate(_:)` was itself invoked from a main-queue block, AppKit's nested wait-for-reply run loop cannot drain the main queue, the task never runs, and the app can only be force-quit. (`SettingsStorage` requirements come as the same async/sync overload pairs; a synchronous implementation witnesses both.) |
 | Loading | `await store.load()` once at launch. It replaces the object **without** triggering a save, then moves both business and persistence observation to the replacement before returning. |
 | Missing file | Not an error: `load()` returns `.noStoredData` and the default value stays in effect. |
 | Corrupt file | `load()` returns `.failed(error)`, keeps the defaults, and **leaves the stored bytes alone** so a later build can still recover them. |

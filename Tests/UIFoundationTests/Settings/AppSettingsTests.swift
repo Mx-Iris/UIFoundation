@@ -8,21 +8,34 @@ import Testing
 @testable import UIFoundationSettings
 
 /// Counts writes so a projected-value edit can be shown to persist.
-private actor WriteCountingStorage: SettingsStorage {
-    private(set) var saveCount = 0
+private final class WriteCountingStorage: SettingsStorage, @unchecked Sendable {
+    private let lock = NSLock()
+    private var recordedSaveCount = 0
     private var storedData: Data?
 
-    func save(_ data: Data) async throws {
-        saveCount += 1
+    var saveCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return recordedSaveCount
+    }
+
+    func save(_ data: Data) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        recordedSaveCount += 1
         storedData = data
     }
 
-    func load() async throws -> Data {
+    func load() throws -> Data {
+        lock.lock()
+        defer { lock.unlock() }
         guard let storedData else { throw FileSystemSettingsStorage.LoadError.noStoredData }
         return storedData
     }
 
     func decodedValue<Value: Decodable>(as type: Value.Type) throws -> Value? {
+        lock.lock()
+        defer { lock.unlock() }
         guard let storedData else { return nil }
         return try JSONDecoder().decode(Value.self, from: storedData)
     }
@@ -151,16 +164,16 @@ struct AppSettingsTests {
     func projectedBindingWritePersists() async {
         guard #available(macOS 14.0, *) else { return }
         resetStore()
-        _ = await waitUntil { await WrapperTestSettings.storage.saveCount > 0 }
-        let saveCountBefore = await WrapperTestSettings.storage.saveCount
+        _ = await waitUntil { WrapperTestSettings.storage.saveCount > 0 }
+        let saveCountBefore = WrapperTestSettings.storage.saveCount
 
         let setting = AppSettings<WrapperTestSettings, Int>(\.general.depth)
         setting.projectedValue.wrappedValue = 42
 
-        let didSave = await waitUntil { await WrapperTestSettings.storage.saveCount > saveCountBefore }
+        let didSave = await waitUntil { WrapperTestSettings.storage.saveCount > saveCountBefore }
         #expect(didSave, "a write through the projected binding never reached the disk")
 
-        let stored = try? await WrapperTestSettings.storage.decodedValue(as: WrapperTestSettings.self)
+        let stored = try? WrapperTestSettings.storage.decodedValue(as: WrapperTestSettings.self)
         #expect(stored?.general.depth == 42)
     }
 

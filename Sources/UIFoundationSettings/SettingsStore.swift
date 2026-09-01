@@ -113,15 +113,30 @@ public final class SettingsStore<Value: SettingsModel> {
     /// Writes immediately instead of waiting out the auto-save delay, and
     /// cancels the pending write. Use when the app is about to terminate.
     public func save() async throws {
+        prepareForExplicitSave()
+        try await storage.save(JSONEncoder().encode(value))
+    }
+
+    /// Synchronous counterpart of ``save()`` — the same immediate write,
+    /// finished before the call returns. The compiler picks this overload in
+    /// synchronous contexts.
+    ///
+    /// The motivating call site is `applicationShouldTerminate(_:)`: flush
+    /// here and reply `.terminateNow`. See ``SettingsStorage`` for why
+    /// deferring the write behind `.terminateLater` deadlocks instead.
+    public func save() throws {
+        prepareForExplicitSave()
+        try storage.save(JSONEncoder().encode(value))
+    }
+
+    /// A property mutation may have fired Observation's callback but not yet
+    /// run its deferred main-actor work. Advancing the generation makes that
+    /// stale callback a no-op, so it cannot schedule a duplicate save after
+    /// an explicit one.
+    private func prepareForExplicitSave() {
         autoSaveTask?.cancel()
         autoSaveTask = nil
-
-        // A property mutation may have fired Observation's callback but not yet
-        // run its deferred main-actor work. Advancing the generation makes that
-        // stale callback a no-op, so it cannot schedule a duplicate save after
-        // this explicit one.
         armPersistenceObservation()
-        try await storage.save(JSONEncoder().encode(value))
     }
 
     private func armPersistenceObservation() {

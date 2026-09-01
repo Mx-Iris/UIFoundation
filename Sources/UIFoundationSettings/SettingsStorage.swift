@@ -7,9 +7,20 @@ import Foundation
 /// The store only ever hands over `Data`; encoding is the store's business.
 /// Implement this to persist somewhere other than the file system (a shared
 /// container, the keychain, a test double).
+///
+/// Each operation is an async/sync overload pair, and the compiler picks by
+/// calling context. Implement just the synchronous pair when the storage
+/// never suspends — a synchronous method witnesses its async counterpart
+/// too. The synchronous pair exists because flushing inside
+/// `applicationShouldTerminate(_:)` must not suspend: replying
+/// `.terminateLater` after an async write deadlocks whenever `terminate(_:)`
+/// was itself invoked from a main-queue block, because AppKit waits for the
+/// reply in a nested run loop that cannot re-enter the main queue's drain.
 public protocol SettingsStorage: Sendable {
     func save(_ data: Data) async throws
     func load() async throws -> Data
+    func save(_ data: Data) throws
+    func load() throws -> Data
 }
 
 /// Stores settings as a single JSON file under a per-application directory.
@@ -51,7 +62,7 @@ public struct FileSystemSettingsStorage: SettingsStorage {
         self.fileURL = fileURL
     }
 
-    public func save(_ data: Data) async throws {
+    public func save(_ data: Data) throws {
         try FileManager.default.createDirectory(
             at: fileURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
@@ -59,7 +70,7 @@ public struct FileSystemSettingsStorage: SettingsStorage {
         try data.write(to: fileURL, options: [.atomic])
     }
 
-    public func load() async throws -> Data {
+    public func load() throws -> Data {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             throw LoadError.noStoredData
         }
