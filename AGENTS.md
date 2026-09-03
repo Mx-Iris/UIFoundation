@@ -808,14 +808,15 @@ RuntimeViewer's `RuntimeViewerSettings` / `RuntimeViewerSettingsUI` — decision
 trait `Settings` (default: disabled) as **two** targets, both macOS 14+, both wrapped in
 `#if Settings && os(macOS)`:
 
-- **`UIFoundationSettings`** (model layer, no AppKit) — `SettingsStorage` / `FileSystemSettingsStorage`,
-  `SettingsModel`, `SettingsStore`, `PersistentSettings`, `AppSettings`.
+- **`UIFoundationSettings`** (model layer, no AppKit, no SwiftUI) — `SettingsStorage` /
+  `FileSystemSettingsStorage`, `SettingsModel`, `SettingsStore`, `PersistentSettings`.
 - **`UIFoundationSettingsUI`** (UI layer) — `SettingsWindowController` / `SettingsWindow`,
   `SettingsScene`, `SettingsRootView`, `SettingsPage` + `@SettingsPageBuilder`, `SettingsForm`,
-  `SettingsPageIcon`, `SettingsNavigator`. Ships `Resources/Localizable.xcstrings`: the module has
-  user-facing text of its own (the back / forward buttons), and `#bundle` only resolves for a target
-  that has a bundle. A literal without `bundle: #bundle` in here searches the *app's* catalog and
-  silently renders the key.
+  `SettingsPageIcon`, `SettingsNavigator`, and `AppSettings` — the property wrapper is a SwiftUI
+  `View`-facing type, so it sits with the view layer and keeps the model target free of SwiftUI.
+  Ships `Resources/Localizable.xcstrings`: the module has user-facing text of its own (the back /
+  forward buttons), and `#bundle` only resolves for a target that has a bundle. A literal without
+  `bundle: #bundle` in here searches the *app's* catalog and silently renders the key.
 
 Split in two because reading settings and *showing* the settings window are different jobs: services
 and view models do the former everywhere, the latter happens in one place. Neither target joins the
