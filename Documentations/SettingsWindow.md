@@ -143,8 +143,10 @@ final class Settings: PersistentSettings {
 
 ## 3. Reading and writing settings
 
-**Inside SwiftUI**, use `AppSettings`. It takes a key path of any depth, so a page can bind a whole
-section or a single leaf:
+**Inside SwiftUI**, use `AppSettings`. It ships in `UIFoundationSettingsUI` rather than in the model
+layer, because it is a SwiftUI type and the model layer imports no SwiftUI — a file that writes
+`@Setting` needs both imports. It takes a key path of any depth, so a page can bind a whole section
+or a single leaf:
 
 ```swift
 struct GeneralPage: View {
