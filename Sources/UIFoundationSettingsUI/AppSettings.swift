@@ -1,6 +1,7 @@
 #if Settings && os(macOS)
 
 import SwiftUI
+import UIFoundationSettings
 
 /// Reads and writes one property of a ``PersistentSettings`` model from a
 /// SwiftUI view.
