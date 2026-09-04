@@ -12,11 +12,15 @@ UIFoundation is a Swift package providing foundational UI components and utiliti
 swift package update && swift build 2>&1 | xcsift
 swift package update && swift test 2>&1 | xcsift
 swift build 2>&1 | xcsift --print-warnings
+
+# Every opt-in trait at once. Collisions between trait-gated sources only appear here --
+# see the AppKitPlus section for why a single-trait build is not enough.
+swift build --traits AppKitPlus,AppleInternal,FilterUI,IDEIcons,Navigation,NSAttributedStringBuilder,QuickActionBar,RunningApplication,Settings,StatusItemController,SystemHUD,TabBar,WelcomePanel 2>&1 | xcsift
 ```
 
 - Always run `swift package update` before building to avoid stale dependency checkouts
 - Swift tools version: 6.2, language mode: Swift 5 (`swiftLanguageModes: [.v5]`)
-- Platforms: macOS 10.15+, iOS 13+, macCatalyst 13+, tvOS 13+, visionOS 1+
+- Platforms: macOS 12+, iOS 13+, macCatalyst 13+, tvOS 13+, visionOS 1+ (the macOS floor is AppKitPlus's — see the **AppKitPlus** section)
 - Test target: `UIFoundationTests` (minimal coverage — test suite is sparse)
 - Run a single test: `swift test --filter UIFoundationTests.testName 2>&1 | xcsift`
 
@@ -54,6 +58,7 @@ most of the suite asserts geometry.
 ```
 UIFoundation (umbrella: @_exported imports)
 ├── UIFoundationAppKit       (macOS only)
+│   └── AppKitPlus           (binary, only with the `AppKitPlus` trait)
 ├── UIFoundationUIKit        (iOS/tvOS/visionOS/Catalyst)
 ├── UIFoundationShared       (cross-platform views & controllers)
 ├── UIFoundationUtilities    (property wrappers, DSLs, helpers)
@@ -76,6 +81,7 @@ UIFoundationRunningApplication  (separate product, macOS 11+, Swift 6 language m
 |---------|-------|
 | `FrameworkToolbox` (Mx-Iris) | Provides the `.box` namespace pattern for conflict-free extensions |
 | `AssociatedObject` (p-x9) | `@AssociatedObject` macro for runtime-associated properties |
+| `AppKitPlus` (AppKitSupportProgram, **binary**) | UIKit APIs ported to AppKit. Behind the `AppKitPlus` trait (default: off); supplies `NSLayerBackedView`, the base class `LayerBackedView` adopts when the trait is on |
 
 ### Local/Remote Dependency Switching
 
@@ -94,10 +100,17 @@ UIFoundationRunningApplication  (separate product, macOS 11+, Swift 6 language m
 All views and controllers are created in code (no Xib/Storyboard):
 
 ```
-NSView
+NSView  ·or·  NSLayerBackedView   (the latter with the `AppKitPlus` trait on)
  └── LayerBackedView      (wantsLayer=true, updateLayer path, setup(), firstLayout())
       └── XiblessView     (init?(coder:) marked @available(*, unavailable))
 ```
+
+The base class is a `LayerBackedViewBase` typealias resolved by the `AppKitPlus` trait; see the
+**AppKitPlus** section for what changes and what deliberately does not. The guard is spelled
+`#if AppKitPlus && canImport(AppKitPlus)` — the trait being on does not by itself guarantee the
+module is linked (an Xcode consumer can enable the trait without the product reaching this target),
+and without the `canImport` half that combination fails on the `import` rather than falling back to
+`NSView`.
 
 - `LayerBackedView` uses `wantsUpdateLayer = true` + `updateLayer()` for rendering (not `draw(_:)`). It conforms to `LayerBackgroundProviding` and inherits `cornerRadius` / `backgroundColor` / `border*` / `shadow*` / `shadowPath` from there.
 - `setup()` — subclass override point for initialization, called from both `init(frame:)` and `init?(coder:)`.
@@ -146,6 +159,63 @@ A working demo lives at `UIFoundationExample-macOS/UIFoundationExample-macOS/Dem
 - Because protocol extensions cannot use `@IBInspectable`, the forwarding properties are **not editable in Interface Builder**. `@IBDesignable` still works on `LayerBackedView` itself, but the panel won't show `cornerRadius`, `borderColor`, etc. (Project policy is code-only views, so this is intentional.)
 - `NSView.shadow` is a stored property on `NSView`; protocol-extension dispatch is shadowed by the class-hierarchy lookup. If you want `view.shadow = nsShadow` to fan out to `shadowColor` / `shadowOffset` / `shadowRadius`, override `shadow` explicitly on the conformer (mirroring `LayerBackgroundRenderer.shadow`).
 - Conformers that already define their own `backgroundColor` (e.g. `NSTextField`, `NSTableView`) will collide with the protocol default. Don't conform those classes — they were never the target of this pipeline.
+
+### AppKitPlus (`AppKitPlus` trait)
+
+[AppKitPlus](https://github.com/AppKitSupportProgram/AppKitPlus-Release) ports UIKit's APIs onto
+AppKit. It ships as a **binary** `.xcframework` (dynamic framework, library evolution on) behind the
+opt-in trait `AppKitPlus` (default: off). Its only use here is `NSLayerBackedView`, which
+`LayerBackedView` inherits from when the trait is on — see **View Base Class Hierarchy**. Decision
+record is Evolution [`0017`](Documentations/Evolutions/0017-appkitplus-layer-backed-view.md).
+
+**The package's macOS floor is 12 because of this dependency, trait or no trait.** A binary target's
+platform requirement is checked on the package graph, so neither `@available` nor a compilation
+condition can hold the floor at 10.15 while the trait merely *exists* — measured:
+`error: the library 'UIFoundation' requires macos 10.15, but depends on the product 'AppKitPlus'
+which requires macos 12.0`. The "keep the floor down, annotate each declaration" trick that
+`UIFoundationSettings` (macOS 14) and `UIFoundationRunningApplication` (macOS 11) use works only for
+source targets.
+
+**With the trait off, SPM does not fetch it at all** — no `Package.resolved` entry, no clone, no
+download. Measured. Default consumers pay nothing beyond the floor.
+
+**The version floor is 0.2.1, and the two excluded releases both fail silently.** Through 0.1.6 an
+`NSView (Appearance)` category declared `backgroundColor`, which shadows
+`LayerBackgroundProviding`'s property of the same name — the renderer simply stops receiving the
+value, in this module *and* in every downstream one, and `LayerBackedTableCellView` was hit too
+despite not inheriting the new base class. 0.1.6 also lowered content compression resistance to 500.
+Through 0.2.0 `NSCollectionViewItem` / `NSTableCellView` carried an extension property named
+`contentView`; 0.2.1 renamed it `configurationContentView`. `LayerBackedViewBaseClassTests` keeps a
+canary on the first two.
+
+**The contract that bites, and it bites downstream too: a subclass may not declare a property whose
+name AppKitPlus already added to that class.** Swift treats it as an illegal override —
+`overriding non-open property outside of its defining module` — not as shadowing, and this is *not*
+an ObjC-bridging artefact: `@nonobjc` on the extension property does not help (measured on a
+pure-Swift probe). Worse, it **travels with the module**: a target that only `import UIFoundation`
+and never imports AppKitPlus still inherits the collision, so every consumer that turns this trait on
+lives under the same restriction. Three names were already hit and renamed here:
+
+| Where | Was | Now | Collides with |
+|-------|-----|-----|---------------|
+| `QuickActionBar.ResultsTableView` | `parent` | `resultsView` | `NSFocusItem.parent`, via `NSView (Focus)` |
+| Example app's `NavigationDemoViewController` | `navigationController` | `navigationStackController` | `NSViewController.navigationController` |
+| `XiblessCollectionViewItem` | `contentView` | *(unchanged)* | fixed upstream in 0.2.1 instead |
+
+The third row is the one to imitate: `contentView` is a name any `NSCollectionViewItem` /
+`NSTableCellView` subclass wants, so it was fixed in AppKitPlus rather than worked around here.
+When a collision is on a name this library owns and downstreams also want, prefer the upstream fix.
+
+**When bumping AppKitPlus, re-check the collision surface before anything else.** The hosts that
+matter are `NSView`, `NSViewController`, `NSTableCellView`, `NSTableRowView`, `NSCollectionViewItem`,
+`NSControl`, `NSButton`, `NSMenuItem`, `NSToolbarItem`, `NSWindow`, `NSTableView`, `NSOutlineView`,
+`NSCollectionView`, `NSEvent`, `NSCell`. `from:` is up-to-next-major even for `0.x`, so a 0.3.0 will
+be picked up automatically — the constraint does not make the bump safe.
+
+**Verify with every trait on, not just this one.** `swift build --traits AppKitPlus` compiles a
+subset that misses these collisions entirely: the `parent` one lives in `QuickActionBar` sources and
+only surfaces when both traits are on. Use the full list, and build the example app — that is what
+caught the `navigationController` collision.
 
 ### Semantic Context (`AppleInternal` trait)
 
@@ -987,7 +1057,7 @@ The shared summary label at the top of the detail pane is already set up this wa
 
 Two project facts that make this work (and matter when extending it):
 - The Xcode project's app source group is a **file-system-synchronized group** (`PBXFileSystemSynchronizedRootGroup`, Xcode 16+). Any file added under the app folder is auto-included in the target — **no `project.pbxproj` edits needed** to add/move/delete demos.
-- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabBar`, `SystemHUD`, `Navigation`, `WelcomePanel` and `RunningApplication` are enabled alongside `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder` / `QuickActionBar` / `Settings` / `StatusItemController`). **A product outside the umbrella needs more than its trait** — `UIFoundationRunningApplication`, like `UIFoundationSettings`/`UIFoundationSettingsUI`, also has to be added as an `XCSwiftPackageProductDependency` and linked in the target's Frameworks phase, or the demo will not resolve its import; otherwise the control's symbols won't be compiled into the package and the demo won't link.
+- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabBar`, `SystemHUD`, `Navigation`, `WelcomePanel` and `RunningApplication` are enabled alongside `AppKitPlus` / `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder` / `QuickActionBar` / `Settings` / `StatusItemController`). **A product outside the umbrella needs more than its trait** — `UIFoundationRunningApplication`, like `UIFoundationSettings`/`UIFoundationSettingsUI`, also has to be added as an `XCSwiftPackageProductDependency` and linked in the target's Frameworks phase, or the demo will not resolve its import; otherwise the control's symbols won't be compiled into the package and the demo won't link.
 
 Build the example from the command line with `xcodebuild -project UIFoundationExample-macOS/UIFoundationExample-macOS.xcodeproj -scheme UIFoundationExample-macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build 2>&1 | xcsift`.
 
