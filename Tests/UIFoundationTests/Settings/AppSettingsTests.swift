@@ -6,6 +6,7 @@ import SwiftUI
 import Testing
 
 @testable import UIFoundationSettings
+@testable import UIFoundationSettingsUI
 
 /// Counts writes so a projected-value edit can be shown to persist.
 private final class WriteCountingStorage: SettingsStorage, @unchecked Sendable {
