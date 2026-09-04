@@ -47,8 +47,11 @@ let package = Package(
     name: "UIFoundation",
     defaultLocalization: "en",
     platforms: [
-        // AppKit
-        .macOS(.v10_15),
+        // AppKit -- macOS 12 is AppKitPlus's own floor. A binary target's platform
+        // requirement is checked on the package graph, so neither `@available` nor
+        // `#if AppKitPlus` can keep this at 10.15 while the trait is available.
+        // See Documentations/Evolutions/0017-appkitplus-layer-backed-view.md.
+        .macOS(.v12),
         // UIKit
         .iOS(.v13), .macCatalyst(.v13), .tvOS(.v13), .visionOS(.v1), .watchOS(.v6),
     ],
@@ -89,6 +92,7 @@ let package = Package(
         ),
     ],
     traits: [
+        .trait(name: "AppKitPlus"),
         .trait(name: "AppleInternal"),
         .trait(name: "FilterUI"),
         .trait(name: "IDEIcons"),
@@ -103,6 +107,23 @@ let package = Package(
         .trait(name: "WelcomePanel"),
     ],
     dependencies: [
+        // 0.2.1 is a floor, not a pin. Two earlier releases are excluded for
+        // reasons that both fail silently or confusingly:
+        //   - through 0.1.6 an `NSView (Appearance)` category declared
+        //     `backgroundColor`, which shadows `LayerBackgroundProviding`'s
+        //     property of the same name in every downstream module -- the
+        //     renderer simply stops receiving the value;
+        //   - through 0.2.0 `NSCollectionViewItem` / `NSTableCellView` carried an
+        //     extension property named `contentView`, which turns any subclass
+        //     declaring its own (such as `XiblessCollectionViewItem`) into an
+        //     illegal override. 0.2.1 renamed it `configurationContentView`.
+        // Upstream is pre-1.0 and promises no API or ABI stability, so re-check
+        // the name-collision surface across `NSView` / `NSViewController` /
+        // `NSTableCellView` / `NSCollectionViewItem` when it moves.
+        .package(
+            url: "https://github.com/AppKitSupportProgram/AppKitPlus-Release",
+            from: "0.2.1",
+        ),
         .package(
             remote: .package(
                 url: "https://github.com/Mx-Iris/FrameworkToolbox",
@@ -142,6 +163,7 @@ let package = Package(
                 "UIFoundationUtilities",
                 "UIFoundationShared",
                 .product(name: "AssociatedObject", package: "AssociatedObject"),
+                .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(traits: ["AppKitPlus"])),
             ],
             resources: [
                 .process("Resources"),
@@ -253,6 +275,7 @@ let package = Package(
                 "UIFoundationSettings",
                 .target(name: "UIFoundationSettingsUI", condition: .when(platforms: appkitPlatforms)),
                 .target(name: "UIFoundationRunningApplication", condition: .when(platforms: appkitPlatforms)),
+                .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(traits: ["AppKitPlus"])),
             ],
         ),
     ],
