@@ -20,7 +20,10 @@ final class NavigationDemoViewController: NSViewController {
 
     // MARK: - Navigation
 
-    private let navigationController = NavigationController(rootViewController: NavigationDemoPageViewController(level: 1))
+    /// Not named `navigationController`: with the `AppKitPlus` trait on, every
+    /// `NSViewController` already has a property by that name, and a stored property
+    /// here would be an illegal override of it.
+    private let navigationStackController = NavigationController(rootViewController: NavigationDemoPageViewController(level: 1))
 
     // MARK: - Controls
 
@@ -76,8 +79,8 @@ final class NavigationDemoViewController: NSViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        navigationController.delegate = self
-        addChild(navigationController)
+        navigationStackController.delegate = self
+        addChild(navigationStackController)
         buildLayout()
         wireControls()
         applyConfiguration()
@@ -133,9 +136,9 @@ final class NavigationDemoViewController: NSViewController {
             view.addSubview(subview)
         }
 
-        navigationController.view.translatesAutoresizingMaskIntoConstraints = false
+        navigationStackController.view.translatesAutoresizingMaskIntoConstraints = false
         navigationHostView.addSubview(hostMaterialView)
-        navigationHostView.addSubview(navigationController.view)
+        navigationHostView.addSubview(navigationStackController.view)
 
         NSLayoutConstraint.activate([
             controlsStackView.topAnchor.constraint(equalTo: view.topAnchor, constant: 20),
@@ -158,10 +161,10 @@ final class NavigationDemoViewController: NSViewController {
             hostMaterialView.bottomAnchor.constraint(equalTo: navigationHostView.bottomAnchor),
 
             // Constraining the *container* is fine; its pages are positioned by frame.
-            navigationController.view.topAnchor.constraint(equalTo: navigationHostView.topAnchor),
-            navigationController.view.leadingAnchor.constraint(equalTo: navigationHostView.leadingAnchor),
-            navigationController.view.trailingAnchor.constraint(equalTo: navigationHostView.trailingAnchor),
-            navigationController.view.bottomAnchor.constraint(equalTo: navigationHostView.bottomAnchor),
+            navigationStackController.view.topAnchor.constraint(equalTo: navigationHostView.topAnchor),
+            navigationStackController.view.leadingAnchor.constraint(equalTo: navigationHostView.leadingAnchor),
+            navigationStackController.view.trailingAnchor.constraint(equalTo: navigationHostView.trailingAnchor),
+            navigationStackController.view.bottomAnchor.constraint(equalTo: navigationHostView.bottomAnchor),
         ])
     }
 
@@ -240,7 +243,7 @@ final class NavigationDemoViewController: NSViewController {
     /// Repaints every page already on the stack, so the toggle takes effect without pushing.
     @objc private func transparencyDidChange() {
         let isTransparent = transparentPagesCheckbox.state == .on
-        for viewController in navigationController.viewControllers {
+        for viewController in navigationStackController.viewControllers {
             (viewController as? NavigationDemoPageViewController)?.isTransparent = isTransparent
         }
         applyConfiguration()
@@ -270,10 +273,10 @@ final class NavigationDemoViewController: NSViewController {
         configuration.pageBackdrop = pageBackdropCheckbox.state == .on ? .automatic : .none
         let inset = CGFloat(contentInsetSlider.doubleValue)
         configuration.contentInsets = NSEdgeInsets(top: inset, left: inset, bottom: inset, right: inset)
-        navigationController.configuration = configuration
+        navigationStackController.configuration = configuration
 
-        navigationController.allowsInteractivePop = interactivePopCheckbox.state == .on
-        navigationController.view.userInterfaceLayoutDirection =
+        navigationStackController.allowsInteractivePop = interactivePopCheckbox.state == .on
+        navigationStackController.view.userInterfaceLayoutDirection =
             rightToLeftCheckbox.state == .on ? .rightToLeft : .leftToRight
 
         durationValueField.stringValue = String(format: "%.2fs", durationSlider.doubleValue)
@@ -286,25 +289,25 @@ final class NavigationDemoViewController: NSViewController {
     // MARK: - Actions
 
     @objc private func pushPage() {
-        let level = navigationController.viewControllers.count + 1
+        let level = navigationStackController.viewControllers.count + 1
         let page = NavigationDemoPageViewController(level: level)
         page.isTransparent = transparentPagesCheckbox.state == .on
-        navigationController.pushViewController(page, animated: true)
+        navigationStackController.pushViewController(page, animated: true)
     }
 
     @objc private func popPage() {
-        navigationController.popViewController(animated: true)
+        navigationStackController.popViewController(animated: true)
     }
 
     @objc private func popToRoot() {
-        navigationController.popToRootViewController(animated: true)
+        navigationStackController.popToRootViewController(animated: true)
     }
 
     private func updateStackStatus() {
-        let depth = navigationController.viewControllers.count
-        stackStatusField.stringValue = "Depth \(depth) · back \(navigationController.canPop ? "available" : "unavailable")"
-        backButton.isEnabled = navigationController.canPop
-        popToRootButton.isEnabled = navigationController.canPop
+        let depth = navigationStackController.viewControllers.count
+        stackStatusField.stringValue = "Depth \(depth) · back \(navigationStackController.canPop ? "available" : "unavailable")"
+        backButton.isEnabled = navigationStackController.canPop
+        popToRootButton.isEnabled = navigationStackController.canPop
     }
 }
 
@@ -398,9 +401,9 @@ private final class NavigationDemoPageViewController: NSViewController {
     }
 
     @objc private func pushDeeper() {
-        guard let navigationController = parent as? NavigationController else { return }
+        guard let navigationStackController = parent as? NavigationController else { return }
         let page = NavigationDemoPageViewController(level: level + 1)
         page.isTransparent = isTransparent
-        navigationController.pushViewController(page, animated: true)
+        navigationStackController.pushViewController(page, animated: true)
     }
 }

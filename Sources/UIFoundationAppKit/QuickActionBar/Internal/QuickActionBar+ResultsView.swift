@@ -78,7 +78,7 @@ extension QuickActionBar.ResultsView {
 
         tableView.dataSource = self
         tableView.delegate = self
-        tableView.parent = self
+        tableView.resultsView = self
         tableView.headerView = nil
         tableView.backgroundColor = NSColor.clear
         tableView.intercellSpacing = NSSize(width: 0, height: 5)
@@ -298,19 +298,22 @@ extension QuickActionBar.ResultsView {
 
 extension QuickActionBar {
     final class ResultsTableView: NSTableView {
-        weak var parent: QuickActionBar.ResultsView?
+        /// Not named `parent`: with the `AppKitPlus` trait on, `NSView` conforms to
+        /// `NSFocusItem`, which already requires a `parent` -- a same-named property here
+        /// stops declaring one and starts illegally overriding that.
+        weak var resultsView: QuickActionBar.ResultsView?
 
         override func keyDown(with event: NSEvent) {
-            guard let parent = parent else { fatalError() }
+            guard let resultsView else { fatalError() }
 
             if event.keyCode == 0x24 { // kVK_Return
-                parent.rowAction()
+                resultsView.rowAction()
             } else if event.keyCode == 0x7B { // kVK_LeftArrow
-                parent.backAction()
+                resultsView.backAction()
             } else if event.modifierFlags.contains(.command),
                       let characters = event.characters,
                       let shortcutIndex = Int(characters) {
-                if parent.performShortcutAction(for: shortcutIndex) {
+                if resultsView.performShortcutAction(for: shortcutIndex) {
                     return
                 } else {
                     super.keyDown(with: event)
