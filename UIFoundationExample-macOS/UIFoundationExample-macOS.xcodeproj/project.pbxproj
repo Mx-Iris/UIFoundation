@@ -352,6 +352,7 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../UIFoundation;
 			traits = (
+				AppKitPlus,
 				AppleInternal,
 				FilterUI,
 				IDEIcons,
