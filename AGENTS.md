@@ -97,6 +97,9 @@ All views and controllers are created in code (no Xib/Storyboard):
 NSView  ·or·  NSLayerBackedView   (the latter with the `AppKitPlus` trait on)
  └── LayerBackedView      (wantsLayer=true, updateLayer path, setup(), firstLayout())
       └── XiblessView     (init?(coder:) marked @available(*, unavailable))
+
+NSViewController ·or· NSLayerBackedViewController   (the latter with the trait on)
+ └── LayerBackedViewController<View: LayerBackedView>
 ```
 
 The base class is a `LayerBackedViewBase` typealias resolved by the `AppKitPlus` trait; see the
@@ -110,6 +113,24 @@ and without the `canImport` half that combination fails on the `import` rather t
 - `setup()` — subclass override point for initialization, called from both `init(frame:)` and `init?(coder:)`.
 - `firstLayout()` — called exactly once on first `layout()`, using a `lazy var _firstLayout: Void` trick. Use for size-dependent setup.
 - Controllers: `XiblessViewController<View: NSUIView>` takes a generic `contentView` via `@autoclosure` factory, assigned in `loadView()`.
+- `LayerBackedViewController<View: LayerBackedView>` (`Controller/LayerBackedViewController.swift`) is
+  the controller-side counterpart, same `contentView` shape, base class resolved by the same trait
+  guard (`LayerBackedViewControllerBase`). Decision record is Evolution
+  [`0018`](Documentations/Evolutions/0018-layer-backed-view-controller.md). Three things to know:
+  - **Overriding `loadView()` is safe.** `NSLayerBackedViewController` does its wiring in
+    `-setView:` — the view's back reference, the layout guides, the additional safe-area insets,
+    the safe-area KVO — not in `-loadView`, so assigning `view` keeps all six of its hooks
+    attached. `LayerBackedViewControllerTests` keeps a canary on it through `layerBackedView`,
+    which goes `nil` exactly when that path stopped recognising the root view.
+  - **Only two of the six hooks survive the trait being off.** `viewWillFirstAppear` /
+    `viewDidFirstAppear` are polyfilled here (driven from `viewWillAppear()` / `viewDidAppear()`,
+    `super` first then the flag then the hook, matching AppKitPlus). `viewWillFirstLayout` /
+    `viewDidFirstLayout` / `viewUpdateLayer` / `viewSafeAreaInsetsDidChange` are driven by the view
+    and are **not** polyfilled — a subclass overriding one of those must wrap the override in
+    `#if AppKitPlus && canImport(AppKitPlus)` or it will not compile with the trait off.
+  - The overridden `loadView()` reproduces the one thing AppKitPlus's own does besides installing
+    the view: `autoresizingMask = [.width, .height]`. `XiblessViewController` does not do this and
+    was deliberately left alone.
 
 ### `LayerBackgroundRenderer` & `LayerBackgroundProviding`
 
@@ -173,7 +194,7 @@ source targets.
 **With the trait off, SPM does not fetch it at all** — no `Package.resolved` entry, no clone, no
 download. Measured. Default consumers pay nothing beyond the floor.
 
-**The version floor is 0.2.1, and the two excluded releases both fail silently.** Through 0.1.6 an
+**The version floor is 0.3.1, and the two releases excluded before it both failed silently.** Through 0.1.6 an
 `NSView (Appearance)` category declared `backgroundColor`, which shadows
 `LayerBackgroundProviding`'s property of the same name — the renderer simply stops receiving the
 value, in this module *and* in every downstream one, and `LayerBackedTableCellView` was hit too
