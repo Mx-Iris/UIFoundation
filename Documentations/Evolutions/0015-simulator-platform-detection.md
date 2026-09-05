@@ -1,14 +1,21 @@
 # 0015 - 进程平台识别与模拟器标记
 
-- **状态**: Implemented
+- **状态**: Withdrawn
 - **作者**: JH
 - **创建日期**: 2026-08-24
-- **最后更新**: 2026-08-24
+- **最后更新**: 2026-09-05
 - **所属愿景**: 无
 - **关联提案**: [0016 - 选择器呈现样式（表格与列表）](0016-picker-presentation-styles.md) —— 重新裁决了本提案引入的 Platform 列的呈现方式
 - **实现分支 / PR**: main
-- **配套文档**: [平台识别：实现说明](../Internal/PlatformDetection.md)
+- **配套文档**: 实现说明 `Documentations/Internal/PlatformDetection.md` 已随撤销一并删除
 
+
+> **本提案已于 2026-09-05 撤销**，随 [0014](0014-running-application-merge.md) 把
+> RunningApplication 整体移出本库 —— 撤销的范围与理由记在 0014 的「撤销」一节。
+> 本提案的成果（`Platform` 枚举、`MachOPlatform`、模拟器标记）已不在代码库中。
+> 状态之外正文一字未改。原始实现仍存于独立仓库
+> [`Mx-Iris/RunningApplicationKit`](https://github.com/Mx-Iris/RunningApplicationKit)，
+> 本提案在那里的编号是 `0001`。
 
 > **移植说明。** 本提案原属独立仓库
 > [`Mx-Iris/RunningApplicationKit`](https://github.com/Mx-Iris/RunningApplicationKit)，
@@ -421,3 +428,4 @@ API 并占用头部空间；扩展搜索匹配已能达成「快速定位」，�
 | 2026-08-24 | 收尾判断二：登记新术语 | 判定**需要**。项目级 `Documentations/Glossary.md` 新建并收录 `guest 进程`、`platform`（与 `architecture` 的区别）、`ExclaveCore / ExclaveKit`；跨项目通用的 `slice（架构分片）` 登记到全局术语表。 |
 | 2026-08-24 | 实现细化四处，差异记在实现说明 | slice 回退由三级细化为四级（多一级应对 Rosetta 进程）；搜索匹配落在泛型基类因而两个标签页都生效；`ThreadSafeCache` 由 private 提取为共享 internal 类型；性能数字实测更精确（冷 14.8 ms / 热 2.6 ms）。按规矩提案保持历史原貌，逐条差异写在实现说明的「与提案的差异」一节。 |
 | 2026-08-25 | 分配编号 0001 | 落地 commit 中取号：fetch 全部共享分支后，`Documentations/Evolutions/` 下无任何已编号提案，故取全局最大值 + 1 = 0001，由 `draft-simulator-platform-detection.md` 改名而来。 |
+| 2026-09-05 | Implemented → Withdrawn | 随 [0014](0014-running-application-merge.md) 把 RunningApplication 整体移出本库。配套实现说明 `Internal/PlatformDetection.md` 一并删除，术语表里本提案登记的 `guest 进程` / `platform` / `ExclaveCore / ExclaveKit` 三条随之移除。原始实现仍在独立仓库 RunningApplicationKit 中。 |

@@ -1,14 +1,22 @@
 # 0014 - RunningApplication：把 RunningApplicationKit 整体并入本库
 
-- **状态**: Implemented
+- **状态**: Withdrawn
 - **作者**: JH
 - **创建日期**: 2026-08-27
-- **最后更新**: 2026-08-27
+- **最后更新**: 2026-09-05
 - **所属愿景**: 无
 - **关联提案**: 本次同批并入两份原库历史提案（见「文档迁移」一节）；移植先例见
-  [`0011`](0011-welcome-panel.md)（WelcomeKit）
+  [`0011`](0011-welcome-panel.md)（WelcomeKit）。撤销同批处理
+  [`0015`](0015-simulator-platform-detection.md) 与 [`0016`](0016-picker-presentation-styles.md)
 - **实现分支 / PR**: main（与本提案同批次提交）
-- **配套文档**: 使用指南 [`Documentations/RunningApplication.md`](../RunningApplication.md)；实现说明 [`Internal/PlatformDetection.md`](../Internal/PlatformDetection.md) 与 [`Internal/PresentationStyles.md`](../Internal/PresentationStyles.md)；术语表 [`Glossary.md`](../Glossary.md)
+- **配套文档**: 原有的使用指南 `Documentations/RunningApplication.md` 与两份实现说明
+  `Internal/PlatformDetection.md` / `Internal/PresentationStyles.md` 已随撤销一并删除；
+  术语表 [`Glossary.md`](../Glossary.md) 仍在，其中随本提案登记的四个词条已移除
+
+> **本提案已于 2026-09-05 撤销。** `UIFoundationRunningApplication` target、`RunningApplication`
+> trait、product、测试与示例 demo 已全部从本库移除，本提案落地的成果不再存在于代码库中。
+> **以下正文保持原貌，一字未改** —— 提案是决策快照，撤销不改写历史，只改状态。
+> 撤销的经过记在文末的「撤销」一节。
 
 ## 摘要
 
@@ -355,3 +363,27 @@ GitHub URL 与四个下游的 `Package.swift` 一行都不用改。否决理由�
 通过 `alignmentFrame(_:in:)` 断言。
 
 并入后全套测试 192 个、20 个 suite，全绿。
+
+## 撤销
+
+**2026-09-05，状态 Implemented → Withdrawn。** 用户决定把 RunningApplication 整体从本库去掉，
+本提案连同随它并入的 [`0015`](0015-simulator-platform-detection.md) /
+[`0016`](0016-picker-presentation-styles.md) 一并撤销。
+
+移除的范围，与本提案「落地形态」一节逐项对应：
+
+- `Sources/UIFoundationRunningApplication/`（23 个文件，4094 行）与
+  `Tests/UIFoundationTests/RunningApplication/`（8 个文件，1582 行）
+- `Package.swift` 里的 product、trait `RunningApplication`、target 与测试依赖四处
+- 示例 app 的 `RunningApplicationPickerDemoViewController`、`DemoCatalog` 注册条目，
+  以及 `project.pbxproj` 里的 trait、product 依赖与 Frameworks 链接
+- 使用指南 `Documentations/RunningApplication.md`、两份实现说明
+  `Documentations/Internal/`（该目录只装这两篇，随之消失）、术语表里随本提案登记的四个词条，
+  以及文档索引、根 `README.md`、`CLAUDE.md` 中的相关段落
+
+**这是破坏性改动**：`import UIFoundationRunningApplication` 的下游会编译失败。本提案「落地范围」
+一节记录的四个下游（RuntimeViewer / HopperMCP / MachInjector / LookInside）当时就没有迁移过来，
+仍依赖独立仓库 [`Mx-Iris/RunningApplicationKit`](https://github.com/Mx-Iris/RunningApplicationKit)
+（并入时原地保留，未归档），因此实际受影响的使用方为零 —— 需要这套能力的项目回到原仓库即可。
+
+按提案制的规定，撤销本身未另立提案（用户明确指示直接执行）。

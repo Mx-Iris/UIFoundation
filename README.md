@@ -26,7 +26,6 @@ dependencies: [
 | **UIFoundation** | Umbrella library re-exporting all public sub-modules |
 | **UIFoundationToolbox** | Standalone extensions and utilities (usable independently) |
 | **UIFoundationAppleInternal** | Private API wrappers (**App Store rejection risk**) |
-| **UIFoundationRunningApplication** | Running applications and BSD processes — models, observers, picker UI (macOS 11+, not in the umbrella) |
 
 ## Usage
 
@@ -300,45 +299,6 @@ Three styles imitate three Xcode generations: `.xcode14` is a titled window with
 The project list is pulled, not pushed — the data source is re-asked when it is assigned, on every `showWindow(_:)`, and whenever the window becomes visible again. Return `true` from `welcomePanelUsesRecentDocumentURLs(_:)` to take the list straight from `NSDocumentController` instead of supplying one.
 
 See [`Documentations/WelcomePanel.md`](Documentations/WelcomePanel.md) for the full guide — the seven host contracts and the style table — and [`Researchs/Xcode26-WelcomeWindow-Internals.md`](Researchs/Xcode26-WelcomeWindow-Internals.md) for how the Xcode 26 style was measured.
-
-### Running Application Picker
-
-Enable the `RunningApplication` trait for the running-application / BSD-process picker, plus the value-type models and observers behind it. macOS 11+:
-
-```swift
-.package(
-    url: "https://github.com/Mx-Iris/UIFoundation",
-    from: "0.13.0",
-    traits: ["RunningApplication"]
-)
-```
-
-This one is **not part of the `UIFoundation` umbrella** — its macOS 11 floor is higher than the package's 10.15, and joining the umbrella would raise that floor for everyone. Depend on the product and import it directly:
-
-```swift
-.product(name: "UIFoundationRunningApplication", package: "UIFoundation")
-```
-
-```swift
-import UIFoundationRunningApplication
-
-let picker = RunningPickerTabViewController(
-    processConfiguration: .init(style: .list, allowsFields: [.icon, .name, .pid, .executablePath])
-)
-picker.delegate = self
-NSWindow(contentViewController: picker).makeKeyAndOrderFront(nil)
-```
-
-Each tab renders as a multi-column `.table` or a `.list` of rows carrying a name, inline badges and a subtitle; the style can be switched at runtime and selection, search text and sort survive it. The two styles treat an unremarkable value oppositely on purpose — a list omits it, a table prints it in a receded colour, because a column of blanks reads as broken.
-
-Models come with architecture, platform and sandbox detection. `Platform` is read from the executable's Mach-O `LC_BUILD_VERSION`, which is what identifies simulator processes — architecture cannot, since a process inside an iOS Simulator on Apple silicon runs as native `arm64`, exactly like its host counterparts.
-
-```swift
-let simulated = RunningProcessEnumerator.listProcesses()
-    .filter { $0.platform?.isSimulator == true }
-```
-
-See [`Documentations/RunningApplication.md`](Documentations/RunningApplication.md) for the full guide — the four host contracts (most importantly that a `nil` platform means "unknown", not "not a simulator") and the known limitations.
 
 ### Cross-Platform Typealias
 

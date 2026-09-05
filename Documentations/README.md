@@ -50,25 +50,8 @@
   「启动时显示」复选框只有 `.xcode14` 才有。`.xcode26` 是**按 Xcode 26 抓包实测重做的复刻**
   （毛玻璃 = `.fullScreenUI`，圆角 20，标题 36 bold，胶囊操作行，深色自带图标辉光）。
 
-- [RunningApplication](RunningApplication.md) —— 运行中的应用与 BSD 进程：值类型模型（架构 /
-  平台 / 沙盒判定）、两个观察者，以及一个带搜索与排序的选择器（表格与列表两种呈现）。
-  **不在伞包里**，要单独依赖 product 并 `import UIFoundationRunningApplication`。
-  含四条宿主契约，最容易踩的是 **`platform` 为 `nil` 的含义是「不知道」而不是「不是模拟器」**
-  （约 5% 的受保护进程读不到路径），以及行高 / 图标尺寸的默认值**随样式变、显式设过就锁死**。
-  另有「架构判不出模拟器」的成因、只标 guest 进程的判据，以及两种样式对「不值一提的值」
-  刚好相反的处理。
-
-## 实现说明
-
-面向维护者：最终怎么实现的、为什么这么实现、有什么降级。
-
-| 文档 | 说明 |
-|------|------|
-| [Internal/PlatformDetection.md](Internal/PlatformDetection.md) | 平台识别的落地细节：内核为什么问不到、slice 四级回退的实测依据、变异测试结论与已知降级 |
-| [Internal/PresentationStyles.md](Internal/PresentationStyles.md) | 表格与列表两种呈现的落地细节：为什么列表仍是 NSTableView、样式默认值怎么不破坏公开类型、骨架屏与提案的差异 |
-
 ## 术语表
 
 | 文档 | 说明 |
 |------|------|
-| [Glossary.md](Glossary.md) | 本库术语：field 与 column 之别、style、guest 进程、platform 与 architecture 之别、ExclaveCore / ExclaveKit |
+| [Glossary.md](Glossary.md) | 本库术语。**当前为空** —— 原有五条随 RunningApplication 的撤销一并移除（见 [0014](Evolutions/0014-running-application-merge.md)），骨架与维护约定保留待新术语登记 |

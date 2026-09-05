@@ -11,7 +11,6 @@
 		E94046832FB61EB0008552BF /* UIFoundationToolbox in Frameworks */ = {isa = PBXBuildFile; productRef = E94046822FB61EB0008552BF /* UIFoundationToolbox */; };
 		E94046912FB61EB0008552BF /* UIFoundationSettings in Frameworks */ = {isa = PBXBuildFile; productRef = E94046902FB61EB0008552BF /* UIFoundationSettings */; };
 		E94046932FB61EB0008552BF /* UIFoundationSettingsUI in Frameworks */ = {isa = PBXBuildFile; productRef = E94046922FB61EB0008552BF /* UIFoundationSettingsUI */; };
-		E94046A12FB61EB0008552BF /* UIFoundationRunningApplication in Frameworks */ = {isa = PBXBuildFile; productRef = E94046A02FB61EB0008552BF /* UIFoundationRunningApplication */; };
 		E943A7DD2AF76F1100526917 /* UIFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = E943A7DC2AF76F1100526917 /* UIFoundation */; };
 /* End PBXBuildFile section */
 
@@ -36,7 +35,6 @@
 				E94046832FB61EB0008552BF /* UIFoundationToolbox in Frameworks */,
 				E94046912FB61EB0008552BF /* UIFoundationSettings in Frameworks */,
 				E94046932FB61EB0008552BF /* UIFoundationSettingsUI in Frameworks */,
-				E94046A12FB61EB0008552BF /* UIFoundationRunningApplication in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -89,7 +87,6 @@
 				E94046822FB61EB0008552BF /* UIFoundationToolbox */,
 				E94046902FB61EB0008552BF /* UIFoundationSettings */,
 				E94046922FB61EB0008552BF /* UIFoundationSettingsUI */,
-				E94046A02FB61EB0008552BF /* UIFoundationRunningApplication */,
 			);
 			productName = "UIFoundationExample-macOS";
 			productReference = E943A7A92AF76E0E00526917 /* UIFoundationExample-macOS.app */;
@@ -359,7 +356,6 @@
 				Navigation,
 				NSAttributedStringBuilder,
 				QuickActionBar,
-				RunningApplication,
 				Settings,
 				StatusItemController,
 				SystemHUD,
@@ -385,10 +381,6 @@
 		E94046922FB61EB0008552BF /* UIFoundationSettingsUI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = UIFoundationSettingsUI;
-		};
-		E94046A02FB61EB0008552BF /* UIFoundationRunningApplication */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = UIFoundationRunningApplication;
 		};
 		E943A7DC2AF76F1100526917 /* UIFoundation */ = {
 			isa = XCSwiftPackageProductDependency;

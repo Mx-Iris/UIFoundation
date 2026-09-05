@@ -1,14 +1,21 @@
 # 0016 - 选择器呈现样式（表格与列表）
 
-- **状态**: Implemented
+- **状态**: Withdrawn
 - **作者**: JH
 - **创建日期**: 2026-08-25
-- **最后更新**: 2026-08-25
+- **最后更新**: 2026-09-05
 - **所属愿景**: 无
 - **关联提案**: [0015 - 进程平台识别与模拟器标记](0015-simulator-platform-detection.md)
 - **实现分支 / PR**: main
-- **配套文档**: [呈现样式：实现说明](../Internal/PresentationStyles.md)
+- **配套文档**: 实现说明 `Documentations/Internal/PresentationStyles.md` 已随撤销一并删除
 
+
+> **本提案已于 2026-09-05 撤销**，随 [0014](0014-running-application-merge.md) 把
+> RunningApplication 整体移出本库 —— 撤销的范围与理由记在 0014 的「撤销」一节。
+> 本提案的成果（表格 / 列表两种呈现样式、`allowsFields` 改名）已不在代码库中。
+> 状态之外正文一字未改。原始实现仍存于独立仓库
+> [`Mx-Iris/RunningApplicationKit`](https://github.com/Mx-Iris/RunningApplicationKit)，
+> 本提案在那里的编号是 `0002`。
 
 > **移植说明。** 本提案原属独立仓库
 > [`Mx-Iris/RunningApplicationKit`](https://github.com/Mx-Iris/RunningApplicationKit)，
@@ -449,3 +456,4 @@ final class SortControl: NSPopUpButton { }
 | 2026-08-26 | 新增 `PickerStructureTests`，并修正测试方法论 | 四个 bug 连续绕过纯函数测试，故把结构检查固化下来。过程中学到两条：行必须用**约束**定尺寸而非设 frame、picker 必须装在**真实 window** 里 —— 否则 AppKit 顺手做的 autoresizing 会盖住故障。以及列宽那条断言最初写成「列宽 ≈ 表格宽」，改回 bug 后仍然是绿的；换成「建列后、layout 前，宽度不是默认的 100」才咬得住。测最终效果易被间接行为糊弄，测代码本身做了什么才可靠。 |
 | 2026-08-26 | 徽章改版：沙盒锁改文字、平台按家族着色 | 用户反馈两点：绿色锁形图标不如文字直接；Mac Catalyst 与 DriverKit 都用 `secondaryLabelColor`，深色下糊成一片灰。改为沙盒徽章显示 `Sandboxed`、平台徽章一个 OS 家族一个色（iOS 蓝 / tvOS 紫 / watchOS 粉 / visionOS 靛 / Catalyst 青 / DriverKit 棕）。模拟器与真机共用家族色、靠文字区分 —— 颜色回答「哪个平台」，拆开就不回答了。`ListRowBadge` 随之从两个 case 的枚举简化为 `struct { text, color }`。 |
 | 2026-08-26 | 表格样式补上配色 | 用户反馈表格「太单调」。Platform 与 Arch 两列改用与列表相同的 pill，共用 `BadgeView`。**缺省值处理刻意与列表相反**：列表里不值得注意的直接不画，表格里照常画但压成次要色 —— 一整列空格在表格里读起来像坏了，这正是当初 Arch 列被抱怨的原因。PID 虽然也在上色之列，但**不用 pill**：pill 是分类值的形式，PID 是唯一标识符，装进胶囊会暗示它能把行分组；改用等宽数字加次要色。表格默认行高 25 → 28pt 以容纳 pill，**弃用的旧 init 仍显式传 25pt**，旧调用方零变化（有测试钉住）。 |
+| 2026-09-05 | Implemented → Withdrawn | 随 [0014](0014-running-application-merge.md) 把 RunningApplication 整体移出本库。配套实现说明 `Internal/PresentationStyles.md` 一并删除，术语表里本提案登记的 `field 与 column` / `style` 两条随之移除。原始实现仍在独立仓库 RunningApplicationKit 中。 |

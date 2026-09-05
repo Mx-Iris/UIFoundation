@@ -83,13 +83,6 @@ let package = Package(
                 "UIFoundationSettingsUI",
             ],
         ),
-
-        .library(
-            name: "UIFoundationRunningApplication",
-            targets: [
-                "UIFoundationRunningApplication",
-            ],
-        ),
     ],
     traits: [
         .trait(name: "AppKitPlus"),
@@ -99,7 +92,6 @@ let package = Package(
         .trait(name: "Navigation"),
         .trait(name: "NSAttributedStringBuilder"),
         .trait(name: "QuickActionBar"),
-        .trait(name: "RunningApplication"),
         .trait(name: "Settings"),
         .trait(name: "StatusItemController"),
         .trait(name: "SystemHUD"),
@@ -252,21 +244,6 @@ let package = Package(
             swiftSettings: swiftSettings,
         ),
 
-        // Running applications and BSD processes: value-type models with architecture /
-        // platform / sandbox detection, two observer actors, and a picker UI. Kept out of
-        // the umbrella because its macOS 11 floor is higher than the package's 10.15 --
-        // joining it would raise the floor for every consumer.
-        .target(
-            name: "UIFoundationRunningApplication",
-            dependencies: [
-                "UIFoundationAppKit",
-                "UIFoundationToolbox",
-                "UIFoundationUtilities",
-                "UIFoundationShared",
-            ],
-            swiftSettings: swiftSettings + [.swiftLanguageMode(.v6)],
-        ),
-
         .testTarget(
             name: "UIFoundationTests",
             dependencies: [
@@ -274,7 +251,6 @@ let package = Package(
                 "UIFoundationToolbox",
                 "UIFoundationSettings",
                 .target(name: "UIFoundationSettingsUI", condition: .when(platforms: appkitPlatforms)),
-                .target(name: "UIFoundationRunningApplication", condition: .when(platforms: appkitPlatforms)),
                 .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(traits: ["AppKitPlus"])),
             ],
         ),
