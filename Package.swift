@@ -99,27 +99,14 @@ let package = Package(
         .trait(name: "WelcomePanel"),
     ],
     dependencies: [
-        // 0.2.1 is a floor, not a pin. Two earlier releases are excluded for
-        // reasons that both fail silently or confusingly:
-        //   - through 0.1.6 an `NSView (Appearance)` category declared
-        //     `backgroundColor`, which shadows `LayerBackgroundProviding`'s
-        //     property of the same name in every downstream module -- the
-        //     renderer simply stops receiving the value;
-        //   - through 0.2.0 `NSCollectionViewItem` / `NSTableCellView` carried an
-        //     extension property named `contentView`, which turns any subclass
-        //     declaring its own (such as `XiblessCollectionViewItem`) into an
-        //     illegal override. 0.2.1 renamed it `configurationContentView`.
-        // Upstream is pre-1.0 and promises no API or ABI stability, so re-check
-        // the name-collision surface across `NSView` / `NSViewController` /
-        // `NSTableCellView` / `NSCollectionViewItem` when it moves.
         .package(
             url: "https://github.com/AppKitSupportProgram/AppKitPlus-Release",
-            from: "0.2.1",
+            from: "0.3.1",
         ),
         .package(
             remote: .package(
                 url: "https://github.com/Mx-Iris/FrameworkToolbox",
-                from: "0.7.4",
+                from: "0.12.0",
             ),
         ),
         .package(
