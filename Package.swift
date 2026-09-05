@@ -142,7 +142,7 @@ let package = Package(
                 "UIFoundationUtilities",
                 "UIFoundationShared",
                 .product(name: "AssociatedObject", package: "AssociatedObject"),
-                .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(traits: ["AppKitPlus"])),
+                .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(platforms: appkitPlatforms, traits: ["AppKitPlus"])),
             ],
             resources: [
                 .process("Resources"),
@@ -238,7 +238,7 @@ let package = Package(
                 "UIFoundationToolbox",
                 "UIFoundationSettings",
                 .target(name: "UIFoundationSettingsUI", condition: .when(platforms: appkitPlatforms)),
-                .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(traits: ["AppKitPlus"])),
+                .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(platforms: appkitPlatforms, traits: ["AppKitPlus"])),
             ],
         ),
     ],

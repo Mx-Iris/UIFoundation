@@ -223,7 +223,7 @@ dependencies: [
     name: "UIFoundationAppKit",
     dependencies: [
         // …既有依赖
-        .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(traits: ["AppKitPlus"])),
+        .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(platforms: appkitPlatforms, traits: ["AppKitPlus"])),
     ],
     // …
 ),
@@ -426,3 +426,4 @@ AppKitPlus 的行为。
 | 2026-09-04 | 版本约束由 `.exact("0.2.0")` 改为 `from: "0.2.0"` | 用户决定。放弃上游 README「pin 精确版本」的建议：两个仓库同一作者，破坏性变更同步处理，逐次改 manifest 不划算。代价是 SPM 的 `from:` 对 0.x 同样是 up-to-next-major，0.3.0 会被自动取用，因此上游发新 minor 时必须重新复查名字冲突面。 |
 | 2026-09-04 | In Progress → Implemented | 代码、测试、示例、文档同批次落地；验证矩阵见「落地步骤」。收尾判断：**不需要**独立使用指南 —— 唯一的宿主契约是命名约束，写在 `CLAUDE.md` 的「AppKitPlus」一节即可，单独开一篇会让它更难被读到。**未引入新术语**，术语表不动。 |
 | 2026-09-04 | 示例 app 启用该 trait；不配置 local 依赖切换 | 未经询问的假设：示例部署目标已是 14.0，启用无成本且能常驻验证 trait 开启路径；本机 AppKitPlus 源码仓库不是 SPM 包，local 切换无收益。 |
+| 2026-09-06 | 补平台条件：`.when(traits:)` → `.when(platforms: appkitPlatforms, traits:)` | 原写法只按 trait 门控，漏了平台。AppKitPlus 只发 macOS 切片的 xcframework，因此**任何开启该 trait 的下游，其 iOS / tvOS / visionOS 构建必然链接失败**（`no library for this platform was found`），报错点同时出现在 `UIFoundationAppKit` 和下游自己的 target 上。本库自测发现不了：trait 默认关闭，且本库的验证矩阵未覆盖「trait 开启 + 非 macOS 平台」这一格。由 RuntimeViewer 的发布构建暴露 —— 它启用该 trait 后，CI 跑满一小时挂在 iOS Simulator 那一步。修复后实测：下游 iOS Simulator 构建从 exit 65 变 exit 0，macOS 构建仍以 `-DAppKitPlus` 编译 `UIFoundationAppKit` 并链接框架。trait 的编译标志在非 macOS 上仍会传入，无害 —— `LayerBackedView.swift` 的守卫是 `#if AppKitPlus && canImport(AppKitPlus)`，第二个条件在那里为假，这也正是当初写两重条件的意义。 |
