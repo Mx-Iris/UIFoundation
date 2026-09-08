@@ -1,10 +1,11 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
+import UIFoundationToolbox
 
 extension NSToolbar {
     /// A toolbar item that hosts an `NSButton`.
-    open class Button: ToolbarItem {
+    open class Button: ActionableToolbarItem {
 
         private lazy var _item = ButtonNSToolbarItem(for: self)
         public override var item: NSToolbarItem { _item }
@@ -12,7 +13,9 @@ extension NSToolbar {
         /// The button hosted by the toolbar item.
         public let button: NSButton
 
-        private var actionTrampoline: ToolbarActionTrampoline?
+        /// The action lands on the button rather than on the item wrapper — the button is what
+        /// AppKit sends the message from.
+        open override var actionHost: any TargetActionProvider { button }
 
         // MARK: - Button chainables
 
@@ -59,9 +62,10 @@ extension NSToolbar {
         }
 
         /// Sets whether the button has a border.
+        @available(*, deprecated, renamed: "isBordered(_:)")
         @discardableResult
         public func bordered(_ isBordered: Bool) -> Self {
-            button.isBordered = isBordered
+            self.isBordered = isBordered
             return self
         }
 
@@ -136,8 +140,19 @@ extension NSToolbar {
 
         /// The handler called when the user clicks the button.
         public var actionBlock: ((NSToolbar.Button) -> Void)? {
-            didSet { installAction() }
+            get { storedActionBlock }
+            set {
+                storedActionBlock = newValue
+                installActionHandler(newValue.map { handler in
+                    { [weak self] in
+                        guard let self else { return }
+                        handler(self)
+                    }
+                })
+            }
         }
+
+        private var storedActionBlock: ((NSToolbar.Button) -> Void)?
 
         /// Sets the handler called when the user clicks the button.
         @discardableResult
@@ -146,42 +161,8 @@ extension NSToolbar {
             return self
         }
 
-        /// The action selector called when the user clicks the button.
-        public var action: Selector? {
-            get { actionTrampoline == nil ? button.action : nil }
-            set {
-                actionBlock = nil
-                button.action = newValue
-            }
-        }
-
-        /// The target that receives the action message.
-        public var target: AnyObject? {
-            get { actionTrampoline == nil ? button.target : nil }
-            set {
-                actionBlock = nil
-                button.target = newValue
-            }
-        }
-
-        private func installAction() {
-            if let actionBlock = actionBlock {
-                let trampoline = ToolbarActionTrampoline { [weak self] in
-                    guard let self = self else { return }
-                    actionBlock(self)
-                }
-                actionTrampoline = trampoline
-                button.target = trampoline
-                button.action = ToolbarActionTrampoline.invokeSelector
-            } else {
-                if button.action == ToolbarActionTrampoline.invokeSelector {
-                    button.action = nil
-                }
-                if button.target === actionTrampoline {
-                    button.target = nil
-                }
-                actionTrampoline = nil
-            }
+        open override func clearActionBlockStorage() {
+            storedActionBlock = nil
         }
 
         // MARK: - Init

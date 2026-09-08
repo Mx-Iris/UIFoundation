@@ -4,12 +4,10 @@ import AppKit
 
 extension NSToolbar {
     /// A standard toolbar item with a title, image, and optional click action.
-    open class Item: ToolbarItem {
+    open class Item: ActionableToolbarItem {
 
         private lazy var _item = ItemNSToolbarItem(for: self)
         public override var item: NSToolbarItem { _item }
-
-        private var actionTrampoline: ToolbarActionTrampoline?
 
         // MARK: - Title / image
 
@@ -47,31 +45,11 @@ extension NSToolbar {
             return self
         }
 
-        /// A Boolean value indicating whether the item has a bordered style.
-        open var isBordered: Bool {
-            get { _item.isBordered }
-            set { _item.isBordered = newValue }
-        }
-
         /// Sets the Boolean value indicating whether the item has a bordered style.
+        @available(*, deprecated, renamed: "isBordered(_:)")
         @discardableResult
         open func bordered(_ isBordered: Bool) -> Self {
-            _item.isBordered = isBordered
-            return self
-        }
-
-        /// A Boolean value indicating whether the item behaves as a navigation item.
-        @available(macOS 12.0, *)
-        open var isNavigational: Bool {
-            get { _item.isNavigational }
-            set { _item.isNavigational = newValue }
-        }
-
-        /// Sets the Boolean value indicating whether the item behaves as a navigation item.
-        @available(macOS 12.0, *)
-        @discardableResult
-        open func isNavigational(_ isNavigational: Bool) -> Self {
-            _item.isNavigational = isNavigational
+            self.isBordered = isBordered
             return self
         }
 
@@ -79,8 +57,19 @@ extension NSToolbar {
 
         /// The handler called when the user clicks the item.
         public var actionBlock: ((NSToolbar.Item) -> Void)? {
-            didSet { installAction() }
+            get { storedActionBlock }
+            set {
+                storedActionBlock = newValue
+                installActionHandler(newValue.map { handler in
+                    { [weak self] in
+                        guard let self else { return }
+                        handler(self)
+                    }
+                })
+            }
         }
+
+        private var storedActionBlock: ((NSToolbar.Item) -> Void)?
 
         /// Sets the handler called when the user clicks the item.
         @discardableResult
@@ -89,56 +78,8 @@ extension NSToolbar {
             return self
         }
 
-        /// The action selector called when the user clicks the item.
-        public var action: Selector? {
-            get { actionTrampoline == nil ? _item.action : nil }
-            set {
-                actionBlock = nil
-                _item.action = newValue
-            }
-        }
-
-        /// Sets the action selector called when the user clicks the item.
-        @discardableResult
-        public func action(_ action: Selector?) -> Self {
-            self.action = action
-            return self
-        }
-
-        /// The target that receives the action message.
-        public var target: AnyObject? {
-            get { actionTrampoline == nil ? _item.target : nil }
-            set {
-                actionBlock = nil
-                _item.target = newValue
-            }
-        }
-
-        /// Sets the target that receives the action message.
-        @discardableResult
-        public func target(_ target: AnyObject?) -> Self {
-            self.target = target
-            return self
-        }
-
-        private func installAction() {
-            if let actionBlock = actionBlock {
-                let trampoline = ToolbarActionTrampoline { [weak self] in
-                    guard let self = self else { return }
-                    actionBlock(self)
-                }
-                actionTrampoline = trampoline
-                _item.target = trampoline
-                _item.action = ToolbarActionTrampoline.invokeSelector
-            } else {
-                if _item.action == ToolbarActionTrampoline.invokeSelector {
-                    _item.action = nil
-                }
-                if _item.target === actionTrampoline {
-                    _item.target = nil
-                }
-                actionTrampoline = nil
-            }
+        open override func clearActionBlockStorage() {
+            storedActionBlock = nil
         }
 
         // MARK: - Init

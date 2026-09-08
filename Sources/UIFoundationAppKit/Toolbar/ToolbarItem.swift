@@ -151,6 +151,39 @@ open class ToolbarItem: NSObject {
         return self
     }
 
+    /// A Boolean value indicating whether the item has a bordered style.
+    ///
+    /// AppKit's own documentation scopes this to items without a custom view, but the setter
+    /// forwards to the view when there is one (measured on macOS 26 — an `NSButton` hosted by
+    /// the item picks the value up through `setBordered:`), which is why this lives on every
+    /// item rather than only on the ones that draw their own button.
+    open var isBordered: Bool {
+        get { item.isBordered }
+        set { item.isBordered = newValue }
+    }
+
+    /// Sets the Boolean value indicating whether the item has a bordered style.
+    @discardableResult
+    open func isBordered(_ isBordered: Bool) -> Self {
+        item.isBordered = isBordered
+        return self
+    }
+
+    /// A Boolean value indicating whether the item behaves as a navigation item.
+    @available(macOS 11.0, *)
+    open var isNavigational: Bool {
+        get { item.isNavigational }
+        set { item.isNavigational = newValue }
+    }
+
+    /// Sets the Boolean value indicating whether the item behaves as a navigation item.
+    @available(macOS 11.0, *)
+    @discardableResult
+    open func isNavigational(_ isNavigational: Bool) -> Self {
+        item.isNavigational = isNavigational
+        return self
+    }
+
     /// The tooltip displayed when someone hovers over the item.
     open var toolTip: String? {
         get { item.toolTip }

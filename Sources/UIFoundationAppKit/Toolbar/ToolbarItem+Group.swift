@@ -4,7 +4,7 @@ import AppKit
 
 extension NSToolbar {
     /// A group of subitems that the system displays as a single toolbar item.
-    open class Group: ToolbarItem {
+    open class Group: ActionableToolbarItem {
 
         /// A value indicating how a group item selects its subitems.
         public typealias SelectionMode = NSToolbarItemGroup.SelectionMode
@@ -14,8 +14,6 @@ extension NSToolbar {
 
         private lazy var _item = GroupNSToolbarItem(for: self)
         public override var item: NSToolbarItem { _item }
-
-        private var actionTrampoline: ToolbarActionTrampoline?
 
         // MARK: - Subitems
 
@@ -102,8 +100,19 @@ extension NSToolbar {
 
         /// The handler called when the user clicks the group.
         public var actionBlock: ((NSToolbar.Group) -> Void)? {
-            didSet { installAction() }
+            get { storedActionBlock }
+            set {
+                storedActionBlock = newValue
+                installActionHandler(newValue.map { handler in
+                    { [weak self] in
+                        guard let self else { return }
+                        handler(self)
+                    }
+                })
+            }
         }
+
+        private var storedActionBlock: ((NSToolbar.Group) -> Void)?
 
         /// Sets the handler called when the user clicks the group.
         @discardableResult
@@ -112,42 +121,8 @@ extension NSToolbar {
             return self
         }
 
-        /// The action selector called when the user clicks the group.
-        public var action: Selector? {
-            get { actionTrampoline == nil ? _item.action : nil }
-            set {
-                actionBlock = nil
-                _item.action = newValue
-            }
-        }
-
-        /// The target that receives the action message.
-        public var target: AnyObject? {
-            get { actionTrampoline == nil ? _item.target : nil }
-            set {
-                actionBlock = nil
-                _item.target = newValue
-            }
-        }
-
-        private func installAction() {
-            if let actionBlock = actionBlock {
-                let trampoline = ToolbarActionTrampoline { [weak self] in
-                    guard let self = self else { return }
-                    actionBlock(self)
-                }
-                actionTrampoline = trampoline
-                _item.target = trampoline
-                _item.action = ToolbarActionTrampoline.invokeSelector
-            } else {
-                if _item.action == ToolbarActionTrampoline.invokeSelector {
-                    _item.action = nil
-                }
-                if _item.target === actionTrampoline {
-                    _item.target = nil
-                }
-                actionTrampoline = nil
-            }
+        open override func clearActionBlockStorage() {
+            storedActionBlock = nil
         }
 
         // MARK: - Init

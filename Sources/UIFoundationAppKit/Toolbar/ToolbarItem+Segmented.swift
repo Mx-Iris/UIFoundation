@@ -1,10 +1,11 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
+import UIFoundationToolbox
 
 extension NSToolbar {
     /// A toolbar item that hosts an `NSSegmentedControl`.
-    open class SegmentedControl: ToolbarItem {
+    open class SegmentedControl: ActionableToolbarItem {
 
         /// The selection mode of the segmented control.
         public enum SelectionMode: UInt, Hashable, Codable {
@@ -22,7 +23,9 @@ extension NSToolbar {
         /// The segmented control hosted by the toolbar item.
         public let segmentedControl: NSSegmentedControl
 
-        private var actionTrampoline: ToolbarActionTrampoline?
+        /// The action lands on the segmented control rather than on the item wrapper — the
+        /// control is what AppKit sends the message from.
+        open override var actionHost: any TargetActionProvider { segmentedControl }
 
         /// The selection mode of the segmented control.
         open var selectionMode: SelectionMode {
@@ -55,8 +58,19 @@ extension NSToolbar {
 
         /// The handler called when the user clicks a segment.
         public var actionBlock: ((NSToolbar.SegmentedControl) -> Void)? {
-            didSet { installAction() }
+            get { storedActionBlock }
+            set {
+                storedActionBlock = newValue
+                installActionHandler(newValue.map { handler in
+                    { [weak self] in
+                        guard let self else { return }
+                        handler(self)
+                    }
+                })
+            }
         }
+
+        private var storedActionBlock: ((NSToolbar.SegmentedControl) -> Void)?
 
         /// Sets the handler called when the user clicks a segment.
         @discardableResult
@@ -65,42 +79,8 @@ extension NSToolbar {
             return self
         }
 
-        /// The action selector called when the user clicks a segment.
-        public var action: Selector? {
-            get { actionTrampoline == nil ? segmentedControl.action : nil }
-            set {
-                actionBlock = nil
-                segmentedControl.action = newValue
-            }
-        }
-
-        /// The target that receives the action message.
-        public var target: AnyObject? {
-            get { actionTrampoline == nil ? segmentedControl.target : nil }
-            set {
-                actionBlock = nil
-                segmentedControl.target = newValue
-            }
-        }
-
-        private func installAction() {
-            if let actionBlock = actionBlock {
-                let trampoline = ToolbarActionTrampoline { [weak self] in
-                    guard let self = self else { return }
-                    actionBlock(self)
-                }
-                actionTrampoline = trampoline
-                segmentedControl.target = trampoline
-                segmentedControl.action = ToolbarActionTrampoline.invokeSelector
-            } else {
-                if segmentedControl.action == ToolbarActionTrampoline.invokeSelector {
-                    segmentedControl.action = nil
-                }
-                if segmentedControl.target === actionTrampoline {
-                    segmentedControl.target = nil
-                }
-                actionTrampoline = nil
-            }
+        open override func clearActionBlockStorage() {
+            storedActionBlock = nil
         }
 
         // MARK: - Init
@@ -130,7 +110,6 @@ extension NSToolbar {
             segmentedControl.setContentHuggingPriority(.defaultHigh, for: .horizontal)
             segmentedControl.segmentDistribution = .fillEqually
             _item.view = segmentedControl
-            installAction()
         }
 
         private final class SegmentedNSToolbarItemGroup: NSToolbarItemGroup {

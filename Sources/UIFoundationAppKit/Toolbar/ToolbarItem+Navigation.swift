@@ -205,7 +205,7 @@ extension NSToolbar {
             _item.view = segmentedControl
             _item.paletteLabel = "Navigation"
             if #available(macOS 11.0, *) {
-                _item.isNavigational = true
+                isNavigational = true
             }
 
             validate()
