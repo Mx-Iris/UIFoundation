@@ -397,6 +397,35 @@ class plus chained modifiers, with subclasses `NSToolbar.Button` / `.Item` / `.G
 `.PopUpButton` / `.Search` / `.SegmentedControl` / `.View` / `.TrackingSeparator` / **`.Navigation`**.
 No trait — it ships unconditionally on macOS.
 
+**The base is two classes, and which one an item derives from is the whole design.** `ToolbarItem`
+carries what every item has (the `NSToolbarItem` forwarding properties, `isBordered` and
+`isNavigational` among them); `ActionableToolbarItem` adds `target` / `action`, their three chained
+modifiers (`target(_:)` / `action(_:)` / `target(_:action:)`) and the trampoline backing each
+subclass's typed `actionBlock`, all resolved against one overridable `actionHost` — the item itself
+by default, the hosted control for `Button` / `PopUpButton` / `SegmentedControl`. Decision record is
+Evolution [`0019`](Documentations/Evolutions/0019-toolbar-item-action-and-bordered.md).
+
+`Search`, `TrackingSeparator` and **`Navigation` deliberately derive from `ToolbarItem` directly**,
+which is the only reason the middle class exists rather than these members living on the common
+base. Measured on macOS 26: `NSToolbarItem` forwards `target`, `action` *and* `isBordered` to its
+custom view (AppKit's header scopes `isBordered` to items *without* one — the setter forwards
+anyway). `Navigation`'s custom view **is** the segmented control whose target/action is wired once
+in `init` and must stay unreachable, so putting the pair on `ToolbarItem` would hand out exactly the
+door that item's design closes — see the `NSToolbar.Navigation` notes below. `ToolbarItemActionTests`
+keeps a canary on both the forwarding and the three classes staying outside the hierarchy.
+
+**Do not turn a typed `actionBlock` back into a stored property with a `didSet`.** A property
+observer does not fire for an assignment made inside an initializer (measured), so that shape made
+every `init(…, action:)` store the closure and wire nothing — `Item` and `Button` shipped broken
+that way, and `SegmentedControl` only escaped because its `commonInit()` called the installer a
+second time. The computed-property-over-private-storage shape is what makes the initializer
+parameter work at all.
+
+Two chained modifiers are deprecated in favour of the base-class spelling: `NSToolbar.Item`'s and
+`NSToolbar.Button`'s `bordered(_:)` both point at `isBordered(_:)` (which matches the existing
+`isDefault(_:)` / `isSelectable(_:)` / `isEnabled(_:)` naming). They reach the same place — the
+button one wrote `NSButton.isBordered`, and the item property forwards there.
+
 `NSToolbar.Navigation` is a Safari-style back / forward pair in one item, because AppKit has none.
 Decision record is Evolution
 [`0004`](Documentations/Evolutions/0004-appkit-navigation-toolbar-item.md).
