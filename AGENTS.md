@@ -269,6 +269,29 @@ button.box.setAction { sender in ... }
 
 `UIFoundationToolbox.swift` uses `@_exported import FrameworkToolbox` to propagate the `.box` accessor to all downstream modules.
 
+**Two "first launch only" restorers live here**, both shaped the same way — register an autosave
+name, and apply a fallback only when there is nothing stored:
+`NSWindow.box.restoreFrame(autosaveName:defaultSize:centerInScreen:)` and
+`NSSplitView.box.restoreDividerPositions(autosaveName:initialPositions:)` (decision record is
+Evolution [`0020`](Documentations/Evolutions/0020-splitview-autosave-initial-positions.md)).
+Three things about the split-view one, all measured on macOS 26.5.2 AppKit:
+
+- **"The key exists" is not the same question as "the layout will be restored", and asking the
+  first one is the bug.** `_walkLayoutDescriptionArray:withFrameHandler:` silently declines unless
+  the stored entry count still equals `arrangedSubviews.count`, so shipping a version that adds a
+  pane leaves a key behind that will never be restored — a `array(forKey:) != nil` check reads that
+  as "not the first launch" and skips the initial positions too, landing on AppKit's even split.
+  `hasRestorableDividerPositions(autosaveName:)` replicates AppKit's whole check and is public for
+  hosts that need the answer for something else.
+- **Re-assigning the same `autosaveName` restores nothing.** `-[NSSplitView setAutosaveName:]`
+  hangs the restore off an `isEqualToString:` guard, so the implementation clears the name before
+  setting it. Don't "simplify" that pair away.
+- **There is no `@resultBuilder` spelling, and it is not an oversight.** Measured on Swift 6.2: a
+  bare implicit member chain inside a result-builder closure cannot resolve its contextual type
+  (generic builder, non-generic builder, `buildPartialBlock` and variadic `buildBlock` all fail
+  alike), so a builder would force `NSSplitView.InitialDividerPosition.distanceFromStart(…)` in
+  full at every line. An array literal keeps the leading-dot form.
+
 ### `@ViewInvalidating` Property Wrapper
 
 Auto-triggers view invalidation on property changes. Uses Swift's `_enclosingInstance` subscript (not standard `wrappedValue`) to access the owning view. Supports combining multiple invalidation types:
