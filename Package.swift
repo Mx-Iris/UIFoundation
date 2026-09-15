@@ -93,6 +93,10 @@ let package = Package(
         .trait(name: "NSAttributedStringBuilder"),
         .trait(name: "QuickActionBar"),
         .trait(name: "Settings"),
+        // Reaches for `NSWindow._setContentBlurRadius:` (hence AppleInternal) and hosts its
+        // sub-pages in this library's own navigation stack (hence Navigation). Enabling those
+        // two by hand is not something a consumer should have to remember.
+        .trait(name: "SpotlightPanel", enabledTraits: ["AppleInternal", "Navigation"]),
         .trait(name: "StatusItemController"),
         .trait(name: "SystemHUD"),
         .trait(name: "TabBar"),
@@ -198,6 +202,7 @@ let package = Package(
                 "UIFoundationAppKit",
                 "UIFoundationCarbonInternal",
                 .product(name: "ObjCRuntimeToolbox", package: "FrameworkToolbox"),
+                .product(name: "OSToolbox", package: "FrameworkToolbox"),
             ],
             swiftSettings: swiftSettings,
         ),
@@ -238,6 +243,12 @@ let package = Package(
                 "UIFoundationToolbox",
                 "UIFoundationSettings",
                 .target(name: "UIFoundationSettingsUI", condition: .when(platforms: appkitPlatforms)),
+                // Named directly, on top of reaching it through the umbrella, so `@testable`
+                // can see the internal pieces of SpotlightPanel's animation layer.
+                .target(
+                    name: "UIFoundationAppleInternal",
+                    condition: .when(platforms: appkitPlatforms, traits: ["AppleInternal"])
+                ),
                 .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(platforms: appkitPlatforms, traits: ["AppKitPlus"])),
             ],
         ),
