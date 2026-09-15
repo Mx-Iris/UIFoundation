@@ -15,7 +15,7 @@ swift build 2>&1 | xcsift --print-warnings
 
 # Every opt-in trait at once. Collisions between trait-gated sources only appear here --
 # see the AppKitPlus section for why a single-trait build is not enough.
-swift build --traits AppKitPlus,AppleInternal,FilterUI,IDEIcons,Navigation,NSAttributedStringBuilder,QuickActionBar,Settings,StatusItemController,SystemHUD,TabBar,WelcomePanel 2>&1 | xcsift
+swift build --traits AppKitPlus,AppleInternal,FilterUI,IDEIcons,Navigation,NSAttributedStringBuilder,QuickActionBar,Settings,SpotlightPanel,StatusItemController,SystemHUD,TabBar,WelcomePanel 2>&1 | xcsift
 ```
 
 - Always run `swift package update` before building to avoid stale dependency checkouts
@@ -51,7 +51,7 @@ most of the suite asserts geometry.
 
 - **UIFoundation** — Umbrella library re-exporting all public sub-modules via `@_exported import`
 - **UIFoundationToolbox** — Standalone extensions and utilities (usable independently)
-- **UIFoundationAppleInternal** — Private API wrappers (**must not** be linked in App Store targets; uses `CABackdropLayer`, `CAFilter`, `@_silgen_name` for private CoreGraphics symbols)
+- **UIFoundationAppleInternal** — Private API wrappers (**must not** be linked in App Store targets; uses `CABackdropLayer`, `CAFilter`, `@_silgen_name` for private CoreGraphics symbols). **Not a product of its own** — it is a conditional dependency of the `UIFoundation` umbrella gated on the `AppleInternal` trait, so consumers reach it through `import UIFoundation` rather than by linking anything extra.
 
 ### Module Dependency Graph
 
@@ -997,6 +997,61 @@ writable again.
 
 **Full guide:** `Documentations/SettingsWindow.md`.
 
+### Spotlight Panel (`SpotlightPanel` trait)
+
+A replica of macOS 26's Spotlight panel — the floating platter whose query field grows downwards
+into a result list. Lives in `Sources/UIFoundationAppleInternal/SpotlightPanel/**` behind the
+opt-in trait `SpotlightPanel`, declared as
+`.trait(name: "SpotlightPanel", enabledTraits: ["AppleInternal", "Navigation"])` so a consumer
+only names one trait. Every file is wrapped in `#if SpotlightPanel && os(macOS)`. Decision record
+is Evolution [`0021`](Documentations/Evolutions/0021-spotlight-panel-replica.md);
+reverse-engineering evidence is [`Researchs/Spotlight-Panel-Internals.md`](Researchs/Spotlight-Panel-Internals.md).
+
+**It replicates the shell, not the index** — the host supplies results through
+`SpotlightPanelDataSource`. `QuickActionBar` is untouched and the two share no code.
+
+Six things measured rather than assumed, and each is a thing a later edit would plausibly
+"tidy away":
+
+- **The window is borderless, and `.titled` must stay out of its style mask.** The platter is
+  inset from the window bounds by `animationPadding` (40) so the present animation's 1.12 scale
+  has room, so anything the window draws at its *own* bounds shows up as a second rounded
+  rectangle 40 points outside the platter. A titled window is a real framed window: the window
+  server strokes its frame there and shapes the shadow to it. `.titled` is tempting because it
+  does give a heavier drop shadow — it shipped that way for one round and read as two stacked
+  platters. Measured: with it, `contentLayoutRect` comes back 32 points short of the content
+  rect and the frame view carries an `NSTitlebarContainerView`. Its removal also makes
+  `Panel.canBecomeKey`'s override load-bearing (a borderless window answers `false`), so that
+  override is not redundant. `SpotlightPanelWindowChromeTests` guards both halves.
+- **Placement pins the top edge, not the centre.** `y = screen.minY + (screen.height +
+  standardExpandedHeight) / 2 − windowHeight`, so the top edge sits where a
+  `standardExpandedHeight`-tall window's would if centred, **whatever the current height is**.
+  The panel therefore sits high while collapsed and lands dead centre once expanded. Centring the
+  window, or growing downwards from the collapsed position, both look wrong beside the original.
+- **The dismissal scale is not uniform**: 1.12 wide against 0.95 tall, with different `bounce`
+  values per axis while presenting (0.41 / 0.32). `SpotlightPanelAnimationTests` keeps a canary
+  on it.
+- **The content blur is its own, slower curve.** `NSWindow._setContentBlurRadius:` animates 0 → 25
+  on spring(0.51, 0.05) against the opacity's spring(0.28, 0.41). That ~2× gap is the whole
+  effect — the panel goes soft before it goes away. Matching the durations turns it into an
+  ordinary fade. This private setter is the only reason the component sits in `AppleInternal`; it
+  is reached through a KVC `_set<Key>:` match under the key `contentBlurRadius`, and degrades
+  silently (`NSWindow.supportsSpotlightPanelContentBlur`) rather than crashing.
+- **Sizing and searching are debounced separately** (0.05 s against 0.2 s). One timer is not
+  enough: a response arriving in several passes resizes the window once per pass and reads as a
+  shudder. `PlatterBehavior.resolvedContentHeight(…)` is a pure function precisely so the rules
+  can be asserted without a window.
+- **Two constants are choices, not measurements** — `standardWidth` (680) and
+  `standardExpandedHeight` (430). Spotlight's own resolve through `SpotlightUIShared`, which the
+  dump did not cover. Everything else in `Metrics` is measured; don't "correct" those.
+
+Divergences from Spotlight, all deliberate: Quick Look is ⌘Y rather than Space (the query field
+never yields first responder, so Space has to stay a space); the panel closes on resigning key by
+default where Spotlight does not; no filter bar / history / navigation stack yet (phases two and
+three); no preview pane and no ⌘Space takeover, ever.
+
+**Full guide:** `Documentations/SpotlightPanel.md`. Demo: **Spotlight Panel** in the example app.
+
 ### Custom Tooltip (`UIFoundationAppleInternal/Tooltip/`)
 
 macOS-only customizable replacement for the `NSToolTipManager` pipeline. Lives in `UIFoundationAppleInternal` (private API; not App-Store-safe). No SPM trait — this ships unconditionally with the `AppleInternal` trait.
@@ -1037,7 +1092,7 @@ Structure under `UIFoundationExample-macOS/UIFoundationExample-macOS/`:
 - `AppDelegate.swift` — the hand-written `@main enum App` entry point (creates the delegate, sets the activation policy and `MainMenu.standard()`, then `run()`; required because deleting the storyboard breaks `@main` on the delegate — see the **Main Menu** section) plus the `AppDelegate` class, which on macOS 26+ owns and registers the Settings scene representation during `applicationWillFinishLaunching(_:)` and builds a `DemoBrowserWindowController` on launch.
 - `Browser/` — `DemoBrowserWindowController` (code-built `NSWindow`), `DemoBrowserSplitViewController` (sidebar + `DemoDetailViewController`), `DemoSidebarViewController` (source-list `NSOutlineView`; items are a private `SidebarNode` reference type because `NSOutlineView` needs stable item identity).
 - `Catalog/` — `Demo` (a value type: `title` / `category` / `summary` / `minimumMacOS` / `makeViewController`) and `DemoCatalog.all` (the registry) + `DemoCatalog.grouped`.
-- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `NavigationDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `SettingsDemoViewController`, `SettingsSceneRepresentationDemoViewController`, `ToolbarNavigationDemoViewController`, `CustomTooltipDemoViewController`, `WelcomePanelDemoViewController`).
+- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `NavigationDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `SettingsDemoViewController`, `SettingsSceneRepresentationDemoViewController`, `ToolbarNavigationDemoViewController`, `CustomTooltipDemoViewController`, `WelcomePanelDemoViewController`, `SpotlightPanelDemoViewController`).
 
 **To add a demo:** drop a new `NSViewController` file under `Demos/` and append one `Demo` to `DemoCatalog.all`. Nothing else changes.
 
@@ -1051,7 +1106,7 @@ The shared summary label at the top of the detail pane is already set up this wa
 
 Two project facts that make this work (and matter when extending it):
 - The Xcode project's app source group is a **file-system-synchronized group** (`PBXFileSystemSynchronizedRootGroup`, Xcode 16+). Any file added under the app folder is auto-included in the target — **no `project.pbxproj` edits needed** to add/move/delete demos.
-- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabBar`, `SystemHUD`, `Navigation` and `WelcomePanel` are enabled alongside `AppKitPlus` / `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder` / `QuickActionBar` / `Settings` / `StatusItemController`). **A product outside the umbrella needs more than its trait** — `UIFoundationSettings` / `UIFoundationSettingsUI` also have to be added as an `XCSwiftPackageProductDependency` and linked in the target's Frameworks phase, or the demo will not resolve its import; otherwise the control's symbols won't be compiled into the package and the demo won't link.
+- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabBar`, `SystemHUD`, `Navigation`, `SpotlightPanel` and `WelcomePanel` are enabled alongside `AppKitPlus` / `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder` / `QuickActionBar` / `Settings` / `StatusItemController`). **A product outside the umbrella needs more than its trait** — `UIFoundationSettings` / `UIFoundationSettingsUI` also have to be added as an `XCSwiftPackageProductDependency` and linked in the target's Frameworks phase, or the demo will not resolve its import; otherwise the control's symbols won't be compiled into the package and the demo won't link.
 
 Build the example from the command line with `xcodebuild -project UIFoundationExample-macOS/UIFoundationExample-macOS.xcodeproj -scheme UIFoundationExample-macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build 2>&1 | xcsift`.
 
