@@ -21,6 +21,12 @@ enum DemoCatalog {
             makeViewController: { TabBarDemoViewController() }
         ),
         Demo(
+            title: "Spotlight Panel",
+            category: "Controls",
+            summary: "The macOS 26 Spotlight replica — measured springs, the non-uniform dismissal scale, the content-blur curve, and a content-driven height.",
+            makeViewController: { SpotlightPanelDemoViewController() }
+        ),
+        Demo(
             title: "Layer Background",
             category: "Rendering",
             summary: "LayerBackedView cards and an NSTableCellView composed with LayerBackgroundProviding.",

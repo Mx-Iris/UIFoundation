@@ -357,6 +357,7 @@
 				NSAttributedStringBuilder,
 				QuickActionBar,
 				Settings,
+				SpotlightPanel,
 				StatusItemController,
 				SystemHUD,
 				TabBar,
