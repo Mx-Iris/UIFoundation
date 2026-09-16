@@ -6,8 +6,11 @@ import SwiftUI
 @available(macOS 14.0, *)
 extension View {
     /// Makes a `NavigationSplitView` behave like a settings pane: its sidebar
-    /// cannot be collapsed, and the toolbar toggle that would collapse it is
-    /// hidden.
+    /// cannot be collapsed.
+    ///
+    /// The toolbar toggle that would collapse it is removed separately, in
+    /// ``SettingsRootView``, through SwiftUI's own `toolbar(removing:)` — see
+    /// the comment there for why it cannot be done from here.
     ///
     /// Scoped to *this* split view. A host that embeds the settings UI inside
     /// its own split view keeps its own sidebar collapsible — see
@@ -15,7 +18,7 @@ extension View {
     func settingsWindowChrome() -> some View {
         background(
             SettingsChromeConfigurator()
-                .accessibilityHidden(true)
+                .accessibilityHidden(true),
         )
     }
 
@@ -30,7 +33,7 @@ extension View {
     func settingsSceneWindowChrome() -> some View {
         background(
             SettingsSceneChromeConfigurator()
-                .accessibilityHidden(true)
+                .accessibilityHidden(true),
         )
     }
 }
@@ -107,7 +110,6 @@ private struct SettingsChromeConfigurator: NSViewRepresentable {
                     splitViewItem.canCollapse = false
                 }
             }
-            window?.hideNavigationSplitViewSidebarToggle()
             return true
         }
     }
@@ -161,34 +163,12 @@ extension NSView {
             }
             search(container)
 
-            if !found.isEmpty { return found }
+            if !found.isEmpty {
+                return found
+            }
         }
 
         return []
-    }
-}
-
-@available(macOS 14.0, *)
-extension NSWindow {
-    /// Hides the sidebar toggle SwiftUI installs into the toolbar. With
-    /// collapsing disabled the button would be inert, and an inert button is
-    /// worse than no button.
-    ///
-    /// Matched by identifier, so a host's own toolbar items are untouched.
-    ///
-    /// Measured on macOS 26.5.2, in a window built the way
-    /// ``SettingsWindowController`` builds one: SwiftUI does install a toolbar,
-    /// the toggle is among its items by the time this runs, and hiding it
-    /// sticks. The one case with nothing to find is the settings UI **embedded**
-    /// in a host window — not being the window's `contentViewController`,
-    /// SwiftUI owns no toolbar there and `window.toolbar` is `nil`.
-    fileprivate func hideNavigationSplitViewSidebarToggle() {
-        guard let toolbar else { return }
-        let toggleIdentifier = "com.apple.SwiftUI.navigationSplitView.toggleSidebar"
-        toolbar.items
-            .first { $0.itemIdentifier.rawValue == toggleIdentifier }?
-            .view?
-            .isHidden = true
     }
 }
 

@@ -118,6 +118,29 @@ private struct SettingsSidebar: View {
                 SettingsPageIcon(page.icon, size: iconSize)
             }
         }
+        // The sidebar cannot be collapsed (see `settingsWindowChrome()`), so the
+        // toggle would be inert — and an inert button is worse than no button.
+        //
+        // This has to *remove* the item rather than empty it out. Hiding the
+        // item's `view` leaves the `NSToolbarItem` visible, and from macOS 26
+        // every visible item gets an `NSToolbarPlatterView` of its own, so the
+        // emptied-out toggle draws as a blank glass capsule beside the traffic
+        // lights. Measured on macOS 27: the platter follows the item being
+        // visible — neither `isBordered` (SwiftUI already leaves it `false`
+        // here) nor the state of its view has any effect on it.
+        //
+        // Xcode's own settings window reaches the same place through
+        // `NavigationSplitView(…).fixedSidebar(true)`, which is SwiftUI SPI and
+        // absent from the public swiftinterface. This is its public counterpart,
+        // and it is available from macOS 14 — the floor of this module.
+        .toolbar(removing: .sidebarToggle)
+        // **This pair's order is load-bearing.** `toolbar(removing:)` wraps the
+        // list in a `ModifiedContent`, and with the width applied first the
+        // column-width preference does not survive that wrapping: the sidebar
+        // silently falls back to `NavigationSplitView`'s own minimum (measured:
+        // 144pt against the 185 asked for), taking the detail pane's toolbar
+        // items left with it. Applying the width last keeps it on the outside,
+        // where the split view still reads it.
         .navigationSplitViewColumnWidth(width)
     }
 }
