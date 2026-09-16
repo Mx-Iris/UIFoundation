@@ -551,9 +551,11 @@ the name would discard the restored position on every launch.
 
 ### Sidebar collapsing
 
-The sidebar cannot be collapsed, and the toolbar toggle that would collapse it is hidden. Both are
-applied to SwiftUI's own split view controller, which is reachable **only as the `NSSplitView`'s
-delegate** — it is not a child of the hosting controller. `canCollapse = false` sticks: verified on
+The sidebar cannot be collapsed, and the toolbar toggle that would collapse it is removed. The two
+halves are applied in different layers and for different reasons.
+
+`canCollapse = false` goes on SwiftUI's own split view controller, which is reachable **only as the
+`NSSplitView`'s delegate** — it is not a child of the hosting controller. It sticks: verified on
 macOS 26 across a run-loop pass, a SwiftUI update and a window resize. No swizzling is involved, and
 none should be added.
 
@@ -565,12 +567,34 @@ finds both. The implementation walks outward one ancestor at a time, searches ea
 the first level that yields a split view, and excludes any split view that is an ancestor of itself
 (containing the settings UI is what makes a split view the host's rather than ours).
 
-SwiftUI does install a toolbar for the settings window, and hiding the toggle in it works — measured
-on macOS 26.5.2. The one case with nothing to find is the panel **embedded** in a host window: not
-being the window's `contentViewController`, SwiftUI owns no toolbar there, and `window.toolbar` is
-`nil`. That is also why an embedded panel shows no back / forward buttons even with
-`showsNavigationControls` on — `navigator` still works, so drive it from the host's own controls.
+**The toggle is removed at the SwiftUI layer, with `toolbar(removing: .sidebarToggle)` on the
+sidebar's content — not hidden from AppKit afterwards.** The distinction only became visible on
+macOS 26, and it is the whole point of this paragraph. Reaching into `window.toolbar`, finding the
+item whose identifier is `com.apple.SwiftUI.navigationSplitView.toggleSidebar` and setting
+`item.view?.isHidden = true` leaves the `NSToolbarItem` itself visible — and from macOS 26 every
+visible item gets an `NSToolbarPlatterView` of its own, so the emptied-out toggle draws as a blank
+glass capsule beside the traffic lights. Measured on macOS 27: the platter follows the item being
+visible. Neither `isBordered` (SwiftUI already leaves it `false` here) nor the state of the item's
+view has any effect on it; `NSToolbarItem.isHidden = true` does work, but it is macOS 15+ while this
+module's floor is 14.
 
-`SettingsWindowChromeTests` guards the collapsing behaviour against future SwiftUI changes, and
-`SettingsNavigationControlsTests` guards that the navigation control reaches the toolbar at all, and
-that it is still the control Xcode uses.
+Xcode's own settings window arrives at the same place through
+`NavigationSplitView(…).fixedSidebar(true)` — SwiftUI SPI, absent from the public swiftinterface.
+`toolbar(removing:)` is its public counterpart.
+
+**The order of that modifier against `navigationSplitViewColumnWidth(_:)` is load-bearing**, and
+getting it wrong fails silently. `toolbar(removing:)` wraps the list in a `ModifiedContent`, and with
+the width applied first the column-width preference does not survive the wrapping: the sidebar falls
+back to `NavigationSplitView`'s own minimum (measured: 144pt against the 185 asked for) and the
+detail pane's toolbar items slide left with it. Nothing throws and nothing logs. Apply the width
+last, so it sits outside.
+
+An **embedded** panel is the one case where the AppKit half has nothing to find: not being the
+window's `contentViewController`, SwiftUI owns no toolbar there and `window.toolbar` is `nil`. That
+is also why an embedded panel shows no back / forward buttons even with `showsNavigationControls` on
+— `navigator` still works, so drive it from the host's own controls.
+
+`SettingsWindowChromeTests` guards all of it: the collapsing behaviour, that the toggle is gone from
+the toolbar rather than emptied out, that no item is being suppressed through its view, and that the
+configured sidebar width survives. `SettingsNavigationControlsTests` guards that the navigation
+control reaches the toolbar at all, and that it is still the control Xcode uses.

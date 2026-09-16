@@ -399,6 +399,26 @@ open class SettingsWindowController: XiblessWindowController<SettingsWindow> {
 **注意**：macOS 26 上 SwiftUI 给 AppKit 宿主窗口里的裸 `NavigationSplitView` **不建 toolbar**，
 这段因此是空操作（安全跳过）。保留是为旧系统，且旧系统未实测。
 
+> **后续修订（macOS 27 实测，2026-09-15）**：上面这套 AppKit 做法已整体删除，改为在侧栏内容上用
+> SwiftUI 自己的 `toolbar(removing: .sidebarToggle)`。
+>
+> 原因是「藏起来」和「移除」在 macOS 26 之后不再等价。`item.view?.isHidden = true` 只藏掉按钮内容，
+> `NSToolbarItem` 本身仍然 visible，而从 macOS 26 起每个 visible 的 item 都会得到一块属于自己的
+> `NSToolbarPlatterView`——于是这个被掏空的开关在红绿灯旁边画成一个空的圆形玻璃块。macOS 27 实测：
+> 玻璃底座只跟着「item 是否 visible」走，既不看 `isBordered`（SwiftUI 本来就把它留成 `false`），
+> 也不看它的 view 藏没藏。`NSToolbarItem.isHidden = true` 确实有效，但它要 macOS 15+，而本模块的
+> 下限是 14。
+>
+> Xcode 自己的设置窗口走的是 `NavigationSplitView(…).fixedSidebar(true)`——SwiftUI 的 SPI，公开
+> swiftinterface 里查不到。`toolbar(removing:)` 是它的公开对应物，macOS 14 起可用。
+>
+> **该修饰符与 `navigationSplitViewColumnWidth(_:)` 的先后顺序是有意义的，写反了会静默出错**：
+> `toolbar(removing:)` 会把列表包进一层 `ModifiedContent`，宽度若先写，column-width 这个 preference
+> 就穿不过这层包装，侧栏回落到 `NavigationSplitView` 自己的最小宽度（实测 144pt，而非要求的 185），
+> 详情区的 toolbar item 也跟着左移。宽度要写在最后。
+>
+> `canCollapse = false` 那半边保持不变。回归测试见 `SettingsWindowChromeTests`。
+
 **禁止侧栏折叠**（落地时按实测定稿，见前文「侧栏折叠」一节）：**走视图树**找到 `NSSplitView`、
 取其 `delegate as? NSSplitViewController`，对每个 `splitViewItem` 直接赋 `canCollapse = false`。
 赋值有效且不被覆盖，因此提案初稿准备的二级方案（用 `@DynamicSubclassHook` 对具体实例做

@@ -990,10 +990,30 @@ writable again.
 - **Sub-page drill-down needs nothing from the library** — measured: a `NavigationStack` inside a
   page's own content gets SwiftUI's own `navigationStack.back` toolbar item. Deliberately *not*
   merged into `SettingsNavigator`, which tracks pages and not positions within one.
-- **Correcting an earlier note here:** SwiftUI *does* build a toolbar for the settings window on
-  macOS 26, and hiding the sidebar toggle in it works. `window.toolbar` is `nil` only when the panel
-  is **embedded** in a host window rather than being its `contentViewController` — which is also why
-  an embedded panel shows no chevrons. `SettingsNavigationControlsTests` guards the toolbar wiring.
+- **SwiftUI *does* build a toolbar for the settings window on macOS 26.** `window.toolbar` is `nil`
+  only when the panel is **embedded** in a host window rather than being its `contentViewController`
+  — which is also why an embedded panel shows no chevrons. `SettingsNavigationControlsTests` guards
+  the toolbar wiring.
+- **The sidebar toggle is *removed*, with `toolbar(removing: .sidebarToggle)` on the sidebar content
+  — not hidden from AppKit afterwards.** Hiding the item's `view` leaves the `NSToolbarItem` visible,
+  and from macOS 26 every visible item gets an `NSToolbarPlatterView` of its own, so the emptied-out
+  toggle draws as a **blank glass capsule beside the traffic lights**. Measured on macOS 27: the
+  platter follows the item being visible — not `isBordered` (SwiftUI already leaves it `false` here),
+  not the state of its view. `NSToolbarItem.isHidden = true` works but is macOS 15+, and this module
+  floors at 14. Xcode gets there through `NavigationSplitView(…).fixedSidebar(true)`, which is
+  SwiftUI SPI and absent from the public swiftinterface; `toolbar(removing:)` is its public
+  counterpart. **Its order against `navigationSplitViewColumnWidth(_:)` is load-bearing**: the
+  toolbar modifier wraps the list in a `ModifiedContent`, and with the width applied first the
+  preference does not survive it — the sidebar silently falls back to 144pt instead of the configured
+  185, taking the detail pane's toolbar items left with it. Apply the width **last**.
+  `SettingsWindowChromeTests` guards both halves.
+- **Verifying anything Liquid-Glass-shaped needs a real app bundle.** A `swift build` /
+  `swift test` binary carries the *deployment target* as its `LC_BUILD_VERSION` `sdk` field (measured:
+  `sdk 15.0` against the example app's `27.0`), and AppKit gates the macOS 26+ look on that, so
+  toolbar platters simply do not exist in a command-line run. That is why the tests above assert on
+  `NSToolbarItem` state rather than on rendering. To reproduce visually, `vtool -set-build-version
+  macos <minos> 27.0 -replace` the binary into a hand-built `.app`, re-sign ad-hoc, and copy the
+  SPM resource bundles into `Contents/Resources/`.
 
 **Full guide:** `Documentations/SettingsWindow.md`.
 
