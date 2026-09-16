@@ -29,6 +29,18 @@ private enum ChromeInspector {
     static func collapseFlags(in window: NSWindow) -> [Bool] {
         splitViewControllers(in: window).flatMap { $0.splitViewItems.map(\.canCollapse) }
     }
+
+    /// The width of the first split view item — the sidebar column.
+    static func sidebarWidth(in window: NSWindow) -> CGFloat? {
+        splitViewControllers(in: window)
+            .first?
+            .splitViewItems
+            .first?
+            .viewController
+            .view
+            .frame
+            .width
+    }
 }
 
 @MainActor
@@ -128,6 +140,84 @@ struct SettingsWindowChromeTests {
         #expect(
             hostSidebarItem.canCollapse,
             "the host's own sidebar was locked open — the chrome escaped its scope"
+        )
+    }
+
+    /// The sidebar toggle has to be *gone*, not emptied out.
+    ///
+    /// Hiding the item's `view` leaves the `NSToolbarItem` itself visible, and
+    /// from macOS 26 every visible item gets an `NSToolbarPlatterView` of its
+    /// own — so an emptied-out item draws as a blank glass capsule beside the
+    /// traffic lights. Measured on macOS 27: the platter is keyed off the item
+    /// being visible, not off `isBordered` (which SwiftUI already leaves
+    /// `false` here) and not off what its view is doing.
+    ///
+    /// This asserts on the toolbar rather than on the rendering because the
+    /// platter only exists in a real app bundle — a command-line test binary
+    /// carries an older SDK stamp in `LC_BUILD_VERSION` and never gets Liquid
+    /// Glass, so a pixel-level check would pass here while the bug shipped.
+    @Test("the sidebar toggle is removed from the toolbar, not emptied out")
+    func sidebarToggleIsRemoved() async {
+        guard #available(macOS 14.0, *) else { return }
+        let controller = SettingsWindowController {
+            SettingsPage("General", symbol: "gearshape") { Text("general") }
+            SettingsPage("Advanced", symbol: "slider.horizontal.3") { Text("advanced") }
+        }
+        controller.showWindow(nil)
+        defer { controller.close() }
+
+        for _ in 0 ..< 10 {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+
+        let toolbarItems = controller.window?.toolbar?.items ?? []
+        #expect(!toolbarItems.isEmpty, "no toolbar items at all — this window no longer has the shape the test assumes")
+
+        let toggleIdentifier = "com.apple.SwiftUI.navigationSplitView.toggleSidebar"
+        #expect(
+            !toolbarItems.contains { $0.itemIdentifier.rawValue == toggleIdentifier },
+            "the sidebar toggle is still installed: \(toolbarItems.map(\.itemIdentifier.rawValue))"
+        )
+
+        let itemsHiddenThroughTheirView = toolbarItems.filter { $0.view?.isHidden == true }
+        #expect(
+            itemsHiddenThroughTheirView.isEmpty,
+            """
+            an item is being suppressed by hiding its view, which leaves its glass platter behind: \
+            \(itemsHiddenThroughTheirView.map(\.itemIdentifier.rawValue))
+            """
+        )
+    }
+
+    /// Removing the toggle must not cost the configured sidebar width.
+    ///
+    /// `toolbar(removing:)` wraps the list in a `ModifiedContent`, and applied
+    /// *after* `navigationSplitViewColumnWidth` it swallows that preference —
+    /// the sidebar then falls back to `NavigationSplitView`'s own minimum and
+    /// the detail pane's toolbar items slide left with it. Nothing throws and
+    /// nothing logs; the window just comes up narrow. Measured on macOS 27:
+    /// 144pt instead of the requested 185.
+    @Test("removing the toggle leaves the configured sidebar width intact")
+    func sidebarKeepsItsConfiguredWidth() async {
+        guard #available(macOS 14.0, *) else { return }
+
+        let configuration = SettingsConfiguration(sidebarWidth: 185)
+        let controller = SettingsWindowController(configuration: configuration) {
+            SettingsPage("General", symbol: "gearshape") { Text("general") }
+            SettingsPage("Advanced", symbol: "slider.horizontal.3") { Text("advanced") }
+        }
+        controller.showWindow(nil)
+        defer { controller.close() }
+
+        for _ in 0 ..< 10 {
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+
+        let width = ChromeInspector.sidebarWidth(in: controller.window!)
+        #expect(width != nil, "the sidebar column was never found")
+        #expect(
+            width == configuration.sidebarWidth,
+            "expected the configured \(configuration.sidebarWidth)pt sidebar, got \(width.map(String.init(describing:)) ?? "nil")"
         )
     }
 }
