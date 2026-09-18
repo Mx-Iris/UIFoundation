@@ -54,6 +54,11 @@
   （`window` 被标为 unavailable，只能走 `showWindow(_:)` / `close()`）与
   「启动时显示」复选框只有 `.xcode14` 才有。`.xcode26` 是**按 Xcode 26 抓包实测重做的复刻**
   （毛玻璃 = `.fullScreenUI`，圆角 20，标题 36 bold，胶囊操作行，深色自带图标辉光）。
+- [GlassEffectReplica](GlassEffectReplica.md) —— `AppleInternal` trait 下的 `GlassEffectReplicaView`：放进
+  macOS 26+ split view 给 sidebar / inspector 套的那块 `NSGlassEffectView` 里，拷贝其配置并加入同一个
+  Core Animation backdrop group，渲染结果逐像素一致且不透明（侧栏导航转场的页面背景）。**含一条踩了就差一个
+  色阶的契约**：第一帧在 SwiftUI 建出 layer 树之前不保证一致，只能靠页面从屏幕外进入或被盖住来掩护。
+  另有「必须落在玻璃内容里」「内容加在它上面」两条契约，以及为何 `_backdropGroupName` 走不通的实测。
 
 ## 术语表
 

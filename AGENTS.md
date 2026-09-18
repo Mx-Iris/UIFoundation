@@ -258,6 +258,35 @@ Full write-up — the whole enum, the AppKit call site that pins each value, the
 algorithm, the `NSCell` fallback used when drawing without a view, and how WebKit consumes it:
 [`Researchs/AppKit-NSView-SemanticContext.md`](Researchs/AppKit-NSView-SemanticContext.md).
 
+### Glass effect replica (`AppleInternal` trait)
+
+From macOS 26 `NSSplitViewController` wraps a sidebar / inspector item in an `NSGlassEffectView`
+(private `_variant` 17 / 18) whose colour the window server composes live, so nothing placed inside
+it matches it — not a colour, not a material, and not a second glass, which samples the outer
+glass's output and tints it again. `GlassEffectReplicaView` is the one thing that does match: it
+copies the enclosing glass's configuration (`NSGlassEffectView.matchGlassConfiguration(of:)`) and
+joins its Core Animation backdrop group (`glassBackdropGroupName`), which makes it pixel-identical
+and opaque. Three things to know before reaching for it:
+
+- **It only works inside a glass's content, and only after a run loop turn.** SwiftUI builds the
+  glass's layers asynchronously — and builds them *again* whenever the view re-enters a window —
+  so the replica polls at frame rate for two seconds after entering a window or a key-state
+  change, pinning whatever layer is current, and re-checks in `layout()`. The first frame is one
+  tint step off, so install it in a page that is off screen or covered when it appears, never at
+  the moment a transition starts.
+- **Copy the variant off a live view; never hardcode 17.** The numbering is not contractual and the
+  26.x values were not re-read.
+- **`_backdropGroupName` and `_groupIdentifier` do not name the group.** Both store an ivar and
+  SwiftUI keeps its own `SwiftUI:<identity>` name; the group has to be written on the
+  `CABackdropLayer` itself, after it exists. Measured, so do not retry it.
+- **And writing it once is not enough either.** SwiftUI writes its own name back onto the same
+  layer when the window becomes key (measured: shared `485` → own `773`). The replica swaps the
+  layer's class for `GroupPinnedBackdropLayer`, which answers every later write with the pinned
+  name — the KVO trick. Do not "simplify" that back to a plain assignment.
+
+Guide: [`Documentations/GlassEffectReplica.md`](Documentations/GlassEffectReplica.md). Evidence:
+[`Researchs/AppKit-NSGlassEffectView-SplitViewItem-Internals.md`](Researchs/AppKit-NSGlassEffectView-SplitViewItem-Internals.md).
+
 ### `.box` Namespace Extensions
 
 All extensions on framework types go through the `.box` namespace (from FrameworkToolbox) to avoid naming collisions:
