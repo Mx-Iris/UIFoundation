@@ -82,9 +82,9 @@ panel.showWindow(nil)
    `LayerBackedView` 后必须在圆角容器上显式 `clipsToBounds = true`，否则 `xcode15` / `xcode26`
    的无边框圆角窗口会漏出直角内容。
 2. **`ScrollView` 对 `NSVisualEffectView` 的处置不同。** 原库在 `didAddSubview` 里
-   `removeFromSuperview()`（且在 `super` 之前）；本库是 `isHidden = true`（`Base/ScrollView.swift:29-35`），
-   且要显式打开 `isHiddenVisualEffectView`。视觉结果相同，采用本库版本。
-3. **`ScrollView.drawsBackground` 在本库是恒 `false` 的只读实现**（`Base/ScrollView.swift:24-27`，
+   `removeFromSuperview()`（且在 `super` 之前）；本库是 `isHidden = true`（`Base/ScrollView.swift:42-48`），
+   且要显式打开 `hidesVisualEffectView`。视觉结果相同，采用本库版本。
+3. **`ScrollView.drawsBackground` 在本库是恒 `false` 的只读实现**（`Base/ScrollView.swift:37-40`，
    setter 空实现）。原库两处 `drawsBackground = false` 赋值将变成无操作，结果一致。
    但最近项目列表那侧要靠图层画 `projectViewBackgroundColor`，需要一个会画背景的
    `ScrollView` 子类；`LayerBackedTableCellView` 的 `isLayerBackingEnabled` 默认是
