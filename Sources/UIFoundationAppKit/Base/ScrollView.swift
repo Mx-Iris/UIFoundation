@@ -4,7 +4,19 @@ import AppKit
 import UIFoundationUtilities
 
 open class ScrollView: NSScrollView {
-    public var isHiddenVisualEffectView: Bool = false
+    /// Hides the `NSVisualEffectView` AppKit inserts behind a source-list table, so the scroll
+    /// view's own background shows through instead of the vibrancy backdrop.
+    ///
+    /// This is a policy rather than a state: it is consulted as each subview arrives, so it only
+    /// applies to visual effect views added *after* it is set, and turning it back off does not
+    /// reveal one that was already hidden.
+    public var hidesVisualEffectView: Bool = false
+
+    @available(*, deprecated, renamed: "hidesVisualEffectView")
+    public var isHiddenVisualEffectView: Bool {
+        get { hidesVisualEffectView }
+        set { hidesVisualEffectView = newValue }
+    }
 
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -30,7 +42,7 @@ open class ScrollView: NSScrollView {
     open override func didAddSubview(_ subview: NSView) {
         super.didAddSubview(subview)
 
-        if isHiddenVisualEffectView, subview is NSVisualEffectView {
+        if hidesVisualEffectView, subview is NSVisualEffectView {
             subview.isHidden = true
         }
     }

@@ -26,7 +26,7 @@ extension WelcomePanelController {
 
             wantsLayer = true
             layerContentsRedrawPolicy = .onSetNeedsDisplay
-            isHiddenVisualEffectView = true
+            hidesVisualEffectView = true
             backgroundColor = .clear
         }
 
