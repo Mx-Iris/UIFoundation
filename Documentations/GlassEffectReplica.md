@@ -44,11 +44,18 @@ final class SidebarPageView: NSView {
 4. **全部是私有 API。** `_variant` / `_subvariant` / `_adaptiveAppearance` 与 `CABackdropLayer.groupName`。
    新系统上私有 setter 消失时 `NSGlassEffectView.isPrivateConfigurationSupported` 变为 false，
    复刻玻璃仍会分组但拷不到 variant；侧栏突然"不对"时先看这两个值。
-5. **分组名是钉在 layer 上的，不是设一次。** 窗口变 key 时 SwiftUI 会把它自己的名字写回同一个
+5. **macOS 27 的 `effectIsInteractive` 是用 KVC 读写的，不要"顺手"改成直接写属性。**
+   拷贝配置时这一项走的是 `NSGlassEffectView.isEffectInteractive`（可选值，`nil` 表示这个系统没有），
+   底下是 `value(forKey:)` / `setValue(_:forKey:)`。原因是这个属性只在 macOS 27 SDK 的头文件里有声明，
+   直接写出名字的代码在 Xcode 26.x 上**编译不过** —— `if #available(macOS 27.0, *)` 管的是运行时版本，
+   变不出 SDK 里没有的声明。代价是编译器不再替你检查名字，所以读写前必须先问
+   `NSGlassEffectView.isInteractiveEffectSupported`：KVC 撞上类里没有的 key 会抛 `NSUnknownKeyException`，
+   而 Objective-C 异常在 Swift 里接不住，直接终止进程（本机 macOS 26.5 实测）。
+6. **分组名是钉在 layer 上的，不是设一次。** 窗口变 key 时 SwiftUI 会把它自己的名字写回同一个
    `CABackdropLayer`（实测），所以复刻玻璃把那个 layer 的类换成 `GroupPinnedBackdropLayer`，之后的写入
    全部被钉住的名字顶掉。如果你自己去读复刻玻璃的 `glassBackdropLayer`，看到类名不是 `CABackdropLayer`
    是正常的；不要自己改它的 `groupName`，改了也不生效。
-6. **不要指望它在 `swift test` 里渲染。** 测试进程不一定跑 Core Animation 提交，分组那一步观测不到；
+7. **不要指望它在 `swift test` 里渲染。** 测试进程不一定跑 Core Animation 提交，分组那一步观测不到；
    `GlassEffectReplicaViewTests` 里那条断言只在外层玻璃真的建出 backdrop layer 时才检查
    （本机实测是会渲染的，150 ms 内分组成功）。
 

@@ -283,6 +283,14 @@ and opaque. Three things to know before reaching for it:
   layer when the window becomes key (measured: shared `485` → own `773`). The replica swaps the
   layer's class for `GroupPinnedBackdropLayer`, which answers every later write with the pinned
   name — the KVO trick. Do not "simplify" that back to a plain assignment.
+- **macOS 27's `effectIsInteractive` is copied through key-value coding, and the direct spelling is
+  not an option.** Its declaration exists only in the macOS 27 SDK, so naming the property — inside
+  an `if #available(macOS 27.0, *)` included — fails to compile under Xcode 26.x, which is still the
+  shipping Xcode; `#available` gates the runtime, it does not conjure a declaration. The copy goes
+  through `NSGlassEffectView.isEffectInteractive` (`Bool?`, `nil` where AppKit lacks it), and the
+  `isInteractiveEffectSupported` probe guarding it is load-bearing rather than defensive: KVC against
+  an absent key raises `NSUnknownKeyException`, which Swift cannot catch — measured, it terminates
+  the process on macOS 26.5.
 
 Guide: [`Documentations/GlassEffectReplica.md`](Documentations/GlassEffectReplica.md). Evidence:
 [`Researchs/AppKit-NSGlassEffectView-SplitViewItem-Internals.md`](Researchs/AppKit-NSGlassEffectView-SplitViewItem-Internals.md).

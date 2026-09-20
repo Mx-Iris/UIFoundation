@@ -26,6 +26,10 @@ macOS 26 起 `NSSplitViewController` 给 sidebar / inspector item 套的是一�
 - `NSGlassEffectView` 扩展：`isPrivateConfigurationSupported`（三个私有 setter 都在才算）、
   `glassBackdropLayer`（跳过 content holder 子树，找 SwiftUI 建的第一个 `CABackdropLayer`）、
   `glassBackdropGroupName`、`matchGlassConfiguration(of:)`、`enclosingGlassEffectView(of:)`。
+- macOS 27 新增的 `effectIsInteractive` 也在拷贝范围内，但走 KVC：`isEffectInteractive`（可选值）
+  加能力探测 `isInteractiveEffectSupported`。直接写属性名的版本在 Xcode 26.x 上编译不过（该声明只在
+  macOS 27 SDK 里，`#available` 补不出来），而 KVC 撞上不存在的 key 会抛 `NSUnknownKeyException`，
+  Swift 接不住，所以探测是必需的而非防御性的。
 - `GlassEffectReplicaView: LayerBackedView`：进窗口时解析外层玻璃并拷贝配置；分组动作用定时器按帧率
   重试（最多两秒），并在每次 `layout()`、外观变化、窗口 key 状态变化时再校验一次，因为玻璃的 layer 树
   要等 run loop 转一圈才建出来（`layoutSubtreeIfNeeded` / `displayIfNeeded` / `CATransaction.flush`

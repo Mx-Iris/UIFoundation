@@ -23,6 +23,43 @@ extension NSGlassEffectView {
             && instancesRespond(to: #selector(setter: NSGlassEffectView._adaptiveAppearance))
     }
 
+    /// Whether this build of AppKit carries `effectIsInteractive` — macOS 27's switch for the
+    /// glass's visual response to being interacted with.
+    ///
+    /// Checked for the same reason ``isPrivateConfigurationSupported`` is, and for one more:
+    /// ``isEffectInteractive`` reaches the property through key-value coding, and key-value coding
+    /// against a key the class does not have raises `NSUnknownKeyException` — an Objective-C
+    /// exception, so not something Swift can catch.
+    public static var isInteractiveEffectSupported: Bool {
+        instancesRespond(to: Selector(("effectIsInteractive")))
+            && instancesRespond(to: Selector(("setEffectIsInteractive:")))
+    }
+
+    /// `effectIsInteractive`, or `nil` where this build of AppKit does not have it. Assigning
+    /// there does nothing rather than trapping.
+    ///
+    /// **It is reached through key-value coding on purpose, and naming the property directly is
+    /// not a simplification.** `effectIsInteractive` is declared only in the macOS 27 SDK, so the
+    /// direct spelling — `if #available(macOS 27.0, *) { effectIsInteractive = … }` included —
+    /// fails to compile under Xcode 26.x, which is still the shipping Xcode. An `#available`
+    /// check gates the *runtime*; it does not conjure a declaration the SDK lacks. Key-value
+    /// coding is one spelling that builds under both, at the cost of the compiler's check —
+    /// ``isInteractiveEffectSupported`` is what stands in for it.
+    public var isEffectInteractive: Bool? {
+        get {
+            guard Self.isInteractiveEffectSupported else { return nil }
+            return value(forKey: Self.interactiveEffectKey) as? Bool
+        }
+        set {
+            guard Self.isInteractiveEffectSupported, let newValue else { return }
+            setValue(newValue, forKey: Self.interactiveEffectKey)
+        }
+    }
+
+    /// The key ``isEffectInteractive`` reads and writes under. The property has no custom getter,
+    /// so the key is the property's own name and the setter is `-setEffectIsInteractive:`.
+    private static var interactiveEffectKey: String { "effectIsInteractive" }
+
     /// The `CABackdropLayer` SwiftUI builds to render this view's glass, or `nil` until it has.
     ///
     /// It is not built synchronously. Adding the view to a window, `layoutSubtreeIfNeeded()`,
@@ -54,14 +91,13 @@ extension NSGlassEffectView {
     /// variant / subvariant / adaptive appearance — so that, given the same backdrop, this view
     /// renders like `other`.
     ///
-    /// The private part is skipped when ``isPrivateConfigurationSupported`` is false.
+    /// The private part is skipped when ``isPrivateConfigurationSupported`` is false, and the
+    /// interactive switch when ``isInteractiveEffectSupported`` is.
     public func matchGlassConfiguration(of other: NSGlassEffectView) {
         cornerRadius = other.cornerRadius
         style = other.style
         tintColor = other.tintColor
-        if #available(macOS 27.0, *) {
-            effectIsInteractive = other.effectIsInteractive
-        }
+        isEffectInteractive = other.isEffectInteractive
         guard Self.isPrivateConfigurationSupported else { return }
         _variant = other._variant
         _subvariant = other._subvariant

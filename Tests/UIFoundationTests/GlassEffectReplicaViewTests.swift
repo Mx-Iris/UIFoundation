@@ -71,6 +71,30 @@ struct GlassEffectReplicaViewTests {
         }
     }
 
+    /// `effectIsInteractive` is reached through key-value coding because its declaration exists
+    /// only in the macOS 27 SDK — see `NSGlassEffectView.isEffectInteractive`. That buys back
+    /// compilation under Xcode 26.x and spends the compiler's check, so the check this asserts on
+    /// is the runtime one: without it, the read and the write below take the process down with an
+    /// uncatchable `NSUnknownKeyException` on every OS that predates the property.
+    @Test("The interactive switch travels where AppKit has it, and is inert where it does not")
+    @available(macOS 26.0, *)
+    func matchingCarriesTheInteractiveSwitch() {
+        let source = NSGlassEffectView()
+        let target = NSGlassEffectView()
+
+        guard NSGlassEffectView.isInteractiveEffectSupported else {
+            #expect(source.isEffectInteractive == nil)
+            source.isEffectInteractive = true
+            target.matchGlassConfiguration(of: source)
+            #expect(target.isEffectInteractive == nil)
+            return
+        }
+
+        source.isEffectInteractive = true
+        target.matchGlassConfiguration(of: source)
+        #expect(target.isEffectInteractive == true)
+    }
+
     @Test("The enclosing glass is the one around a view, never the view itself")
     @available(macOS 26.0, *)
     func enclosingGlassIsFoundAbove() {
