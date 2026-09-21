@@ -1,4 +1,4 @@
-# Draft - UIFoundationComponent：并入 UIComponent 的声明式布局系统并补齐 AppKit 支持
+# 0024 - UIFoundationComponent：并入 UIComponent 的声明式布局系统并补齐 AppKit 支持
 
 - **状态**: In Progress
 - **作者**: JH

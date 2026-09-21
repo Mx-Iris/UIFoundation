@@ -88,7 +88,7 @@ let package = Package(
         // names (`Component`, `Spacer`) collide with ones the umbrella already exports,
         // and a separate product means consumers that never depend on it never compile
         // it. That product boundary is also why this one carries no trait --
-        // see Documentations/Evolutions/draft-component-layout-system.md.
+        // see Documentations/Evolutions/0024-component-layout-system.md.
         .library(
             name: "UIFoundationComponent",
             targets: [
