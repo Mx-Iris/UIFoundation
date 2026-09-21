@@ -156,14 +156,17 @@ extension FrameworkToolbox where Base: NSUIView {
         return enlosingFrame
     }
 
-    #if os(macOS)
-    /// Inserts a view above another view in the view hierarchy.
+    /// Inserts a view below another view in the view hierarchy.
     ///
     /// - Parameters:
     ///   - view: The view to insert. It’s removed from its superview if it’s not a sibling of siblingSubview.
     ///   - siblingSubview: The sibling view that will be above the inserted view.
-    public func insertSubview(_ view: NSView, belowSubview siblingSubview: NSView) {
+    public func insertSubview(_ view: NSUIView, belowSubview siblingSubview: NSUIView) {
+        #if os(macOS)
         base.addSubview(view, positioned: .below, relativeTo: siblingSubview)
+        #else
+        base.insertSubview(view, belowSubview: siblingSubview)
+        #endif
     }
 
     /// Inserts a view above another view in the view hierarchy.
@@ -171,10 +174,13 @@ extension FrameworkToolbox where Base: NSUIView {
     /// - Parameters:
     ///   - view: The view to insert. It’s removed from its superview if it’s not a sibling of siblingSubview.
     ///   - siblingSubview: The sibling view that will be behind the inserted view.
-    public func insertSubview(_ view: NSView, aboveSubview siblingSubview: NSView) {
+    public func insertSubview(_ view: NSUIView, aboveSubview siblingSubview: NSUIView) {
+        #if os(macOS)
         base.addSubview(view, positioned: .above, relativeTo: siblingSubview)
+        #else
+        base.insertSubview(view, aboveSubview: siblingSubview)
+        #endif
     }
-    #endif
 
     /// The first superview that matches the specificed view type.
     ///

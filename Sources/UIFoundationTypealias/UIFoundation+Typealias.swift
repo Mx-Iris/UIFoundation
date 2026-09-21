@@ -18,6 +18,8 @@ public typealias NSUIImage = NSImage
 public typealias NSUISymbolWeight = NSFont.Weight
 public typealias NSUIFontDescriptor = NSFontDescriptor
 public typealias NSUIImageView = NSImageView
+public typealias NSUIScrollView = NSScrollView
+public typealias NSUIVisualEffectView = NSVisualEffectView
 public typealias NSUICollectionViewFlowLayout = NSCollectionViewFlowLayout
 @available(macOS 10.15.1, *)
 public typealias NSUICollectionViewDiffableDataSource = NSCollectionViewDiffableDataSource
@@ -49,6 +51,8 @@ public typealias NSUIImage = UIImage
 public typealias NSUISymbolWeight = UIImage.SymbolWeight
 public typealias NSUIFontDescriptor = UIFontDescriptor
 public typealias NSUIImageView = UIImageView
+public typealias NSUIScrollView = UIScrollView
+public typealias NSUIVisualEffectView = UIVisualEffectView
 public typealias NSUICollectionViewFlowLayout = UICollectionViewFlowLayout
 @available(iOS 13.0, *)
 public typealias NSUICollectionViewDiffableDataSource = UICollectionViewDiffableDataSource

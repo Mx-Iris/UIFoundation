@@ -59,9 +59,14 @@ extension FrameworkToolbox where Base: NSView {
 }
 
 extension NSView {
-    
+
     @AssociatedObject(.retain(.nonatomic))
     fileprivate var actionHandlers: [NSObject] = []
+
+    /// Backing store for the cross-platform `box.maskingView`, which AppKit has no
+    /// native equivalent of. See `NSUIView+Geometry.swift`.
+    @AssociatedObject(.retain(.nonatomic))
+    internal var boxMaskingView: NSView? = nil
 }
 
 // enum GestureRecognizerConfiguration {
