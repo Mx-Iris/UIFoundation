@@ -11,3 +11,4 @@ xcshareddata
 project.xcworkspace
 .omc
 .claude
+.worktrees/
