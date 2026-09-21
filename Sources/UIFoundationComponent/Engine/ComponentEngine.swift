@@ -1,0 +1,454 @@
+//  Created by Luke Zhao on 8/27/20.
+
+/// Protocol defining a delegate responsible for determining if a component engine should be reloaded.
+public protocol ComponentEngineReloadDelegate: AnyObject {
+    /// Asks the delegate if the component engine should be reloaded.
+    /// - Parameter view: The `NSUIView` that is asking for permission to reload.
+    /// - Returns: A Boolean value indicating whether the view should be reloaded.
+    func componentEngineShouldReload(_ view: NSUIView) -> Bool
+}
+
+/// `ComponentEngine` is the main class that powers the rendering of components.
+/// It manages a `NSUIView` and handles rendering the component to the view.
+public final class ComponentEngine {
+
+    /// The axes where a bounds size change should trigger a reload instead of a render-only update.
+    public struct ReloadAxis: OptionSet {
+        public let rawValue: Int
+
+        public init(rawValue: Int) {
+            self.rawValue = rawValue
+        }
+
+        /// Trigger reloads when the bounds width changes.
+        public static let x = Self(rawValue: 1 << 0)
+
+        /// Trigger reloads when the bounds height changes.
+        public static let y = Self(rawValue: 1 << 1)
+    }
+
+    /// A static weak reference to a delegate that decides if a component engine should reload.
+    public static weak var reloadDelegate: ComponentEngineReloadDelegate?
+
+    private static let asyncLayoutQueue = DispatchQueue(label: "com.component.layout", qos: .userInteractive)
+
+    /// A flag indicating whether the layout should be performed asynchronously on a background thread
+    public var asyncLayout = false
+
+    /// The view that is managed by this engine.
+    weak var view: NSUIView?
+
+    /// The component that will be rendered.
+    public var component: (any Component)? {
+        didSet { setNeedsReload() }
+    }
+
+    /// The default animator for the components rendered by this engine.
+    public var animator: Animator = BaseAnimator() {
+        didSet { setNeedsRender() }
+    }
+
+    /// The axes where a bounds size change should trigger a reload.
+    /// By default, changes on either axis trigger a reload.
+    public var reloadOnSizeChangeAxes: ReloadAxis = [.x, .y]
+
+    /// A closure that adjusts the content offset after the layout is finished, but before any view is rendered.
+    public var nextContentOffsetAdjustFn: (() -> CGPoint)?
+
+    /// Toggle to use the pre-IDDiff render pipeline.
+    public var useLegacyRenderingMode = false {
+        didSet { setNeedsRender() }
+    }
+
+    /// The current `RenderNode`. This is `nil` before the layout is done.
+    public private(set) var renderNode: (any RenderNode)?
+
+    /// Only render the renderNode, skipping layout.
+    public private(set) var renderOnly: Bool = false
+
+    /// Internal state to track if a reload is needed.
+    public private(set) var needsReload = true
+
+    /// Internal state to track if a render is needed.
+    public private(set) var needsRender = false
+
+    /// The number of times the view has been reloaded.
+    public private(set) var reloadCount = 0
+
+    /// Internal state to track if the engine is currently rendering.
+    public private(set) var isRendering = false
+
+    /// Internal state to track if the engine is currently reloading.
+    public private(set) var isReloading = false
+
+    /// A computed property to determine if reloading is allowed by consulting the `reloadDelegate`.
+    var allowReload: Bool {
+        guard let view, let reloadDelegate = Self.reloadDelegate else { return true }
+        return reloadDelegate.componentEngineShouldReload(view)
+    }
+
+    /// Insets for the visible frame. This will be applied to the `visibleFrame` used to retrieve views for the viewport.
+    public var visibleFrameInsets: NSUIEdgeInsets = NSUIEdgeInsets.zero
+
+    /// A flag indicating whether this engine has rendered at least once.
+    public var hasReloaded: Bool { reloadCount > 0 }
+
+    /// An array of visible views on the screen.
+    public private(set) var visibleViews: [NSUIView] = []
+
+    /// An array of `Renderable` objects corresponding to the visible views.
+    public private(set) var visibleRenderables: [Renderable] = []
+
+    /// The bounds of the view during the last reload.
+    public private(set) var lastRenderBounds: CGRect = .zero
+
+    /// The change in content offset since the last reload.
+    public private(set) var contentOffsetDelta: CGPoint = .zero
+
+    /// A closure that is called after the first reload.
+    public var onFirstReload: ((NSUIView) -> Void)?
+
+    /// A view used to support zooming. Setting a `contentView` will render all views inside the content view.
+    public var contentView: NSUIView? {
+        didSet {
+            oldValue?.removeFromSuperview()
+            if let contentView {
+                view?.addSubview(contentView)
+            }
+        }
+    }
+
+    /// A Boolean value that determines if the content view should be centered vertically.
+    public var centerContentViewVertically = false
+    
+    /// A Boolean value that determines if the content view should be centered horizontally.
+    public var centerContentViewHorizontally = true
+
+    /// The size of the content within the view.
+    public private(set) var contentSize: CGSize = .zero {
+        didSet {
+            guard contentSize != oldValue else { return }
+            view?.box.setContentSize(contentSize)
+        }
+    }
+    
+    /// The offset of the scrolled content.
+    var contentOffset: CGPoint {
+        get { view?.contentOffset ?? .zero }
+        set { view?.contentOffset = newValue }
+    }
+    
+    /// The insets applied to the content of the view.
+    var contentInset: NSUIEdgeInsets {
+        view?.contentInset ?? NSUIEdgeInsets.zero
+    }
+    
+    /// The bounds of the view.
+    var bounds: CGRect {
+        view?.viewportBounds ?? .zero
+    }
+
+    var visibleFrame: CGRect {
+        (contentView?.convert(bounds, from: view) ?? bounds).box.inset(by: visibleFrameInsets)
+    }
+
+    /// The size of the view adjusted for the content inset.
+    var adjustedSize: CGSize {
+        bounds.size.inset(by: contentInset)
+    }
+    
+    /// The scale at which the content of the view is zoomed.
+    var zoomScale: CGFloat {
+        view?.zoomScale ?? 1
+    }
+
+    #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+    /// The clip view whose scrolling this engine currently observes.
+    weak var observedClipView: NSClipView?
+
+    /// Token for that observation, so it can be re-pointed or torn down.
+    var clipViewObservation: (any NSObjectProtocol)?
+    #endif
+
+    /// Initializes a new `ComponentEngine` with the given view.
+    /// - Parameter view: The `NSUIView` to be managed by the engine.
+    init(view: NSUIView) {
+        self.view = view
+    }
+
+    deinit {
+        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+        if let clipViewObservation {
+            NotificationCenter.default.removeObserver(clipViewObservation)
+        }
+        #endif
+    }
+
+    /// Lays out the subview, reloading data if necessary or rendering if bounds have changed.
+    func layoutSubview() {
+        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+        installFlippedContainerIfNeeded()
+        updateScrollObservationIfNeeded()
+        #endif
+        if needsReload || shouldReloadForSizeChange {
+            reloadData()
+        } else if bounds != lastRenderBounds || needsRender {
+            render(shouldUpdateViews: false)
+        }
+        contentView?.frame = contentViewFrame
+        ensureZoomViewIsCentered()
+    }
+
+    /// Where the content container sits inside the host.
+    ///
+    /// See ``uncenteredContentOriginY(forContentHeight:)`` for why the y is not
+    /// simply zero on AppKit.
+    private var contentViewFrame: CGRect {
+        CGRect(
+            x: 0,
+            y: uncenteredContentOriginY(forContentHeight: contentSize.height),
+            width: contentSize.width,
+            height: contentSize.height
+        )
+    }
+
+    private var shouldReloadForSizeChange: Bool {
+        let currentSize = bounds.size
+        let lastSize = lastRenderBounds.size
+        return (reloadOnSizeChangeAxes.contains(.x) && currentSize.width != lastSize.width)
+            || (reloadOnSizeChangeAxes.contains(.y) && currentSize.height != lastSize.height)
+    }
+
+    /// Marks the view as needing a reload (layout + render) and schedules an update.
+    public func setNeedsReload() {
+        needsReload = true
+        view?.box.setNeedsLayout()
+    }
+
+    /// Marks the view as needing a render (no layout) and schedules an update.
+    /// A renderNode must be present
+    public func setNeedsRender() {
+        needsRender = true
+        view?.box.setNeedsLayout()
+    }
+
+    /// Reloads the view, rendering the component.
+    /// - Parameter contentOffsetAdjustFn: An optional closure that adjusts the content offset after the layout is finished, but berfore any view is rendered.
+    public func reloadData(contentOffsetAdjustFn: (() -> CGPoint)? = nil) {
+        guard !isReloading, allowReload else { return }
+        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+        // reloadData() can be called directly, ahead of any layout pass, so the
+        // container has to be in place here too and not only in layoutSubview().
+        installFlippedContainerIfNeeded()
+        updateScrollObservationIfNeeded()
+        #endif
+        let contentOffsetAdjustFn = contentOffsetAdjustFn ?? nextContentOffsetAdjustFn
+        // Clear the current reload request up front so any setNeedsReload() calls
+        // during render/layout are preserved for a follow-up pass.
+        needsReload = false
+        isReloading = true
+        defer {
+            nextContentOffsetAdjustFn = nil
+            reloadCount += 1
+            isReloading = false
+            if let onFirstReload, let view, reloadCount == 1 {
+                onFirstReload(view)
+            }
+        }
+
+        if renderOnly {
+            adjustContentOffset(contentOffsetAdjustFn: contentOffsetAdjustFn)
+            render(shouldUpdateViews: true)
+        } else if asyncLayout {
+            layoutComponentAsync(contentOffsetAdjustFn: contentOffsetAdjustFn)
+        } else {
+            layoutComponent(contentOffsetAdjustFn: contentOffsetAdjustFn)
+        }
+    }
+
+    private var asyncLayoutID: UUID?
+    private func layoutComponentAsync(contentOffsetAdjustFn: (() -> CGPoint)?) {
+        guard let view, let component else { return }
+
+        let adjustedSize = adjustedSize
+        let asyncLayoutID = UUID()
+        self.asyncLayoutID = asyncLayoutID
+        Self.asyncLayoutQueue.async { [weak self] in
+            let renderNode = EnvironmentValues.with(values: .init(\.hostingView, value: view)) {
+                component.layout(Constraint(maxSize: adjustedSize))
+            }
+            DispatchQueue.main.async {
+                guard let self, self.asyncLayoutID == asyncLayoutID else { return }
+                self.didFinishLayout(renderNode: renderNode, contentOffsetAdjustFn: contentOffsetAdjustFn)
+            }
+        }
+    }
+
+    private func layoutComponent(contentOffsetAdjustFn: (() -> CGPoint)?) {
+        guard let view, let component else { return }
+
+        let renderNode = EnvironmentValues.with(values: .init(\.hostingView, value: view)) {
+            component.layout(Constraint(maxSize: adjustedSize))
+        }
+        
+        didFinishLayout(renderNode: renderNode, contentOffsetAdjustFn: contentOffsetAdjustFn)
+    }
+
+    private func didFinishLayout(renderNode: any RenderNode, contentOffsetAdjustFn: (() -> CGPoint)?) {
+        contentSize = renderNode.size * zoomScale
+        self.renderNode = renderNode
+        adjustContentOffset(contentOffsetAdjustFn: contentOffsetAdjustFn)
+        // The container has to be sized before rendering, not after: `visibleFrame`
+        // converts the viewport into the container's coordinate space, so a
+        // still-zero-sized container culls every renderable and nothing appears.
+        contentView?.frame = contentViewFrame
+        render(shouldUpdateViews: true)
+    }
+
+    private func adjustContentOffset(contentOffsetAdjustFn: (() -> CGPoint)?) {
+        let oldContentOffset = contentOffset
+        if let offset = contentOffsetAdjustFn?() {
+            contentOffset = offset
+        }
+        contentOffsetDelta = contentOffset - oldContentOffset
+    }
+
+    /// Renders the render node based on the visibleFrame, optionally updating views.
+    /// - Parameters:
+    ///   - shouldUpdateViews: A Boolean value that determines if the views should be updated.
+    private func render(shouldUpdateViews: Bool) {
+        guard let view, allowReload, !isRendering, let renderNode else { return }
+        isRendering = true
+
+        animator.willUpdate(hostingView: view)
+        let newVisibleRenderables = renderNode._visibleRenderablesWithUniqueIDs(in: visibleFrame)
+        // Some render nodes update size while collecting visible renderables.
+        contentSize = renderNode.size * zoomScale
+
+        let newViews: [NSUIView] = if useLegacyRenderingMode {
+            performLegacyRender(
+                hostingView: view,
+                newVisibleRenderables: newVisibleRenderables,
+                shouldUpdateViews: shouldUpdateViews
+            )
+        } else {
+            ComponentViewDiffApplier.apply(
+                componentEngine: self,
+                newRenderables: newVisibleRenderables,
+                shouldUpdateViews: shouldUpdateViews
+            )
+        }
+
+        visibleRenderables = newVisibleRenderables
+        visibleViews = newViews
+        lastRenderBounds = bounds
+        needsRender = false
+        isRendering = false
+    }
+
+    // MARK: - Cached State
+
+    internal var measuredSizes: [String: CGSize] = [:]
+
+    /// Ensures that the zoom view is centered within the scroll view if it is smaller than the scroll view's bounds.
+    public func ensureZoomViewIsCentered() {
+        guard let contentView else { return }
+        let boundsSize: CGRect
+        boundsSize = bounds.box.inset(by: contentInset)
+        var frameToCenter = contentView.frame
+
+        if centerContentViewHorizontally, frameToCenter.size.width < boundsSize.width {
+            frameToCenter.origin.x = (boundsSize.width - frameToCenter.size.width) * 0.5
+        } else {
+            frameToCenter.origin.x = 0
+        }
+
+        if centerContentViewVertically, frameToCenter.size.height < boundsSize.height {
+            frameToCenter.origin.y = (boundsSize.height - frameToCenter.size.height) * 0.5
+        } else {
+            frameToCenter.origin.y = uncenteredContentOriginY(forContentHeight: frameToCenter.size.height)
+        }
+
+        contentView.frame = frameToCenter
+    }
+
+    /// Where the content container's top edge sits when it is not being centred.
+    ///
+    /// Zero on UIKit and on a flipped AppKit host -- both grow downwards from
+    /// the origin. On an unflipped AppKit host the origin is the *bottom* left,
+    /// so leaving this at zero parks a short container against the bottom edge
+    /// while the layout system believes its content starts at the top.
+    private func uncenteredContentOriginY(forContentHeight contentHeight: CGFloat) -> CGFloat {
+        #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+        if let view, !view.isFlipped {
+            return max(0, view.bounds.height - contentHeight)
+        }
+        #endif
+        return 0
+    }
+
+    /// Calculates the size that fits the current component within the given size.
+    /// - Parameter size: The size within which the component should fit.
+    /// - Returns: The size that fits the component.
+    public func sizeThatFits(_ size: CGSize) -> CGSize {
+        component?.layout(Constraint(maxSize: size)).size ?? .zero
+    }
+
+    /// Replaces a cell's identifier with a new identifier.
+    ///
+    /// This is used to replace a cell's identifier with a new identifer
+    /// Useful when a cell's identifier is going to change with the next
+    /// reloadData, but you want to keep the same cell view.
+    /// - Parameters:
+    ///   - identifier: The current identifier of the cell.
+    ///   - newIdentifier: The new identifier to replace the current identifier.
+    public func replace(identifier: String, with newIdentifier: String) {
+        for (i, renderable) in visibleRenderables.enumerated() where renderable.id == identifier {
+            visibleRenderables[i].id = newIdentifier
+            break
+        }
+    }
+
+    /// Reloads the component with an existing render node, skipping reload.
+    /// This is a performance hack that skips layout for the component if it has already been layed out.
+    /// - Parameters:
+    ///   - component: The component to be reloaded.
+    ///   - renderNode: The existing render node to use for the reload.
+    public func reloadWithExisting(component: any Component, renderNode: any RenderNode) {
+        self.component = component
+        self.renderNode = renderNode
+        self.renderOnly = true
+    }
+}
+
+
+/// Extension to provide additional functionalities to view lookup and frame calculation.
+extension ComponentEngine {
+    /// Returns the view at a given point if it exists within the visible views.
+    public func view(at point: CGPoint) -> NSUIView? {
+        guard let view else { return nil }
+        return visibleViews.first {
+            $0.box.contains($0.convert(point, from: view))
+        }
+    }
+
+    /// Returns the frame associated with a given identifier if it exists within the render node.
+    public func frame(id: String) -> CGRect? {
+        renderNode?.frame(id: id)
+    }
+
+    /// Returns the visible view associated with a given identifier if it exists within the visible renderables.
+    public func visibleView(id: String) -> NSUIView? {
+        for (view, renderable) in zip(visibleViews, visibleRenderables) {
+            if renderable.id == id {
+                return view
+            }
+        }
+        return nil
+    }
+
+    @discardableResult public func scrollTo(id: String, animated: Bool) -> Bool {
+        guard let frame = renderNode?.frame(id: id), let view else { return false }
+        return view.box.scrollRectToVisible(frame, animated: animated)
+    }
+}

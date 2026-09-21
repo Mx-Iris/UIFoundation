@@ -83,6 +83,18 @@ let package = Package(
                 "UIFoundationSettingsUI",
             ],
         ),
+
+        // Deliberately not reachable through the `UIFoundation` umbrella: its top-level
+        // names (`Component`, `Spacer`) collide with ones the umbrella already exports,
+        // and a separate product means consumers that never depend on it never compile
+        // it. That product boundary is also why this one carries no trait --
+        // see Documentations/Evolutions/draft-component-layout-system.md.
+        .library(
+            name: "UIFoundationComponent",
+            targets: [
+                "UIFoundationComponent",
+            ],
+        ),
     ],
     traits: [
         .trait(name: "AppKitPlus"),
@@ -236,12 +248,30 @@ let package = Package(
             swiftSettings: swiftSettings,
         ),
 
+        // Declarative layout system ported from lkzhao/UIComponent. Computes frames
+        // itself instead of going through Auto Layout, and pairs that with view reuse
+        // and visible-frame culling -- the combination `HStackView` / `VStackView`
+        // cannot offer. Depends on neither `UIFoundationShared` nor the umbrella, so
+        // `Component` and `Spacer` keep their upstream names.
+        .target(
+            name: "UIFoundationComponent",
+            dependencies: [
+                "UIFoundationTypealias",
+                "UIFoundationToolbox",
+                .product(name: "AssociatedObject", package: "AssociatedObject"),
+            ],
+            swiftSettings: swiftSettings,
+        ),
+
         .testTarget(
             name: "UIFoundationTests",
             dependencies: [
                 "UIFoundation",
                 "UIFoundationToolbox",
                 "UIFoundationSettings",
+                // Named directly because it is deliberately outside the umbrella;
+                // only the files that import it see `Component` / `Spacer`.
+                "UIFoundationComponent",
                 .target(name: "UIFoundationSettingsUI", condition: .when(platforms: appkitPlatforms)),
                 // Named directly, on top of reaching it through the umbrella, so `@testable`
                 // can see the internal pieces of SpotlightPanel's animation layer.
