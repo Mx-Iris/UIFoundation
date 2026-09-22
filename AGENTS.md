@@ -232,6 +232,30 @@ subset that misses these collisions entirely: the `parent` one lives in `QuickAc
 only surfaces when both traits are on. Use the full list, and build the example app — that is what
 caught the `navigationController` collision.
 
+**Do not survey that surface through `AppKitPlus.swiftinterface` — it cannot show you most of it.**
+Most of AppKitPlus's AppKit surface ships as **Objective-C categories**, and a category never appears
+in a `.swiftinterface`. Measured: the 0.4.4 interface (2432 lines) contains no `extension AppKit.NSView`
+whatsoever, while the sources carry **17** `NSView` categories (`Geometry`, `ViewHierarchy`,
+`Appearance`, `Interactions`, `Animation`, `Focus`, `UpdateProperties`, `TraitEnvironment`,
+`Accessories`, `NavigationSupport`, …) and 8 on `NSViewController`. Evolution 0024 drew the opposite
+conclusion from that same interface file and was wrong — the correction is recorded in its research
+section. **Grep the public headers instead**:
+`grep -rn "^@interface NSView (" <AppKitPlus checkout>/AppKitPlus/**/*.h`.
+
+Three of those members are live collision hazards on any `NSView` subclass: `center`, `transform`
+and `contentMode`, all on `NSView (Geometry)`. This library is immune only because its own spellings
+live behind `.box` — `FrameworkToolbox<NSUIView>.center` is a different declaration site, which is
+exactly what that namespace is for. Verified: no `NSView` subclass in `UIFoundationComponent` or
+`UIFoundationToolbox` declares any of the three.
+
+One category removes work rather than adding it. `NSView (UpdateProperties)` ships
+`setNeedsUpdateProperties` / `updateProperties` / `updatePropertiesIfNeeded` with **automatic
+Observation tracking** on macOS 14+ (`withObservationTracking`, re-armed through a main-queue hop
+because `onChange` fires on `willSet`), driven by a per-instance dynamic subclass rather than a
+process-wide swizzle. AppKit has no equivalent of UIKit's `updateProperties()` of its own — measured,
+zero hits across the macOS 27 SDK's AppKit headers. Before hand-rolling an observation-driven rebuild,
+check whether this trait is already on.
+
 ### Semantic Context (`AppleInternal` trait)
 
 `NSView_Private.h` declares `NSViewSemanticContext` — the private hint that tells AppKit controls

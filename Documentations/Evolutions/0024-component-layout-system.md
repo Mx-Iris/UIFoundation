@@ -109,6 +109,31 @@ UIKit 上这是有意为之：视图带 transform 时直接赋 `frame` 会落到
 
 **没有** `layoutSubviews`、`setNeedsLayout`、`isFlipped`、`sizeThatFits`、手势相关的任何移植，`extension AppKit.NSView` 一处都没有。AppKit 适配这件事必须自己做，这个依赖省不掉任何工作。
 
+> **【2026-09-21 更正】上面这段的后半句是错的，原文保留以说明当时的决策依据。**
+>
+> **错在方法，不在结论的全部。** `.swiftinterface` **看不见 Objective-C category**，而 AppKitPlus 的大部分 AppKit 表面恰恰是 category。重新实测其源码仓库：`NSView` 上有 **17 个** category（`Geometry`、`ViewHierarchy`、`Appearance`、`Interactions`、`Animation`、`Focus`、`UpdateProperties`、`TraitEnvironment`、`Accessories`、`NavigationSupport` 等），`NSViewController` 上有 8 个。所以「`extension AppKit.NSView` 一处都没有」与「这个依赖省不掉任何工作」都不成立。
+>
+> **逐项复核，原判断对了一半：**
+>
+> | 当时断言没有 | 实际 |
+> |---|---|
+> | `layoutSubviews` | ✅ 确实没有（零命中） |
+> | `setNeedsLayout` | ✅ 只在它内部的 `NSViewAccessoryManager` 上，不是 `NSView` 的 |
+> | `isFlipped` | ✅ 完全没有移植，只在 `NSBezierPath` 的文档注释里被提及 |
+> | `sizeThatFits` | ✅ 只在 `NSLayerBackedView` 基类与内部 accessory 类上，**不是 `NSView` category** |
+> | 手势 | ✅ 没有 `UIGestureRecognizer` 的移植 |
+> | `extension AppKit.NSView` 一处都没有 | ❌ **错**，见上 |
+>
+> **所以本提案自己做的坐标翻转与 `NSView.layout()` 布局周期，确实省不掉** —— 那几项的结论是对的。但「这个依赖省不掉*任何*工作」说过头了。
+>
+> **两处具体影响：**
+>
+> - **`center` 是重造的轮子。** 本提案在 `UIFoundationToolbox` 里造了 `box.center`，而 `NSView (Geometry)` 本来就有 `center`（还有 `transform` / `contentMode`）。不过 `box.center` 仍有存在价值 —— 本 target 不依赖 AppKitPlus，trait 关闭时它是唯一的那个。而且**「走 `.box` 而非裸扩展」的决定恰好让本库对这三个名字免疫**：`FrameworkToolbox<NSUIView>.center` 是另一个声明处，与 category 属性不冲突。已复核：`UIFoundationComponent` 与 `UIFoundationToolbox` 中没有任何 `NSView` 子类声明 `center` / `transform` / `contentMode`。**论证错了，结论对了。**
+> - **`NSView (UpdateProperties)` 是现成的。** 它提供 `setNeedsUpdateProperties` / `updateProperties` / `updatePropertiesIfNeeded`，且在 macOS 14+ 带**自动 Observation 追踪**（`withObservationTracking`，`onChange` 经主队列跳转重新装填，因为它在 `willSet` 时触发），由按实例动态子类化驱动而非进程级 swizzle。AppKit 自身没有 UIKit `updateProperties()` 的对应物（实测 macOS 27 SDK 的 AppKit 头文件零命中）。这直接影响示例的移植方案，详见 [`draft-component-example-port.md`](draft-component-example-port.md)。
+>
+> 复查方法已写进 `AGENTS.md` 的 AppKitPlus 一节：**查它的公开头文件，不要查 `.swiftinterface`** —— `grep -rn "^@interface NSView (" <AppKitPlus>/AppKitPlus/**/*.h`。
+
+
 ### 命名冲突只有两个
 
 把 UIComponent `6.0.1` 的 131 个顶层 public 类型与本库现有的 195 个逐一比对，重名的只有：
@@ -369,4 +394,5 @@ open class ComponentScrollView: NSScrollView {
 | 2026-09-21 | 动画桥接必须是跨平台的，不能只做 AppKit | 先只在 AppKit 侧定义 `box.animate`，iOS 构建随即失败 —— 且错误信息把调用解析到了 `CATransaction.box.performWithoutAnimation`，报「requires that 'NSUIView' inherit from 'CATransaction'」，与真正的原因（UIKit 侧没有这个方法）毫无关系 |
 | 2026-09-21 | `.box` 扩展内的 `min` / `max` 必须写成 `Swift.min` / `Swift.max` | `FrameworkToolbox` 带 `@dynamicMemberLookup`，会把裸 `min` 截走并报「property 'min' requires that 'Base' conform to 'Sequence'」 |
 | 2026-09-21 | 调用点省掉属性上的 `.box` | `NSObject` 已遵守 `FrameworkToolboxDynamicMemberLookup`，实例属性与静态属性（SE-0438，Swift 6.1，无需 feature flag）都可直接访问。方法仍需 `.box`；leading-dot 写法不触发 lookup，静态属性要写全类型名 |
+| 2026-09-21 | **更正「AppKitPlus 帮不上忙」的调研结论** | `.swiftinterface` 看不见 ObjC category，而 AppKitPlus 的大部分 AppKit 表面正是 category：`NSView` 上实有 17 个、`NSViewController` 8 个。「`extension AppKit.NSView` 一处都没有」与「省不掉任何工作」均不成立；但「没有 `layoutSubviews` / `setNeedsLayout` / `isFlipped` / `NSView` 的 `sizeThatFits` / 手势」逐项复核**属实**，故坐标翻转与 layout 周期确实得自己做。具体影响：`box.center` 是重造的轮子（但走 `.box` 让本库免疫了 `center` / `transform` / `contentMode` 三个碰撞名），`NSView (UpdateProperties)` 带自动 Observation 追踪是现成的。原文保留，更正以引用块附在该节后 |
 | 2026-09-21 | 桥接属性 `maskView` 更名 `maskingView` | `UIView.maskView` 是废弃改名的真实成员，而真实成员优先于 dynamicMemberLookup —— 即使标了 `@available(renamed:)`。iOS 侧因此编译失败并报「'maskView' has been renamed to 'mask'」，与桥接本身毫无关系 |
