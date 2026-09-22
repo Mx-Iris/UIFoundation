@@ -95,6 +95,19 @@ enum DemoCatalog {
             makeViewController: { ToolbarNavigationDemoViewController() }
         ),
         Demo(
+            title: "Component Layout",
+            category: "Layout",
+            summary: "The declarative layout system, chapter by chapter \u{2014} every sample shown beside the source that produced it, captured at compile time so the two cannot drift.",
+            minimumMacOS: OperatingSystemVersion(majorVersion: 14, minorVersion: 0, patchVersion: 0),
+            makeViewController: {
+                if #available(macOS 14.0, *) {
+                    ComponentLayoutDemoViewController()
+                } else {
+                    Demo.unavailablePlaceholderViewController(requiring: "macOS 14")
+                }
+            }
+        ),
+        Demo(
             title: "Custom Tooltip",
             category: "AppKit Private",
             summary: "CustomToolTipManager playground — live color/slider editing, per-view override, plus an unmodified system control for visual comparison.",

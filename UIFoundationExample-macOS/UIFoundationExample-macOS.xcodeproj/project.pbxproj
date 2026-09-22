@@ -11,6 +11,8 @@
 		E94046832FB61EB0008552BF /* UIFoundationToolbox in Frameworks */ = {isa = PBXBuildFile; productRef = E94046822FB61EB0008552BF /* UIFoundationToolbox */; };
 		E94046912FB61EB0008552BF /* UIFoundationSettings in Frameworks */ = {isa = PBXBuildFile; productRef = E94046902FB61EB0008552BF /* UIFoundationSettings */; };
 		E94046932FB61EB0008552BF /* UIFoundationSettingsUI in Frameworks */ = {isa = PBXBuildFile; productRef = E94046922FB61EB0008552BF /* UIFoundationSettingsUI */; };
+		E94047002FB61EB0008552BF /* UIFoundationComponent in Frameworks */ = {isa = PBXBuildFile; productRef = E94047012FB61EB0008552BF /* UIFoundationComponent */; };
+		E94047102FB61EB0008552BF /* ComponentLayoutExample in Frameworks */ = {isa = PBXBuildFile; productRef = E94047112FB61EB0008552BF /* ComponentLayoutExample */; };
 		E943A7DD2AF76F1100526917 /* UIFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = E943A7DC2AF76F1100526917 /* UIFoundation */; };
 /* End PBXBuildFile section */
 
@@ -35,6 +37,8 @@
 				E94046832FB61EB0008552BF /* UIFoundationToolbox in Frameworks */,
 				E94046912FB61EB0008552BF /* UIFoundationSettings in Frameworks */,
 				E94046932FB61EB0008552BF /* UIFoundationSettingsUI in Frameworks */,
+				E94047002FB61EB0008552BF /* UIFoundationComponent in Frameworks */,
+				E94047102FB61EB0008552BF /* ComponentLayoutExample in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -87,6 +91,8 @@
 				E94046822FB61EB0008552BF /* UIFoundationToolbox */,
 				E94046902FB61EB0008552BF /* UIFoundationSettings */,
 				E94046922FB61EB0008552BF /* UIFoundationSettingsUI */,
+				E94047012FB61EB0008552BF /* UIFoundationComponent */,
+				E94047112FB61EB0008552BF /* ComponentLayoutExample */,
 			);
 			productName = "UIFoundationExample-macOS";
 			productReference = E943A7A92AF76E0E00526917 /* UIFoundationExample-macOS.app */;
@@ -117,6 +123,7 @@
 			mainGroup = E943A7A02AF76E0E00526917;
 			packageReferences = (
 				E940467F2FB61EB0008552BF /* XCLocalSwiftPackageReference "../../UIFoundation" */,
+				E94047122FB61EB0008552BF /* XCLocalSwiftPackageReference "ComponentLayoutExample" */,
 			);
 			preferredProjectObjectVersion = 56;
 			productRefGroup = E943A7AA2AF76E0E00526917 /* Products */;
@@ -364,6 +371,10 @@
 				WelcomePanel,
 			);
 		};
+		E94047122FB61EB0008552BF /* XCLocalSwiftPackageReference "ComponentLayoutExample" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ComponentLayoutExample;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -382,6 +393,14 @@
 		E94046922FB61EB0008552BF /* UIFoundationSettingsUI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = UIFoundationSettingsUI;
+		};
+		E94047012FB61EB0008552BF /* UIFoundationComponent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = UIFoundationComponent;
+		};
+		E94047112FB61EB0008552BF /* ComponentLayoutExample */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ComponentLayoutExample;
 		};
 		E943A7DC2AF76F1100526917 /* UIFoundation */ = {
 			isa = XCSwiftPackageProductDependency;
