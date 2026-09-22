@@ -47,6 +47,19 @@ extension NSVisualEffectView: ViewWrapperComponentView {
         componentEngine
     }
 }
+
+// `NSScrollView` scrolls a *document view*; anything added to the scroll view
+// itself neither scrolls nor reliably stays visible, because AppKit owns that
+// subview list (clip view, scrollers). So the wrapper has to reach the document
+// view's engine -- which is exactly what `renderingEngine` answers.
+//
+// Without this conformance `.scrollView()` compiles, renders, and silently
+// produces a non-scrolling pile of views.
+extension ComponentScrollView: ViewWrapperComponentView {
+    public var contentComponentEngine: ComponentEngine {
+        renderingEngine
+    }
+}
 #endif
 
 #if canImport(UIKit)
