@@ -46,10 +46,17 @@ extension FrameworkToolbox where Base: NSUIView {
     /// Deliberately not `visibleRect`: that also subtracts any other clipping
     /// the view sits under, and is empty before the view reaches a window,
     /// which would cull everything on the first layout pass.
+    ///
+    /// - Important: The clip view's bounds only carries that meaning **for the
+    ///   document view itself**. `enclosingScrollView` answers for every
+    ///   descendant, and for anything deeper the two coordinate spaces are
+    ///   unrelated -- a view nested three levels down would be told its viewport
+    ///   starts at the scrolled position of a space it does not live in, and
+    ///   cull its entire content once the user scrolls past its own height.
     public var viewportBounds: CGRect {
         #if canImport(AppKit) && !targetEnvironment(macCatalyst)
-        if let clipView = base.enclosingScrollView?.contentView {
-            return clipView.bounds
+        if let scrollView = base.enclosingScrollView, scrollView.documentView === base {
+            return scrollView.contentView.bounds
         }
         return base.bounds
         #else

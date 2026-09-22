@@ -42,8 +42,15 @@ extension ComponentEngine {
     /// Re-points rather than registering once, because the enclosing scroll
     /// view can change over a view's lifetime (or not exist yet at the first
     /// layout pass).
+    ///
+    /// Only the *document view* takes the observation. A host nested deeper
+    /// inside the scroll view keeps its own bounds as its visible frame (see
+    /// `viewportBounds`), so scrolling cannot change what it has to draw --
+    /// observing there would re-render every nested engine on every scroll tick
+    /// and change nothing.
     func updateScrollObservationIfNeeded() {
-        let clipView = view?.enclosingScrollView?.contentView
+        let scrollView = view?.enclosingScrollView
+        let clipView = scrollView?.documentView === view ? scrollView?.contentView : nil
         guard clipView !== observedClipView else { return }
 
         if let clipViewObservation {
