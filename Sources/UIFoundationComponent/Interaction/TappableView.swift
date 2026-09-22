@@ -164,6 +164,55 @@ open class TappableView: NSView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    // MARK: Accessibility
+
+    // The layout system renders into plain views that draw themselves, so
+    // nothing below here is an accessibility element by default -- a tappable
+    // area is invisible to VoiceOver and unreachable by any assistive
+    // technology or UI test. These four overrides publish it as a button whose
+    // label is its own content.
+
+    open override func isAccessibilityElement() -> Bool {
+        true
+    }
+
+    open override func accessibilityRole() -> NSAccessibility.Role? {
+        .button
+    }
+
+    /// The text of whatever this view is wrapping.
+    ///
+    /// Walks the rendered subtree, because the content is a component tree the
+    /// engine built -- there is no title property to read.
+    open override func accessibilityLabel() -> String? {
+        if let explicit = super.accessibilityLabel(), !explicit.isEmpty {
+            return explicit
+        }
+        let collected = Self.accessibilityText(in: self)
+        return collected.isEmpty ? nil : collected.joined(separator: " ")
+    }
+
+    /// Lets assistive technology -- and a UI test -- activate the view.
+    open override func accessibilityPerformPress() -> Bool {
+        guard onTap != nil else { return false }
+        didTap()
+        return true
+    }
+
+    private static func accessibilityText(in view: NSView) -> [String] {
+        var collected: [String] = []
+        for subview in view.subviews {
+            if let value = subview.accessibilityValue() as? String, !value.isEmpty {
+                collected.append(value)
+            } else if let label = subview.accessibilityLabel(), !label.isEmpty {
+                collected.append(label)
+            } else {
+                collected.append(contentsOf: accessibilityText(in: subview))
+            }
+        }
+        return collected
+    }
+
     // MARK: AppKit overrides
 
     open override func menu(for event: NSEvent) -> NSMenu? {
