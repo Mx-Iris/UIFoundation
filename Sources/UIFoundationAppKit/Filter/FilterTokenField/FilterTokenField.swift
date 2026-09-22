@@ -72,23 +72,16 @@ import Combine
         self.cancelButton = FilterTokenFieldButton(frame: NSMakeRect(frameRect.width - 25, 0, 25, frameRect.height))
         cancelButton.autoresizingMask = [.minXMargin, .height]
         cancelButton.setButtonType(.momentaryChange)
-        if #available(macOS 12.0, *) {
-            cancelButton.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)!
-                .withSymbolConfiguration(
-                    NSImage.SymbolConfiguration(paletteColors: [.textBackgroundColor, .secondaryLabelColor])
-                        .applying(NSImage.SymbolConfiguration(pointSize: 12, weight: .regular))
-                )
-            cancelButton.alternateImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)!
-                .withSymbolConfiguration(
-                    NSImage.SymbolConfiguration(paletteColors: [.textBackgroundColor, .textColor])
-                        .applying(NSImage.SymbolConfiguration(pointSize: 12, weight: .regular))
-                )
-        } else if #available(macOS 11.0, *) {
-            cancelButton.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)!
-                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .regular))
-            cancelButton.alternateImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)!
-                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .regular))
-        }
+        cancelButton.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)!
+            .withSymbolConfiguration(
+                NSImage.SymbolConfiguration(paletteColors: [.textBackgroundColor, .secondaryLabelColor])
+                    .applying(NSImage.SymbolConfiguration(pointSize: 12, weight: .regular)),
+            )
+        cancelButton.alternateImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)!
+            .withSymbolConfiguration(
+                NSImage.SymbolConfiguration(paletteColors: [.textBackgroundColor, .textColor])
+                    .applying(NSImage.SymbolConfiguration(pointSize: 12, weight: .regular)),
+            )
         cancelButton.target = self
         cancelButton.action = #selector(clearTokens)
         cancelButton.wantsLayer = true
@@ -98,7 +91,7 @@ import Combine
 
         Publishers.MergeMany(
             NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification, object: nil),
-            NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification, object: nil)
+            NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification, object: nil),
         )
         .sink { [weak self] _ in self?.needsDisplay = true }
         .store(in: &subscriptions)
@@ -174,7 +167,7 @@ import Combine
             let headingItem = menu.addItem(
                 withTitle: NSLocalizedString("Recent Filters", bundle: .module, comment: ""),
                 action: nil,
-                keyEquivalent: ""
+                keyEquivalent: "",
             )
             headingItem.isEnabled = false
 
@@ -183,7 +176,7 @@ import Combine
                 let item = menu.addItem(
                     withTitle: String(format: NSLocalizedString("Matching %@", bundle: .module, comment: ""), "“\(value)”"),
                     action: #selector(insertRecentFromMenuItem(_:)),
-                    keyEquivalent: ""
+                    keyEquivalent: "",
                 )
                 item.target = self
                 item.representedObject = value
@@ -195,7 +188,7 @@ import Combine
         let clearRecentsItem = menu.addItem(
             withTitle: NSLocalizedString("Clear Recents", bundle: .module, comment: ""),
             action: #selector(clearRecents),
-            keyEquivalent: ""
+            keyEquivalent: "",
         )
         clearRecentsItem.target = self
         clearRecentsItem.isEnabled = !recentFilterValues.isEmpty

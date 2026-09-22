@@ -19,23 +19,16 @@ import AppKit
         self.placeholderString = nil
 
         if let cancelButtonCell {
-            if #available(macOS 12.0, *) {
-                cancelButtonCell.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)!
-                    .withSymbolConfiguration(
-                        NSImage.SymbolConfiguration(paletteColors: [.textBackgroundColor, .secondaryLabelColor])
-                            .applying(NSImage.SymbolConfiguration(pointSize: 12, weight: .regular))
-                    )
-                cancelButtonCell.alternateImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)!
-                    .withSymbolConfiguration(
-                        NSImage.SymbolConfiguration(paletteColors: [.textBackgroundColor, .textColor])
-                            .applying(NSImage.SymbolConfiguration(pointSize: 12, weight: .regular))
-                    )
-            } else if #available(macOS 11.0, *) {
-                cancelButtonCell.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)!
-                    .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .regular))
-                cancelButtonCell.alternateImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)!
-                    .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .regular))
-            }
+            cancelButtonCell.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)!
+                .withSymbolConfiguration(
+                    NSImage.SymbolConfiguration(paletteColors: [.textBackgroundColor, .secondaryLabelColor])
+                        .applying(NSImage.SymbolConfiguration(pointSize: 12, weight: .regular)),
+                )
+            cancelButtonCell.alternateImage = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: nil)!
+                .withSymbolConfiguration(
+                    NSImage.SymbolConfiguration(paletteColors: [.textBackgroundColor, .textColor])
+                        .applying(NSImage.SymbolConfiguration(pointSize: 12, weight: .regular)),
+                )
         }
     }
 
@@ -89,7 +82,7 @@ import AppKit
                 .foregroundColor: cell.controlView?.effectiveAppearance.allowsVibrancy == true
                     ? NSColor(named: "filterFieldVibrantPlaceholderTextColor", bundle: .module)!
                     : NSColor(named: "filterFieldNonVibrantPlaceholderTextColor", bundle: .module)!,
-            ]
+            ],
         )
     }
 
@@ -166,7 +159,7 @@ import AppKit
             withFrame: cellFrame,
             in: controlView,
             hasActiveFilter: !stringValue.isEmpty || hasFilteringAppearance,
-            hasSourceListAppearance: hasSourceListAppearance
+            hasSourceListAppearance: hasSourceListAppearance,
         )
 
         drawInterior(withFrame: cellFrame, in: controlView)

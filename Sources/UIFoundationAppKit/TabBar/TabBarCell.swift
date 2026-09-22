@@ -22,7 +22,7 @@ final class TabBarCell: NSCell {
         super.init(textCell: aString)
 
         self.isBordered = true
-        self.backgroundStyle = .light
+        self.backgroundStyle = .normal
         self.focusRingType = .none
         self.isEnabled = false
         self.font = NSFont.systemFont(ofSize: 13)

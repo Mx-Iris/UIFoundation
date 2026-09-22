@@ -59,7 +59,7 @@ final class TabButtonCell: NSButtonCell {
         super.init(textCell: string)
 
         self.isBordered = true
-        self.backgroundStyle = .light
+        self.backgroundStyle = .normal
         self.highlightsBy = .changeBackgroundCellMask
         self.lineBreakMode = .byTruncatingTail
         self.focusRingType = .none
