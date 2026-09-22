@@ -7,11 +7,14 @@
 //
 
 import AppKit
-import Highlightr
 
 /// Shows a syntax-highlighted Swift snippet.
 final class CodeTextView: NSTextView {
-    private let highlighter = Highlightr()
+    /// **No highlighter is owned here, deliberately.** View reuse is opt-in, so
+    /// one of these is built for every code block that scrolls into view; an
+    /// engine owned per view is an engine constructed per scroll. See
+    /// ``SwiftSyntaxHighlighter``.
+    private static let font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
 
     var code: String = "" {
         didSet {
@@ -54,7 +57,7 @@ final class CodeTextView: NSTextView {
         isVerticallyResizable = false
         isHorizontallyResizable = false
 
-        applyTheme()
+        applyHighlighting()
     }
 
     @available(*, unavailable)
@@ -98,41 +101,25 @@ final class CodeTextView: NSTextView {
     /// AppKit's counterpart of `traitCollectionDidChange` for light/dark.
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
-        applyTheme()
+        applyHighlighting()
     }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         // `viewDidChangeEffectiveAppearance` only fires on a *change*. A view
-        // built while the app is already dark never sees one, so the theme
-        // picked at init would stand -- and at init a view outside any window
-        // answers `.aqua`, which is how a dark app ended up rendering its code
-        // blocks in the light Xcode theme.
-        applyTheme()
-    }
-
-    private func applyTheme() {
-        guard let highlighter else { return }
-        // The app's appearance, not this view's: before it joins a window the
-        // view has none of its own to report.
-        let appearance = window?.effectiveAppearance ?? NSApp?.effectiveAppearance ?? effectiveAppearance
-        let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        // **Both names have to exist in Highlightr's bundle.** `setTheme(to:)`
-        // takes an unknown name silently and leaves the previous theme in
-        // place, so a typo shows up as "the theme never changes" rather than as
-        // an error. Upstream asks for "xcode", which Highlightr does not ship
-        // (271 themes, none by that name) -- which is why the light branch was
-        // rendering in the default theme.
-        highlighter.setTheme(to: isDark ? "atom-one-dark" : "atom-one-light")
-        highlighter.theme.setCodeFont(NSFont.monospacedSystemFont(ofSize: 13, weight: .regular))
+        // built while the app is already dark never sees one, and at init a
+        // view outside any window answers `.aqua` -- which is how a dark app
+        // ended up rendering its code blocks in the light theme.
         applyHighlighting()
     }
 
     private func applyHighlighting() {
-        guard let highlighter, let highlighted = highlighter.highlight(code, as: "swift") else {
-            string = code
-            return
-        }
-        textStorage?.setAttributedString(highlighted)
+        // The app's appearance, not this view's: before it joins a window the
+        // view has none of its own to report.
+        let appearance = window?.effectiveAppearance ?? NSApp?.effectiveAppearance ?? effectiveAppearance
+        let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        textStorage?.setAttributedString(
+            SwiftSyntaxHighlighter.shared.highlighted(code, isDark: isDark, font: Self.font)
+        )
     }
 }

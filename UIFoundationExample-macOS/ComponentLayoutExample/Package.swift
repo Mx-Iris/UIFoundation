@@ -28,7 +28,13 @@ let package = Package(
         .package(path: "../..", traits: ["AppKitPlus"]),
         .package(url: "https://github.com/AppKitSupportProgram/AppKitPlus-Release", from: "0.3.1"),
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "602.0.0"),
-        .package(url: "https://github.com/raspu/Highlightr", from: "2.3.0"),
+        // Syntax highlighting for the code blocks. `tree-sitter-swift` ships its
+        // generated parser and its `queries/highlights.scm` only on the
+        // `with-generated-files` branch -- the tagged releases carry the grammar
+        // source and expect you to run `tree-sitter generate` yourself, which a
+        // SwiftPM consumer cannot do.
+        .package(url: "https://github.com/tree-sitter/swift-tree-sitter", from: "0.25.0"),
+        .package(url: "https://github.com/alex-pinkus/tree-sitter-swift", branch: "with-generated-files"),
     ],
     targets: [
         // Captures an expression's source text at compile time *and* evaluates
@@ -47,7 +53,8 @@ let package = Package(
                 "ComponentLayoutExampleMacros",
                 .product(name: "UIFoundationComponent", package: "UIFoundation"),
                 .product(name: "AppKitPlus", package: "AppKitPlus-Release"),
-                .product(name: "Highlightr", package: "Highlightr"),
+                .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
+                .product(name: "TreeSitterSwift", package: "tree-sitter-swift"),
             ]
         ),
     ],

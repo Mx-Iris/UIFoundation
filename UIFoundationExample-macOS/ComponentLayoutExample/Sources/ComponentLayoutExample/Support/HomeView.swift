@@ -30,6 +30,10 @@ public final class HomeView: ComponentView {
 
     public init() {
         super.init(frame: .zero)
+        // Compiling tree-sitter's `highlights.scm` costs ~78 ms, once per
+        // process. Started here it is over long before a chapter is picked;
+        // left to the first code block it would land inside a layout pass.
+        SwiftSyntaxHighlighter.shared.warmUp()
         // Layer backing is inherited by the whole subtree, and the chapters'
         // `.backgroundColor(…)` writes straight onto a layer -- a view without
         // one silently drops the colour. Turning it on once here covers every
