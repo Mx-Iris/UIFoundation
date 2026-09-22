@@ -206,7 +206,7 @@ final class PlacementExamplesView: ChapterView {
 final class GradientView: NSView {
     // `UIView.layerClass` has no AppKit counterpart -- AppKit asks the view to
     // build its own backing layer instead, and only if it wants one at all.
-    // Hence both halves: the factory, and `wantsLayer`, which UIKit views never
+    // Hence both halves: the factory, and `wantsLayer`, which AppKit views never
     // need because they are always layer-backed.
     override func makeBackingLayer() -> CALayer {
         CAGradientLayer()

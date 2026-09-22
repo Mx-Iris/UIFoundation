@@ -29,7 +29,7 @@ final class ViewComponentExamplesView: ChapterView {
             
             VStack(spacing: 10) {
                 Text("What is ViewComponent?", font: .subtitle)
-                Text("ViewComponent wraps any NSView to use within UIFoundationComponent layouts. It enables you to use standard UIKit views (UIButton, UITextField, etc.) or custom views alongside declarative components.", font: .body).textColor(.secondaryLabel)
+                Text("ViewComponent wraps any NSView to use within UIFoundationComponent layouts. It enables you to use standard AppKit views (NSButton, NSTextField, etc.) or custom views alongside declarative components.", font: .body).textColor(.secondaryLabel)
                 VStack(spacing: 8) {
                     HStack(spacing: 8, alignItems: .center) {
                         Image(systemName: "puzzlepiece.extension")

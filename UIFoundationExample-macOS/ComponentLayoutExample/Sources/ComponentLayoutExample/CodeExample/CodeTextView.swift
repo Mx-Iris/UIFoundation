@@ -79,16 +79,51 @@ final class CodeTextView: NSTextView {
         )
     }
 
+    /// Keeps the text container as wide as the view.
+    ///
+    /// **Load-bearing.** The container starts at width zero, and
+    /// `sizeThatFits(_:)` sets it on the *measuring* instance -- a different
+    /// object from the one on screen. Without this the displayed view keeps a
+    /// zero-width container, lays out no lines at all, and draws an empty box
+    /// of exactly the right height.
+    ///
+    /// `widthTracksTextView` would do it automatically, but it also makes
+    /// AppKit overwrite the container size, which is what `sizeThatFits(_:)`
+    /// relies on setting by hand.
+    override func layout() {
+        super.layout()
+        textContainer?.size = CGSize(width: bounds.width, height: CGFloat.greatestFiniteMagnitude)
+    }
+
     /// AppKit's counterpart of `traitCollectionDidChange` for light/dark.
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
         applyTheme()
     }
 
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        // `viewDidChangeEffectiveAppearance` only fires on a *change*. A view
+        // built while the app is already dark never sees one, so the theme
+        // picked at init would stand -- and at init a view outside any window
+        // answers `.aqua`, which is how a dark app ended up rendering its code
+        // blocks in the light Xcode theme.
+        applyTheme()
+    }
+
     private func applyTheme() {
         guard let highlighter else { return }
-        let isDark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        highlighter.setTheme(to: isDark ? "monokai" : "xcode")
+        // The app's appearance, not this view's: before it joins a window the
+        // view has none of its own to report.
+        let appearance = window?.effectiveAppearance ?? NSApp?.effectiveAppearance ?? effectiveAppearance
+        let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        // **Both names have to exist in Highlightr's bundle.** `setTheme(to:)`
+        // takes an unknown name silently and leaves the previous theme in
+        // place, so a typo shows up as "the theme never changes" rather than as
+        // an error. Upstream asks for "xcode", which Highlightr does not ship
+        // (271 themes, none by that name) -- which is why the light branch was
+        // rendering in the default theme.
+        highlighter.setTheme(to: isDark ? "atom-one-dark" : "atom-one-light")
         highlighter.theme.setCodeFont(NSFont.monospacedSystemFont(ofSize: 13, weight: .regular))
         applyHighlighting()
     }

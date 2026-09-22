@@ -106,7 +106,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1500;
-				LastUpgradeCheck = 2650;
+				LastUpgradeCheck = 2710;
 				TargetAttributes = {
 					E943A7A82AF76E0E00526917 = {
 						CreatedOnToolsVersion = 15.0;
@@ -360,8 +360,8 @@
 				AppleInternal,
 				FilterUI,
 				IDEIcons,
-				Navigation,
 				NSAttributedStringBuilder,
+				Navigation,
 				QuickActionBar,
 				Settings,
 				SpotlightPanel,

@@ -44,16 +44,30 @@ public enum TextContent {
     }
 
     /// Resolves to the string that actually gets measured and drawn.
+    ///
+    /// **A colour is always filled in.** `UILabel` defaults to the dynamic
+    /// `.label`; `NSAttributedString.draw(with:)` defaults to plain black, so a
+    /// string that names no colour renders black-on-black in dark mode --
+    /// invisible, with nothing to report. `labelColor` is the AppKit
+    /// counterpart of UIKit's default and adapts to the appearance.
     func resolved(textColor: NSColor?) -> NSAttributedString {
+        let resolvedColor = textColor ?? .labelColor
         switch self {
         case .string(let string, let font):
-            var attributes: [NSAttributedString.Key: Any] = [.font: font]
-            if let textColor {
-                attributes[.foregroundColor] = textColor
-            }
-            return NSAttributedString(string: string, attributes: attributes)
+            return NSAttributedString(
+                string: string,
+                attributes: [.font: font, .foregroundColor: resolvedColor]
+            )
         case .attributedString(let attributed):
-            return attributed
+            // Fill the gaps only. A caller who coloured part of the string --
+            // or all of it -- keeps what they set.
+            let mutable = NSMutableAttributedString(attributedString: attributed)
+            let fullRange = NSRange(location: 0, length: mutable.length)
+            mutable.enumerateAttribute(.foregroundColor, in: fullRange) { value, range, _ in
+                guard value == nil else { return }
+                mutable.addAttribute(.foregroundColor, value: resolvedColor, range: range)
+            }
+            return mutable
         }
     }
 }

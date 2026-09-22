@@ -166,7 +166,7 @@ final class StateManagementExamplesView: ChapterView {
                 VStack(spacing: 15) {
                     VStack(spacing: 6, alignItems: .start) {
                         Text("How it works", font: .bodyBold)
-                        Text("The @Observable macro automatically tracks property access. When you override updateProperties() and access @Observable properties, UIKit automatically calls setNeedsUpdateProperties() when those properties change.", font: .body).textColor(.secondaryLabel)
+                        Text("The @Observable macro automatically tracks property access. When you override updateProperties() and access @Observable properties, AppKitPlus automatically calls setNeedsUpdateProperties() when those properties change.", font: .body).textColor(.secondaryLabel)
 
                         VStack(spacing: 8, alignItems: .start) {
                             VStack(spacing: 4, alignItems: .start) {

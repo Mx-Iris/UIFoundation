@@ -48,7 +48,7 @@ final class TappableViewExamplesView: ChapterView {
                             .contentMode(.center)
                             .tintColor(.systemGreen)
                             .size(width: 24, height: 24)
-                        Text("Context menus and previews", font: .body)
+                        Text("Context menus", font: .body)
                     }
                     HStack(spacing: 8, alignItems: .center) {
                         Image(systemName: "sparkles")

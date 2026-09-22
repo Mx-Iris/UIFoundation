@@ -242,7 +242,7 @@ final class PerformanceOptimizationExamplesView: ChapterView {
             
             VStack(spacing: 10) {
                 Text("Prefer ViewComponent over manual NSViews", font: .subtitle)
-                Text("When you need to use UIKit views, always use ViewComponent with a generator function rather than creating NSView instances directly. This allows UIFoundationComponent to defer view creation until the component is actually visible.", font: .body).textColor(.secondaryLabel)
+                Text("When you need to use AppKit views, always use ViewComponent with a generator function rather than creating NSView instances directly. This allows UIFoundationComponent to defer view creation until the component is actually visible.", font: .body).textColor(.secondaryLabel)
                 
                 VStack(spacing: 15) {
                     VStack(spacing: 6) {

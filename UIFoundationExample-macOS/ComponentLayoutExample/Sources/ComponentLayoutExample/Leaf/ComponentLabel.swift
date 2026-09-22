@@ -74,6 +74,30 @@ public final class ComponentLabel: NSView {
         return mutable
     }
 
+    // MARK: Accessibility
+
+    // A self-drawing view publishes nothing on its own: the text exists only as
+    // glyphs in `draw(_:)`, so VoiceOver reads an empty pane and a UI test finds
+    // no element. Publishing it as static text is the other half of writing a
+    // leaf component -- easy to forget, because nothing about the rendering
+    // looks wrong without it.
+
+    public override func isAccessibilityElement() -> Bool {
+        true
+    }
+
+    public override func accessibilityRole() -> NSAccessibility.Role? {
+        .staticText
+    }
+
+    public override func accessibilityValue() -> Any? {
+        attributedText?.string
+    }
+
+    public override func accessibilityLabel() -> String? {
+        attributedText?.string
+    }
+
     public override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         guard let attributedText = drawableText else { return }
