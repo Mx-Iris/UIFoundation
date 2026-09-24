@@ -1,6 +1,15 @@
 {
-  "originHash" : "9110ea16be5c0ead71ea2553c642e3a630956c5dab53a4a6b559210c40440428",
+  "originHash" : "6679d68ce46fa05f1a02e32ec9d083b87533fda2b105c6f5de80dc9b92fcba05",
   "pins" : [
+    {
+      "identity" : "appkitplus-release",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AppKitSupportProgram/AppKitPlus-Release",
+      "state" : {
+        "revision" : "519891773628dff3673143744dc72c7a9afdd36e",
+        "version" : "0.4.4"
+      }
+    },
     {
       "identity" : "associatedobject",
       "kind" : "remoteSourceControl",
