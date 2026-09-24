@@ -1197,7 +1197,11 @@ open class TabBar: NSControl, NSTextDelegate {
         // has and its close button lands under the pointer — that is what lets a run of tabs be
         // closed without moving the mouse. `-[NSTabBar closeTabButton:]` arms this only for a real
         // click, which it detects as `window.currentEvent != nil`, and never for the trailing tab,
-        // where nothing would slide under the pointer to be clicked next.
+        // where nothing would slide under the pointer to be clicked next. The close button acts on
+        // mouse-up, so the mouse-up is what is current here — through the macOS 27 SDK's gesture
+        // recognizer as through the old tracking loop (measured). TN3212 stops promising that
+        // `currentEvent` is the event behind an action, but a real click still leaves one, which is
+        // all this test asks.
         isInteractivelyClosingTabs = !closedTheTrailingTab && window?.currentEvent != nil
 
         coalescingLayout {

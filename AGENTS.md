@@ -726,9 +726,25 @@ override that hit-tested the chevron, `Style.popupRectWithFrame`, the `showingMe
 `showingMenu` argument to make a custom style "leave space for the menu" — there is nothing to leave
 space for.
 
+**Decoration never takes a click, and on the macOS 27 SDK that is load-bearing.** The tab glass, the
+separators and the bar track all return `nil` from `hitTest(_:)`. The decorator adds them *after* the
+buttons, and `NSView` hit-tests in subview order (`zPosition` only orders drawing), so without it the
+glass wins every click on its tab. That was harmless while an unhandled `mouseDown(with:)` fell
+through to the view underneath; built against the macOS 27 SDK, stock `NSControl`s track through
+gesture recognizers, which AppKit gathers only along the hit-tested view's superview chain
+([TN3212](https://developer.apple.com/documentation/technotes/tn3212-adopting-gesture-recognizers-for-sidecar-touch-support)).
+The close button went dead while the tab still worked, so clicking it selected the tab — and only in
+Xcode 27 builds, because `-[NSControl mouseDown:]` gates the switch on `dyld_program_sdk_at_least`.
+`TabBarHitTestingTests` asserts on the window's hit-test, which fails without the override under any
+SDK. The converse trap: `TabButton`'s `mouseDown(with:)` override looks like it only beeps, but it is
+what keeps the tab on the tracking-loop fallback that `selectTab(_:)` relies on (`NSApp.currentEvent`
+as the mouse-down) — don't delete it. For "a control ignores clicks" in general, see the
+`appkit-mouse-event-routing` skill.
+
 **Full guide:** `Documentations/TabBar.md` — API, the three host-facing contracts (item identity,
 selection ownership, what a reload animates), the measured `SystemStyle` geometry, the stacking and
-scrolling models, and the known divergences from the system bar.
+scrolling models, why clicks must go through the decoration, and the known divergences from the
+system bar.
 
 Wiring:
 - `traits: [..., .trait(name: "TabBar")]` in `Package.swift`

@@ -22,6 +22,7 @@
   - [5.2 Stacking](#52-stacking)
   - [5.3 Scrolling](#53-scrolling)
   - [5.4 Closing a run of tabs](#54-closing-a-run-of-tabs)
+  - [5.5 Clicks go through the decoration](#55-clicks-go-through-the-decoration)
 - [6. Namespace convention](#6-namespace-convention)
 - [7. How this is verified](#7-how-this-is-verified)
 - [8. Known divergences](#8-known-divergences)
@@ -248,6 +249,40 @@ shift into the slot the closed tab left, which parks the next tab's close button
 pointer. The bar divides itself afresh once the pointer leaves. Adding a tab ends the run, and the
 trailing tab never pins — nothing would slide under the pointer to be clicked next.
 
+### 5.5 Clicks go through the decoration
+
+The glass behind each tab, the separators and the bar track are decoration, and none of them ever
+takes a click: each overrides `hitTest(_:)` to return `nil`. They have to. The decorator adds them to
+the strip *after* the tab buttons, and `NSView` hit-tests in subview order — `zPosition` only orders
+the drawing — so a glass that took part in hit-testing would win every click on the tab it backs.
+
+For a long time that cost nothing, because a view that does not handle `mouseDown(with:)` passes it on
+to whatever lies underneath. Built against the macOS 27 SDK it stops working for stock controls: they
+track through a gesture recognizer, and AppKit gathers recognizers only along the superview chain of
+the hit-tested view
+([TN3212](https://developer.apple.com/documentation/technotes/tn3212-adopting-gesture-recognizers-for-sidecar-touch-support)).
+The close button, a plain `NSButton`, then never saw a click while the tab itself still did, so
+clicking the close button *selected* the tab. Two details made it look stranger than it was:
+
+- **Only the SDK the app links against decides it.** `-[NSControl(_NSTracking) mouseDown:]` hands the
+  event straight to `super` when the control uses a gesture recognizer *and*
+  `dyld_program_sdk_at_least` passes for the 2026 release set (disassembled on macOS 27.0); otherwise
+  it runs the old tracking loop, which accepts a forwarded click. The same binary stamped as SDK 26
+  closed tabs normally on macOS 27.
+- **Only an evenly divided bar was affected.** A stacked bar resolves overlapping tabs in
+  `TabBar.hitTest(_:)` itself and never consulted the glass.
+
+Two rules follow for anyone extending the control:
+
+- **Any new decoration view must opt out of hit-testing**, or be inserted below the buttons. A view
+  drawn behind a control can still sit in front of it for hit-testing.
+- **`TabButton`'s `mouseDown(with:)` override is not dead code**, although all it adds is a beep. A
+  control subclass that overrides a left-mouse responder method stays on the tracking-loop fallback
+  (TN3212), and `selectTab(_:)` is written for that loop: it reads `NSApp.currentEvent` as the
+  mouse-down behind the action and pulls the rest of a reorder drag with `nextEvent(matching:)` — the
+  two things TN3212 says the gesture path no longer promises. What the tab does without the override
+  has not been measured; keep it until selection moves to control events.
+
 ## 6. Namespace convention
 
 To keep generic names out of the umbrella module, the entire public API is nested inside the
@@ -282,6 +317,17 @@ Two habits are worth copying when extending this:
   back" — a distinction invisible to the eye inside a 0.15 s animation, and invisible to any check that
   only compares before and after.
 - **Sample in screen space.** Document-space frames hide every problem that involves the viewport moving.
+
+`TabBarHitTestingTests` pins [5.5](#55-clicks-go-through-the-decoration) by asking the window's own
+hit-test where a click on each close button — and on every point of every tab — lands. It asserts on
+the hit-test rather than posting a click on purpose: whether a posted click reproduces the bug depends
+on the SDK the test host was linked against (Xcode 27's `xctest` and `swiftpm-testing-helper` are
+SDK 27; Xcode 26's would pass without the fix) and on the window being key, which a test process
+cannot count on. The hit-test fails without the fix whatever runs it. For the end-to-end check, use a
+standalone probe: post both the mouse-down and the mouse-up with `NSApp.postEvent`, treat the run as
+void unless the window is key and a control click on a tab lands, and compare SDK 26 against SDK 27
+from one build by stamping a copy with `vtool -set-build-version macos <minos> 26.0 -replace`
+(re-sign it ad hoc).
 
 The demo (`UIFoundationExample-macOS` → Tab Bar) is wired the host-owned way described in
 [3.2](#32-who-owns-the-selection): it keeps its own active index, opens tabs next to it, activates the

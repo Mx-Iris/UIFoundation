@@ -269,6 +269,16 @@ open class TabButton: NSButton {
         }
     }
 
+    /// Beyond the beep, this override is what keeps the tab on AppKit's tracking loop — do not drop
+    /// it as dead weight.
+    ///
+    /// Built against the macOS 27 SDK, a stock `NSControl` tracks through a gesture recognizer, and a
+    /// subclass falls back to the tracking loop only because it overrides a left-mouse responder
+    /// method (TN3212). `TabBar.selectTab(_:)` is written for that loop: it reads `NSApp.currentEvent`
+    /// as the mouse-down behind the action and pulls the rest of a reorder drag with
+    /// `nextEvent(matching:)` — the two things TN3212 says the gesture path no longer promises. What
+    /// the tab does without this override has not been measured; keep it until selection moves to
+    /// control events.
     open override func mouseDown(with theEvent: NSEvent) {
         super.mouseDown(with: theEvent)
         if isEnabled == false {

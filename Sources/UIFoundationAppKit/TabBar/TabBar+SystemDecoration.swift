@@ -198,6 +198,19 @@ extension TabBar {
             effectView?.frame = bounds
         }
 
+        /// Never the target of a click: a click on a tab has to reach the tab, and its close button.
+        ///
+        /// The decorator adds this view to the strip *after* the buttons, and `NSView` hit-tests in
+        /// subview order — `zPosition` only orders the drawing — so without this the glass takes
+        /// every click on the tab it backs. That went unnoticed for as long as a view that does not
+        /// handle `mouseDown(with:)` passed it on to whatever lay underneath. Built against the
+        /// macOS 27 SDK it breaks: a stock `NSControl` tracks through a gesture recognizer instead,
+        /// and AppKit gathers recognizers only along the hit-tested view's superview chain (TN3212).
+        /// The close button, a plain `NSButton`, then never saw a click, while the tab itself — kept
+        /// on the tracking-loop fallback by its own `mouseDown(with:)` override — still took it, so
+        /// clicking the close button selected the tab. `TabBarHitTestingTests` guards this.
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
         /// Applies the system glass configuration for the given tab state.
         func configure(state: TabState) {
             currentState = state
@@ -317,6 +330,11 @@ extension TabBar {
             }
         }
 
+        /// Decoration never takes a click — see ``TabGlassView/hitTest(_:)``. The track sits below
+        /// the scroll view today, so nothing reaches it anyway; this keeps it that way whatever the
+        /// ordering becomes.
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
         override var wantsUpdateLayer: Bool { true }
 
         override func updateLayer() {
@@ -344,6 +362,10 @@ extension TabBar {
         required init?(coder: NSCoder) {
             fatalError("init(coder:) has not been implemented")
         }
+
+        /// In front of the tabs in subview order, like ``TabGlassView`` — and kept out of
+        /// hit-testing for the same reason; see ``TabGlassView/hitTest(_:)``.
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
         override var wantsUpdateLayer: Bool { true }
 
@@ -381,7 +403,9 @@ extension TabBar {
     /// stand in for per-button bezel drawing when a ``TabBar/Style`` opts into
     /// ``TabBar/Style/controlDecoration``.
     ///
-    /// Decoration views sit just behind their own tab button, so overlapping stacked tabs read correctly.
+    /// Decoration views are *drawn* just behind their own tab button, by `zPosition`, so overlapping
+    /// stacked tabs read correctly. In subview order they sit in front of every button, which is why
+    /// each of them opts out of hit-testing — see ``TabGlassView/hitTest(_:)``.
     final class SystemTabDecorator {
         private unowned let container: NSView
 

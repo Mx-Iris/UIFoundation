@@ -38,7 +38,8 @@
   另有「顶边钉死」的定位算法、非等比的消失缩放、比透明度慢近一倍的模糊曲线，以及与 Spotlight 的已知偏离。
 - [TabBar](TabBar.md) —— 标签栏控件。含三条宿主必须知道的契约：**item 按身份而非位置匹配**、
   选中态归谁所有、`reloadTabs(animated:)` 到底动画了什么。另有 `SystemStyle` 的几何、
-  堆叠、滚动与批量关闭行为，以及与系统实现的已知偏离。
+  堆叠、滚动与批量关闭行为，**装饰层为什么必须退出 hit-test**（macOS 27 SDK 下系统控件改走手势识别器，
+  被盖住就收不到点击），以及与系统实现的已知偏离。
 - [TextFinder](TextFinder.md) —— 表格与大纲视图的 ⌘F 查找。**含一条踩了就静默出错的契约**：
   宿主禁止直接调用 `textFinder.performAction(_:)`，必须走 `textFinderClient.performTextFinderAction(_:)`
   —— 索引是惰性的，直接调会搜到空文档且不报错。另有表格的 run-length 快路径与大纲的外部索引机制。
