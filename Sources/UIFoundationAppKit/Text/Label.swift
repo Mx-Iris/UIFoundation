@@ -18,6 +18,18 @@ open class Label: InsetsTextField {
             super.stringValue
         }
     }
+    
+    open override var attributedStringValue: NSAttributedString {
+        set {
+            super.attributedStringValue = newValue
+            if syncStringValueToolTip {
+                toolTip = newValue.string
+            }
+        }
+        get {
+            super.attributedStringValue
+        }
+    }
 
     open override func setup() {
         isEditable = false
