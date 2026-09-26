@@ -1,11 +1,10 @@
 #if FilterUI && os(macOS)
 
 import AppKit
-import ObjectiveC
+import AssociatedObject
 
 /// The cell interface for AppKit filter fields with token capabilities.
 @objcMembers open class FilterTokenFieldCell: NSTokenFieldCell, NSTokenFieldCellDelegate, FilterTokenTextStorageDelegate, NSLayoutManagerDelegate {
-    public static var representedObjectKey: UInt8 = 0
     public static let wildCardPattern = try! NSRegularExpression(pattern: ".+\\*.+|^\\*.+\\*$")
 
     public override init(textCell string: String) {
@@ -232,11 +231,11 @@ import ObjectiveC
     }
 
     func updateTokenAttachment(_ attachment: NSTextAttachment, forAttributedString attrString: NSAttributedString) {
-        guard objc_getAssociatedObject(attachment, &Self.representedObjectKey) == nil else { return }
+        guard attachment.filterTokenRepresentedObject == nil else { return }
         guard let cell = attachment.attachmentCell as? NSCell else { return }
 
         let object = representedObjectWithAttachment(attachment, attributedString: attrString)
-        objc_setAssociatedObject(attachment, &Self.representedObjectKey, object, .OBJC_ASSOCIATION_RETAIN)
+        attachment.filterTokenRepresentedObject = object as? NSObject
 
         let newCell = FilterTokenAttachmentCell()
         newCell.font = font
@@ -248,7 +247,7 @@ import ObjectiveC
     }
 
     func representedObjectWithAttachment(_ attachment: NSTextAttachment, attributedString attrString: NSAttributedString) -> Any? {
-        if let object = objc_getAssociatedObject(attachment, &Self.representedObjectKey) {
+        if let object = attachment.filterTokenRepresentedObject {
             return object as? FilterTokenValue
         }
 
@@ -256,6 +255,13 @@ import ObjectiveC
         cell.attributedStringValue = attrString
         return (cell.objectValue as? NSArray)?.firstObject ?? attrString.string
     }
+}
+
+private extension NSTextAttachment {
+    /// What the token resolved to, set once its cell has been swapped for a `FilterTokenAttachmentCell`.
+    /// `NSObject?` rather than `Any?`: the macro reads an absent `Any?` back as `Optional(nil)`, not `nil`.
+    @AssociatedObject(.retain(.atomic))
+    var filterTokenRepresentedObject: NSObject?
 }
 
 #endif

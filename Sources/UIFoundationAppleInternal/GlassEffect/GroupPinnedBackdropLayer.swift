@@ -6,6 +6,7 @@
 
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
+import AssociatedObject
 import ObjectiveC
 import QuartzCore
 import UIFoundationAppleInternalObjC
@@ -19,16 +20,13 @@ import UIFoundationAppleInternalObjC
 /// `groupName` write is answered with the pinned name instead.
 ///
 /// The instance was allocated by SwiftUI as a plain `CABackdropLayer`, so this class must never
-/// add stored properties; the pinned name lives in an associated object.
+/// add stored properties; the pinned name lives in an associated object. `pinnedGroupName` only
+/// looks stored — `@AssociatedObject` rewrites it into accessors, so the attribute must stay.
 @available(macOS 26.0, *)
 final class GroupPinnedBackdropLayer: CABackdropLayer {
-    private static var pinnedGroupNameKey: UInt8 = 0
-
     /// The name every write to `groupName` is replaced with. `nil` lets writes through again.
-    var pinnedGroupName: String? {
-        get { objc_getAssociatedObject(self, &Self.pinnedGroupNameKey) as? String }
-        set { objc_setAssociatedObject(self, &Self.pinnedGroupNameKey, newValue, .OBJC_ASSOCIATION_COPY_NONATOMIC) }
-    }
+    @AssociatedObject(.copy(.nonatomic))
+    var pinnedGroupName: String?
 
     override var groupName: String? {
         get { super.groupName }

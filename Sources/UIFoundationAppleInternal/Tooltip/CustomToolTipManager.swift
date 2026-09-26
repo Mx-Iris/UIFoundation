@@ -1,7 +1,7 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
-import ObjectiveC
+import AssociatedObject
 import UIFoundationAppKit
 import UIFoundationAppleInternalObjC
 
@@ -238,23 +238,22 @@ public final class CustomToolTipManager {
     // MARK: - Panel chrome save / restore
 
     private func saveOriginalChromeIfNeeded(for window: NSWindow) {
-        if objc_getAssociatedObject(window, &AssociationKeys.chrome) != nil { return }
-        let chrome = OriginalPanelChrome(
+        if window.customToolTipOriginalChrome != nil { return }
+        window.customToolTipOriginalChrome = OriginalPanelChrome(
             backgroundColor: window.backgroundColor,
             isOpaque: window.isOpaque,
             hasShadow: window.hasShadow
         )
-        objc_setAssociatedObject(window, &AssociationKeys.chrome, chrome, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
     }
 
     private func restoreOriginalChrome(for window: NSWindow) {
-        guard let chrome = objc_getAssociatedObject(window, &AssociationKeys.chrome) as? OriginalPanelChrome else { return }
+        guard let chrome = window.customToolTipOriginalChrome else { return }
         window.backgroundColor = chrome.backgroundColor
         window.isOpaque = chrome.isOpaque
         window.hasShadow = chrome.hasShadow
     }
 
-    private final class OriginalPanelChrome {
+    fileprivate final class OriginalPanelChrome {
         let backgroundColor: NSColor
         let isOpaque: Bool
         let hasShadow: Bool
@@ -264,10 +263,12 @@ public final class CustomToolTipManager {
             self.hasShadow = hasShadow
         }
     }
+}
 
-    private enum AssociationKeys {
-        nonisolated(unsafe) static var chrome: UInt8 = 0
-    }
+private extension NSWindow {
+    /// The tooltip panel's chrome from before a styled tooltip first replaced it, restored on uninstall.
+    @AssociatedObject(.retain(.nonatomic))
+    var customToolTipOriginalChrome: CustomToolTipManager.OriginalPanelChrome?
 }
 
 #endif

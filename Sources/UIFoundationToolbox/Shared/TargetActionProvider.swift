@@ -22,6 +22,14 @@ final class ActionTrampoline<T: TargetActionProvider>: NSObject {
     }
 }
 
+extension NSObject {
+    /// The trampoline `box.actionBlock` installs as the target, retained here because `target` is weak.
+    /// Declared on `NSObject` because the macro in an extension of `TargetActionProvider` itself is a
+    /// circular reference; `FrameworkToolbox.actionTrampoline` restores the type.
+    @AssociatedObject(.retain(.nonatomic))
+    fileprivate var targetActionTrampoline: NSObject?
+}
+
 extension FrameworkToolbox where Base: TargetActionProvider, Base: NSObject {
     /// The action handler of the object.
     public var actionBlock: Base.ActionBlock? {
@@ -48,26 +56,8 @@ extension FrameworkToolbox where Base: TargetActionProvider, Base: NSObject {
     }
 
     var actionTrampoline: ActionTrampoline<Base>? {
-        get {
-            getAssociatedObject(
-                base,
-                Self.__associated_actionTrampolineKey
-            ) as? ActionTrampoline<Base>
-                ?? nil
-        }
-        set {
-            setAssociatedObject(
-                base,
-                Self.__associated_actionTrampolineKey,
-                newValue,
-                .retain(.nonatomic)
-            )
-        }
-    }
-
-    @inline(never) static var __associated_actionTrampolineKey: UnsafeRawPointer {
-        let f: @convention(c) () -> Void = {}
-        return unsafeBitCast(f, to: UnsafeRawPointer.self)
+        get { base.targetActionTrampoline as? ActionTrampoline<Base> }
+        set { base.targetActionTrampoline = newValue }
     }
 
     public func performAction() {

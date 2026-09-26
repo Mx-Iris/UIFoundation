@@ -1,11 +1,11 @@
 #if FilterUI && canImport(Carbon)
 
 import AppKit
+import AssociatedObject
 import Carbon
 import UIFoundationAppKit
 import UIFoundationAppleInternalObjC
 private import UIFoundationCarbonInternal
-import ObjectiveC
 
 // TODO: support filtering with custom fonts (e.g. monospaced)
 // TODO: add customizable inset for filter field
@@ -15,7 +15,6 @@ import ObjectiveC
 /// If there is only one filter result when the enter key is pressed, that item will be selected and the menu will close.
 @objcMembers open class FilteringMenu: NSMenu, NSMenuDelegate, NSSearchFieldDelegate, FilteringMenuFilterViewDelegate {
     static let filterFieldItemTag = 1000
-    static var attributedTitleKey = UInt8(0)
 
     open private(set) var wrappedDelegate: NSMenuDelegate? // TODO: make private and only expose through `delegate`
 
@@ -173,12 +172,12 @@ import ObjectiveC
         for item in items {
             item.isHidden = !string.isEmpty
 
-            if let attributedTitle = objc_getAssociatedObject(item, &Self.attributedTitleKey) as? NSAttributedString {
+            if let attributedTitle = item.filteringMenuOriginalAttributedTitle as? NSAttributedString {
                 item.attributedTitle = attributedTitle
-                objc_setAssociatedObject(item, &Self.attributedTitleKey, nil, .OBJC_ASSOCIATION_RETAIN)
-            } else if objc_getAssociatedObject(item, &Self.attributedTitleKey) is NSNull {
+                item.filteringMenuOriginalAttributedTitle = nil
+            } else if item.filteringMenuOriginalAttributedTitle is NSNull {
                 item.attributedTitle = nil
-                objc_setAssociatedObject(item, &Self.attributedTitleKey, nil, .OBJC_ASSOCIATION_RETAIN)
+                item.filteringMenuOriginalAttributedTitle = nil
             }
         }
 
@@ -198,7 +197,7 @@ import ObjectiveC
                 )
             }
 
-            objc_setAssociatedObject(item, &Self.attributedTitleKey, item.attributedTitle ?? NSNull(), .OBJC_ASSOCIATION_RETAIN)
+            item.filteringMenuOriginalAttributedTitle = item.attributedTitle ?? NSNull()
             item.attributedTitle = attributedTitle
         }
 
@@ -365,6 +364,13 @@ import ObjectiveC
 
         performFiltering(with: filterField.stringValue, in: filterView.menuItem.menu!)
     }
+}
+
+private extension NSMenuItem {
+    /// The `attributedTitle` an item had before filtering highlighted it — `NSNull` when it had none,
+    /// `nil` when nothing is saved. `NSObject?` rather than `Any?`, which the macro cannot read back as `nil`.
+    @AssociatedObject(.retain(.atomic))
+    var filteringMenuOriginalAttributedTitle: NSObject?
 }
 
 #endif
