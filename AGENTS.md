@@ -18,7 +18,10 @@ swift build 2>&1 | xcsift --print-warnings
 swift build --traits AppKitPlus,AppleInternal,FilterUI,IDEIcons,Navigation,NSAttributedStringBuilder,QuickActionBar,Settings,SpotlightPanel,StatusItemController,SystemHUD,TabBar,WelcomePanel 2>&1 | xcsift
 ```
 
-- Always run `swift package update` before building to avoid stale dependency checkouts
+- Always run `swift package update` before building to avoid stale dependency checkouts — **then check `git status`, because a plain update deletes the `AppKitPlus-Release` pin from the tracked `Package.resolved`** (it prints `Removing …/AppKitPlus-Release`): that dependency exists only under the `AppKitPlus` trait, and the update resolves without traits.
+  - If that pin is the only change, `git checkout -- Package.resolved` before building; the full-trait build then uses the pin as committed.
+  - Passing traits is no way around it: `swift package --traits … update` and `swift package --enable-all-traits update` both fail with `exhausted attempts to resolve the dependencies graph … 'appkitplus-release'` and change nothing (measured).
+  - Don't rebuild with the trait to put the pin back. Without a pin, resolution takes the newest AppKitPlus in range — a silent bump the moment a newer release exists, and a bump needs the collision re-check described in the **AppKitPlus** section.
 - Swift tools version: 6.2, language mode: Swift 5 (`swiftLanguageModes: [.v5]`)
 - Platforms: macOS 12+, iOS 13+, macCatalyst 13+, tvOS 13+, visionOS 1+ (the macOS floor is AppKitPlus's — see the **AppKitPlus** section)
 - Test target: `UIFoundationTests` (minimal coverage — test suite is sparse)
