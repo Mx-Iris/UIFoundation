@@ -33,8 +33,8 @@ struct GlassEffectReplicaViewTests {
         let sidebarGlassEffectView = NSGlassEffectView(frame: CGRect(x: 0, y: 0, width: 400, height: 300))
         sidebarGlassEffectView.cornerRadius = 0
         if NSGlassEffectView.isPrivateConfigurationSupported {
-            sidebarGlassEffectView._variant = 17
-            sidebarGlassEffectView._adaptiveAppearance = 1
+            sidebarGlassEffectView._variant = .abuttedSidebar
+            sidebarGlassEffectView._adaptiveAppearance = .off
         }
         let pageView = NSView(frame: sidebarGlassEffectView.bounds)
         replicaView.frame = pageView.bounds
@@ -51,23 +51,24 @@ struct GlassEffectReplicaViewTests {
         source.style = .clear
         source.tintColor = .systemTeal
         if NSGlassEffectView.isPrivateConfigurationSupported {
-            source._variant = 17
-            source._subvariant = "probe"
-            source._adaptiveAppearance = 1
+            source._variant = .abuttedSidebar
+            source._subvariant = _NSGlassEffectViewSubvariant("probe")
+            source._adaptiveAppearance = .off
         }
 
         let target = NSGlassEffectView()
         target.matchGlassConfiguration(of: source)
 
         #expect(target.cornerRadius == 12.0)
-        // `style` is compared against the source's read-back rather than `.clear`: the setter
-        // stores into SwiftUI-side storage and the getter does not necessarily echo it back.
+        // `style` is compared against the source's read-back rather than `.clear`: AppKit derives
+        // `style` from `_variant` (`.clear` only while the variant is `.clear`), and the private
+        // part above has already overwritten the variant with `.abuttedSidebar`.
         #expect(target.style == source.style)
         #expect(target.tintColor == .systemTeal)
         if NSGlassEffectView.isPrivateConfigurationSupported {
-            #expect(target._variant == 17)
-            #expect(target._subvariant == "probe")
-            #expect(target._adaptiveAppearance == 1)
+            #expect(target._variant == .abuttedSidebar)
+            #expect(target._subvariant == _NSGlassEffectViewSubvariant("probe"))
+            #expect(target._adaptiveAppearance == .off)
         }
     }
 
@@ -133,8 +134,8 @@ struct GlassEffectReplicaViewTests {
         #expect(!replicaView.glassEffectView.isHidden)
         #expect(replicaView.glassEffectView.cornerRadius == 0.0)
         if NSGlassEffectView.isPrivateConfigurationSupported {
-            #expect(replicaView.glassEffectView._variant == 17)
-            #expect(replicaView.glassEffectView._adaptiveAppearance == 1)
+            #expect(replicaView.glassEffectView._variant == .abuttedSidebar)
+            #expect(replicaView.glassEffectView._adaptiveAppearance == .off)
         }
     }
 
