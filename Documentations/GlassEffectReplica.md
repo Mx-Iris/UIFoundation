@@ -61,7 +61,10 @@ final class SidebarPageView: NSView {
 
 ## 已知偏离
 
-- variant 号从活的外层玻璃拷贝，没有写死。macOS 27.0 上 sidebar 是 17、inspector 是 18；
-  26.x 的头文件里同样有这两个属性，但取值没有重新读过。
+- variant 号从活的外层玻璃拷贝，没有写死。sidebar 是 17（`.abuttedSidebar`，注意不是叫 `.sidebar`
+  的 16）、inspector 是 18（`.inspector`），`_adaptiveAppearance` 是 `.off`（关掉的是按背景明暗切换
+  浅色 / 深色，与窗口 key 状态无关）。七个私有设置的取值表在 macOS 26.6 与 27.0 上逐项核对过，见私有头
+  与 [`Researchs/AppKit-NSGlassEffectView-PrivateConfiguration.md`](../Researchs/AppKit-NSGlassEffectView-PrivateConfiguration.md)。
+  编号仍然不是契约，所以照旧拷贝而不写死。
 - 外层玻璃的 `contentView` 里那些被 `CAPortalLayer` 重画的内容（见逆向报告第 3 节）不受影响：
   复刻玻璃只是内容的一部分，照样被 portal 进外层的渲染。

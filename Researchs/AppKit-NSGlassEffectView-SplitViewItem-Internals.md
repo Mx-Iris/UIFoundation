@@ -32,7 +32,7 @@ NSGlassEffectView *glass = [[NSGlassEffectView alloc] initWithFrame:self.bounds]
 [glass setCornerRadius:0.0];
 [glass setEffectIsInteractive:NO];
 [glass set_adaptiveAppearance:1];
-[glass set_variant:[self _glassVariant]];        // 0x185A836E8: sidebar 17, inspector 18, else 0
+[glass set_variant:[self _glassVariant]];        // 0x185A836E8: sidebar 17, inspector 18, else 0 (section 6)
 NSView *clip = [NSView new]; clip.clipsToBounds = YES; [clip addSubview:itemView];
 glass.contentView = clip;
 ```
@@ -42,8 +42,9 @@ the pre-Solarium path: an `NSVisualEffectView` with material 7 (sidebar) or 23 (
 `withinWindow` when overlaid. It is not taken on macOS 26/27 with the default appearance.
 
 The 26.4 – 26.6 header dumps carry the same `_glassView` / `_glassVariant` members on the wrapper
-and the same `_variant` property on `NSGlassEffectView`; the variant numbers were not re-read on
-26, which is why the replica copies them off the live view instead of hardcoding 17.
+and the same `_variant` property on `NSGlassEffectView`. On 26.6 the whole variant table was
+re-read and matches 27.0 (section 6); the replica still copies the value off the live view instead
+of hardcoding 17, because nothing makes the numbering contractual.
 
 ## 3. What the glass is made of (live layer tree)
 
@@ -136,12 +137,19 @@ Declared in `Sources/UIFoundationAppleInternalObjC/include/NSGlassEffectView_Pri
 
 | Symbol | Role |
 |---|---|
-| `-[NSGlassEffectView _variant]` / `set_variant:` | material recipe (17 sidebar, 18 inspector) |
+| `-[NSGlassEffectView _variant]` / `set_variant:` | material recipe, typed `_NSGlassEffectViewVariant` (17 abutted sidebar, 18 inspector) |
 | `-[NSGlassEffectView _subvariant]` | refinement, `nil` here |
-| `-[NSGlassEffectView _adaptiveAppearance]` | key-state adaptation, 1 here |
+| `-[NSGlassEffectView _adaptiveAppearance]` | light / dark adaptation to the backdrop, 1 (`off`) here — not key-state adaptation |
 | `CABackdropLayer.groupName` | the backdrop group |
 | `object_setClass` on SwiftUI's `CABackdropLayer` | pins the group name against SwiftUI's rewrites (`GroupPinnedBackdropLayer`) |
 
 `CAPortalLayer` and `CAChameleonLayer` were inspected (`sourceLayer`, `hidesSourceLayer`,
 `matchesPosition`, `matchesTransform`, `allowsBackdropGroups`; chameleon has no properties beyond
 `CALayer`'s) but are not used by the replica.
+
+## 6. The private settings' values
+
+What every value of `_variant`, `_subvariant`, `_adaptiveAppearance` and the other four private
+settings means — and why the split view's 17 is `abuttedSidebar`, not `sidebar` — is recorded in
+[`AppKit-NSGlassEffectView-PrivateConfiguration.md`](AppKit-NSGlassEffectView-PrivateConfiguration.md),
+which covers all seven settings on macOS 26.6 and 27.0.

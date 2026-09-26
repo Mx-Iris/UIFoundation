@@ -298,8 +298,16 @@ and opaque. Three things to know before reaching for it:
   change, pinning whatever layer is current, and re-checks in `layout()`. The first frame is one
   tint step off, so install it in a page that is off screen or covered when it appears, never at
   the moment a transition starts.
-- **Copy the variant off a live view; never hardcode 17.** The numbering is not contractual and the
-  26.x values were not re-read.
+- **Copy the variant off a live view; never hardcode 17.** The numbering is not contractual.
+  `NSGlassEffectView_Private.h` types all seven private settings. Their constant names are ours,
+  since C enum names never reach a binary — except `_NSGlassEffectViewAdaptiveAppearance`'s, which
+  AppKit prints itself. The tables were read identically off 26.6 and 27.0; see
+  `Researchs/AppKit-NSGlassEffectView-PrivateConfiguration.md`. Two traps: the split view's sidebar
+  is 17, `.abuttedSidebar` — not 16, `.sidebar`. And an out-of-range `_interactionState` or
+  `_adaptiveAppearance` terminates the process inside the setter. The subvariant string constants
+  (`_NSGlassEffectViewSubvariant…`, the 31 names both 26.6 and 27.0 accept) are this library's,
+  defined in `NSGlassEffectView_Private.m`; AppKit has none, so a new one needs a definition there,
+  not just an `extern`.
 - **`_backdropGroupName` and `_groupIdentifier` do not name the group.** Both store an ivar and
   SwiftUI keeps its own `SwiftUI:<identity>` name; the group has to be written on the
   `CABackdropLayer` itself, after it exists. Measured, so do not retry it.
