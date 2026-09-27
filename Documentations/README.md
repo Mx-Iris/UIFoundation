@@ -8,7 +8,7 @@
 
 ## 使用指南
 
-十篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
+十一篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
 **接入任何一个组件前先读对应那篇。**
 
 - [MainMenu](MainMenu.md) —— 纯代码构建 MainMenu.xib 等价的标准主菜单，四级粒度自定义，
@@ -60,6 +60,13 @@
   Core Animation backdrop group，渲染结果逐像素一致且不透明（侧栏导航转场的页面背景）。**含一条踩了就差一个
   色阶的契约**：第一帧在 SwiftUI 建出 layer 树之前不保证一致，只能靠页面从屏幕外进入或被盖住来掩护。
   另有「必须落在玻璃内容里」「内容加在它上面」两条契约，以及为何 `_backdropGroupName` 走不通的实测。
+- [TableViewRowHeightEstimation](TableViewRowHeightEstimation.md) —— `AppleInternal` trait 下的
+  `tableView.box.estimatesRowHeights`：关掉 AppKit 的私有行高估算。带分组行、有可展开条目的 source list 大纲，
+  滚到靠后位置时重载或展开会把行留在旧的估算位置，再一滚动就两行叠画；关掉估算后 AppKit 精确计算每一行的位置。
+  **含一条踩了就等于没关的契约**：每次设置 delegate，AppKit 都会把估算重新打开，所以要在设置 delegate 之后关，
+  delegate 代理自己重设 delegate 时也要跟着再关。另有「切换不会挪动屏幕上已有的行」（所以只能在行显示之前切，
+  或切换后自己 `reloadData()`）、为何不用应用级默认值 `NSTableViewCanEstimateRowHeights`，以及关掉估算后带动画
+  收起的一处存疑现象。
 
 ## 术语表
 

@@ -330,6 +330,32 @@ and opaque. Three things to know before reaching for it:
 Guide: [`Documentations/GlassEffectReplica.md`](Documentations/GlassEffectReplica.md). Evidence:
 [`Researchs/AppKit-NSGlassEffectView-SplitViewItem-Internals.md`](Researchs/AppKit-NSGlassEffectView-SplitViewItem-Internals.md).
 
+### Row height estimation (`AppleInternal` trait)
+
+`NSTableView.box.estimatesRowHeights` reads and writes AppKit's private `_estimatesRowHeights`. A
+table whose rows differ in height — in a source list, group rows alone do it, since every group row
+after the first gets 13 pt above it — places the rows it has not measured at an estimated height and
+corrects the estimate as it goes. In an outline that also has expandable items, a reload or a
+disclosure far down leaves part of the visible rows at the old estimate, and the next scroll draws
+rows over them; measured identically on 15.5, 26.6.2 and 27.0. Three things to know:
+
+- **Setting the delegate turns estimation back on.** `-[NSOutlineView setDelegate:]` ends with
+  `_setEstimatesRowHeights:YES` on every change of delegate, and delegate proxies (RxCocoa,
+  RxAppKit) re-assign the delegate on their own. Turn it off in the `delegate` setter of a subclass,
+  not once after binding.
+- **Switching it does not move the rows on screen.** AppKit discards its row geometry but neither
+  reloads nor re-places the row views it has, so rows placed from an estimate stay put until the
+  next `reloadData()`. Switch before the table shows rows — the `delegate` setter above qualifies —
+  or reload after switching. `-_setEstimatesRowHeights:` does contain a `reloadData` call, but it
+  tests flags that `-invalidate` has just cleared, so it never runs (measured: zero calls).
+- **Not the `NSTableViewCanEstimateRowHeights` default.** It works too, but for every table in the
+  process, and it is cached after its first read.
+
+A test fixture for it needs an expandable item: without one, AppKit places every row correctly even
+while estimating (measured). Guide:
+[`Documentations/TableViewRowHeightEstimation.md`](Documentations/TableViewRowHeightEstimation.md).
+Evidence: [`Researchs/AppKit-NSTableView-RowHeightEstimation-Internals.md`](Researchs/AppKit-NSTableView-RowHeightEstimation-Internals.md).
+
 ### `.box` Namespace Extensions
 
 All extensions on framework types go through the `.box` namespace (from FrameworkToolbox) to avoid naming collisions:
