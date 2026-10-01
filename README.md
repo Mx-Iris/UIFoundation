@@ -39,7 +39,7 @@ If your app links [AppKitPlus](https://github.com/AppKitSupportProgram/AppKitPlu
 )
 ```
 
-Both packages extend the same AppKit types, and with the trait on UIFoundation steps aside wherever AppKitPlus already provides a member — `NSEdgeInsets`'s `Equatable` conformance, for one. With AppKitPlus linked but the trait off, each package ships its own copy and code that imports both fails to compile with an ambiguous `==`. The trait also makes `LayerBackedView` and `LayerBackedViewController` build on AppKitPlus's layer-backed base classes.
+Both packages extend the same AppKit types, and with the trait on UIFoundation steps aside wherever AppKitPlus already provides a member — `NSEdgeInsets`'s `Equatable` conformance, for one. With AppKitPlus linked but the trait off, each package ships its own copy and code that imports both fails to compile with an ambiguous `==`. The trait also makes `LayerBackedView` and `LayerBackedViewController` build on AppKitPlus's layer-backed base classes. The trait requires AppKitPlus 0.6.0 or later.
 
 ## Usage
 

@@ -117,7 +117,7 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/AppKitSupportProgram/AppKitPlus-Release",
-            from: "0.3.1",
+            from: "0.6.0",
         ),
         .package(
             remote: .package(

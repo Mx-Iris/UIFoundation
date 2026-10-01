@@ -26,7 +26,7 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../..", traits: ["AppKitPlus"]),
-        .package(url: "https://github.com/AppKitSupportProgram/AppKitPlus-Release", from: "0.3.1"),
+        .package(url: "https://github.com/AppKitSupportProgram/AppKitPlus-Release", from: "0.6.0"),
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "602.0.0"),
         // Syntax highlighting for the code blocks. `tree-sitter-swift` ships its
         // generated parser and its `queries/highlights.scm` only on the

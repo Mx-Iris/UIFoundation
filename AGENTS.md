@@ -194,10 +194,9 @@ does for `UIEdgeInsets`; two copies make `==` ambiguous in every module importin
 stays here and uses AppKitPlus's `==` — which is why `UIFoundationToolbox` depends on the product
 under the trait. The README tells consumers who link AppKitPlus to turn the trait on; with AppKitPlus
 linked and the trait off, the ambiguity is theirs.
-**Ordering: AppKitPlus ships that conformance only after 0.5.0.** Until the version floor below is
-raised to that release, a trait-on build that resolves an older AppKitPlus (the pinned 0.4.4, or a
-consumer's exact pin) fails on `Hashable` for want of `Equatable` — so this change is pushed together
-with the floor bump, not before.
+**That conformance first ships in AppKitPlus 0.6.0** (0.5.0's `.swiftinterface` has none), which is
+why the version floor below is 0.6.0. Lower it again and a trait-on build that resolves an older
+AppKitPlus fails on `Hashable` for want of `Equatable`.
 
 **The package's macOS floor is 12 because of this dependency, trait or no trait.** A binary target's
 platform requirement is checked on the package graph, so neither `@available` nor a compilation
@@ -210,8 +209,8 @@ source targets.
 **With the trait off, SPM does not fetch it at all** — no `Package.resolved` entry, no clone, no
 download. Measured. Default consumers pay nothing beyond the floor.
 
-**The version floor is 0.3.1 — to be raised to the first AppKitPlus release after 0.5.0, see the
-`NSEdgeInsets` paragraph above — and the two releases excluded before it both failed silently.** Through 0.1.6 an
+**The version floor is 0.6.0, for the `NSEdgeInsets` conformance above; the two releases the earlier
+raises excluded both failed silently.** Through 0.1.6 an
 `NSView (Appearance)` category declared `backgroundColor`, which shadows
 `LayerBackgroundProviding`'s property of the same name — the renderer simply stops receiving the
 value, in this module *and* in every downstream one, and `LayerBackedTableCellView` was hit too
@@ -264,6 +263,18 @@ and `contentMode`, all on `NSView (Geometry)`. This library is immune only becau
 live behind `.box` — `FrameworkToolbox<NSUIView>.center` is a different declaration site, which is
 exactly what that namespace is for. Verified: no `NSView` subclass in `UIFoundationComponent` or
 `UIFoundationToolbox` declares any of the three.
+
+**0.6.0 added five more, on `NSLayerBackedView` itself**: `layoutMargins`, `directionalLayoutMargins`,
+`preservesSuperviewLayoutMargins`, `insetsLayoutMarginsFromSafeArea` and `layoutMarginsDidChange()`.
+With the trait on every `LayerBackedView` subclass inherits them, so a subclass that declares one
+compiles with the trait off and fails with it on (`cannot override with a stored property
+'layoutMargins'`, measured on a probe). None in this repo or the example app declares one (checked at
+the bump). 0.6.0 also brought Swift extensions with UIKit spellings — `NSEdgeInsets.zero`,
+`NSDirectionalEdgeInsets.zero`, `Codable` on both inset types, and `NSBezierPath`'s
+`init(roundedRect:cornerRadius:)` / `addLine(to:)` / `addArc(withCenter:…)` — which repeat names in
+`LayerBackgroundRenderer.swift` (`package` `NSEdgeInsets.zero`) and `NVActivityIndicatorShape.swift`
+(internal `NSBezierPath` helpers). Both still compile without ambiguity in the full-trait build, tests
+included, and neither is public, so neither reaches a consumer.
 
 One category removes work rather than adding it. `NSView (UpdateProperties)` ships
 `setNeedsUpdateProperties` / `updateProperties` / `updatePropertiesIfNeeded` with **automatic
