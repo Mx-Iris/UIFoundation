@@ -27,6 +27,20 @@ dependencies: [
 | **UIFoundationToolbox** | Standalone extensions and utilities (usable independently) |
 | **UIFoundationAppleInternal** | Private API wrappers (**App Store rejection risk**) |
 
+### Using with AppKitPlus
+
+If your app links [AppKitPlus](https://github.com/AppKitSupportProgram/AppKitPlus-Release), **enable the `AppKitPlus` trait**:
+
+```swift
+.package(
+    url: "https://github.com/Mx-Iris/UIFoundation",
+    branch: "main",
+    traits: ["AppKitPlus"]
+)
+```
+
+Both packages extend the same AppKit types, and with the trait on UIFoundation steps aside wherever AppKitPlus already provides a member — `NSEdgeInsets`'s `Equatable` conformance, for one. With AppKitPlus linked but the trait off, each package ships its own copy and code that imports both fails to compile with an ambiguous `==`. The trait also makes `LayerBackedView` and `LayerBackedViewController` build on AppKitPlus's layer-backed base classes.
+
 ## Usage
 
 ### Xibless Base Classes
@@ -315,6 +329,7 @@ class MyView: NSUIView {
 
 - [FrameworkToolbox](https://github.com/Mx-Iris/FrameworkToolbox) — Provides the `.box` namespace pattern
 - [AssociatedObject](https://github.com/p-x9/AssociatedObject) — `@AssociatedObject` macro for runtime-associated properties
+- [AppKitPlus](https://github.com/AppKitSupportProgram/AppKitPlus-Release) — only with the `AppKitPlus` trait (see [Using with AppKitPlus](#using-with-appkitplus))
 
 ## License
 

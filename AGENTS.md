@@ -66,7 +66,8 @@ UIFoundation (umbrella: @_exported imports)
 ├── UIFoundationShared       (cross-platform views & controllers)
 ├── UIFoundationUtilities    (property wrappers, DSLs, helpers)
 └── UIFoundationToolbox      (extensions via .box namespace)
-    └── UIFoundationTypealias
+    ├── UIFoundationTypealias
+    └── AppKitPlus           (binary, only with the `AppKitPlus` trait)
 
 UIFoundationAppleInternal    (separate product)
 └── UIFoundationAppleInternalObjC  (private ObjC headers)
@@ -182,9 +183,21 @@ A working demo lives at `UIFoundationExample-macOS/UIFoundationExample-macOS/Dem
 
 [AppKitPlus](https://github.com/AppKitSupportProgram/AppKitPlus-Release) ports UIKit's APIs onto
 AppKit. It ships as a **binary** `.xcframework` (dynamic framework, library evolution on) behind the
-opt-in trait `AppKitPlus` (default: off). Its only use here is `NSLayerBackedView`, which
-`LayerBackedView` inherits from when the trait is on — see **View Base Class Hierarchy**. Decision
-record is Evolution [`0017`](Documentations/Evolutions/0017-appkitplus-layer-backed-view.md).
+opt-in trait `AppKitPlus` (default: off). Two uses here: `NSLayerBackedView`, which
+`LayerBackedView` inherits from when the trait is on — see **View Base Class Hierarchy**; decision
+record is Evolution [`0017`](Documentations/Evolutions/0017-appkitplus-layer-backed-view.md). And
+`UIFoundationToolbox` stepping aside for AppKitPlus's own `NSEdgeInsets: Equatable` (see below).
+
+**`NSEdgeInsets`'s `Equatable` and `==` are compiled only with the trait off**
+(`UIFoundationToolbox/AppKit/NSEdgeInsets+.swift`). AppKitPlus declares the same conformance, as UIKit
+does for `UIEdgeInsets`; two copies make `==` ambiguous in every module importing both. `Hashable`
+stays here and uses AppKitPlus's `==` — which is why `UIFoundationToolbox` depends on the product
+under the trait. The README tells consumers who link AppKitPlus to turn the trait on; with AppKitPlus
+linked and the trait off, the ambiguity is theirs.
+**Ordering: AppKitPlus ships that conformance only after 0.5.0.** Until the version floor below is
+raised to that release, a trait-on build that resolves an older AppKitPlus (the pinned 0.4.4, or a
+consumer's exact pin) fails on `Hashable` for want of `Equatable` — so this change is pushed together
+with the floor bump, not before.
 
 **The package's macOS floor is 12 because of this dependency, trait or no trait.** A binary target's
 platform requirement is checked on the package graph, so neither `@available` nor a compilation
@@ -197,7 +210,8 @@ source targets.
 **With the trait off, SPM does not fetch it at all** — no `Package.resolved` entry, no clone, no
 download. Measured. Default consumers pay nothing beyond the floor.
 
-**The version floor is 0.3.1, and the two releases excluded before it both failed silently.** Through 0.1.6 an
+**The version floor is 0.3.1 — to be raised to the first AppKitPlus release after 0.5.0, see the
+`NSEdgeInsets` paragraph above — and the two releases excluded before it both failed silently.** Through 0.1.6 an
 `NSView (Appearance)` category declared `backgroundColor`, which shadows
 `LayerBackgroundProviding`'s property of the same name — the renderer simply stops receiving the
 value, in this module *and* in every downstream one, and `LayerBackedTableCellView` was hit too

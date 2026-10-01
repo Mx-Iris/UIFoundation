@@ -203,6 +203,7 @@ let package = Package(
                 .product(name: "FrameworkToolbox", package: "FrameworkToolbox"),
                 .product(name: "FoundationToolbox", package: "FrameworkToolbox"),
                 .product(name: "AssociatedObject", package: "AssociatedObject"),
+                .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(platforms: appkitPlatforms, traits: ["AppKitPlus"])),
             ],
             swiftSettings: swiftSettings,
         ),
