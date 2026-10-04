@@ -115,6 +115,23 @@ menuItem.box.action { item in
 }
 ```
 
+### Typed Notification Messages
+
+The typed notification messages Apple declares for AppKit (macOS 27) and UIKit (iOS 26), backported to every OS this package supports: 137 AppKit and 71 UIKit messages, each in its type's `Backport` namespace, built on FrameworkToolbox's `NotificationCenter.Backport`:
+
+```swift
+import UIFoundation
+import FoundationToolbox
+
+let token = NotificationCenter.default.addObserver(of: window, for: .didBecomeKey) { message in
+    print(message.window.title)   // message: NSWindow.Backport.DidBecomeKeyMessage
+}
+```
+
+Each message reads and writes its notification exactly as Apple's does — the conversions were taken from Apple's binaries and are tested against Apple's own messages. When the deployment target reaches macOS 27 / iOS 26, delete `Backport.` and the code uses Apple's API.
+
+See [`Documentations/NotificationMessages.md`](Documentations/NotificationMessages.md) for the full list and the contracts — `NSWorkspace` messages arrive only on `NSWorkspace.shared.notificationCenter`, and a notification missing a required value never reaches the observer.
+
 ### `@ViewInvalidating` Property Wrapper
 
 Auto-triggers view invalidation when property values change:
@@ -327,7 +344,7 @@ class MyView: NSUIView {
 
 ## Dependencies
 
-- [FrameworkToolbox](https://github.com/Mx-Iris/FrameworkToolbox) — Provides the `.box` namespace pattern
+- [FrameworkToolbox](https://github.com/Mx-Iris/FrameworkToolbox) — Provides the `.box` namespace pattern and `NotificationCenter.Backport`, which the typed notification messages build on
 - [AssociatedObject](https://github.com/p-x9/AssociatedObject) — `@AssociatedObject` macro for runtime-associated properties
 - [AppKitPlus](https://github.com/AppKitSupportProgram/AppKitPlus-Release) — only with the `AppKitPlus` trait (see [Using with AppKitPlus](#using-with-appkitplus))
 

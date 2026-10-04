@@ -1,5 +1,5 @@
 {
-  "originHash" : "75636d3138725c560cb5ad1715abce2205bef23949bb5eb931d0d41efcd1a78a",
+  "originHash" : "3f349f3744dd7fd99d8ec0390a77fee05d48b58275e2acf24ff2fcd3c3772fbc",
   "pins" : [
     {
       "identity" : "appkitplus-release",
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Mx-Iris/FrameworkToolbox",
       "state" : {
-        "revision" : "e1df053744e08d4fbed77d404a8e05276806ff2f",
-        "version" : "0.13.0"
+        "revision" : "c87146b7f3ab69aebb461c1128f4326e462a6fbc",
+        "version" : "0.15.0"
       }
     },
     {

@@ -122,7 +122,7 @@ let package = Package(
         .package(
             remote: .package(
                 url: "https://github.com/Mx-Iris/FrameworkToolbox",
-                from: "0.12.0",
+                from: "0.15.0",
             ),
         ),
         .package(

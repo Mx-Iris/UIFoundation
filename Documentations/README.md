@@ -8,7 +8,7 @@
 
 ## 使用指南
 
-十一篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
+十二篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
 **接入任何一个组件前先读对应那篇。**
 
 - [MainMenu](MainMenu.md) —— 纯代码构建 MainMenu.xib 等价的标准主菜单，四级粒度自定义，
@@ -67,6 +67,11 @@
   delegate 代理自己重设 delegate 时也要跟着再关。另有「切换不会挪动屏幕上已有的行」（所以只能在行显示之前切，
   或切换后自己 `reloadData()`）、为何不用应用级默认值 `NSTableViewCanEstimateRowHeights`，以及关掉估算后带动画
   收起的一处存疑现象。
+- [NotificationMessages](NotificationMessages.md) —— 在 macOS 27 / iOS 26 之前的系统上，用 AppKit / UIKit 预置的类型化通知消息
+  （`NSWindow.Backport.DidBecomeKeyMessage` 配 `.didBecomeKey` 之类，AppKit 137 个、UIKit 71 个），转换行为逐个照抄苹果二进制。
+  **含两条踩了就静默收不到的契约**：`NSWorkspace` 的消息只在 `NSWorkspace.shared.notificationCenter` 上发；
+  带属性的消息缺一个值或类型不对，观察者就不被调用（手动 `post` 的通知最容易踩）。另有经子类找不到父类消息的四组类型、
+  `NSTableView` 与 `NSOutlineView` 四对同名标识符的歧义、在苹果原生可用处简写会选苹果的那个，以及迁回原生的步骤。
 
 ## 术语表
 

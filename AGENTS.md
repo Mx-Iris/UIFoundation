@@ -77,7 +77,7 @@ UIFoundationAppleInternal    (separate product)
 
 | Package | Usage |
 |---------|-------|
-| `FrameworkToolbox` (Mx-Iris) | Provides the `.box` namespace pattern for conflict-free extensions |
+| `FrameworkToolbox` (Mx-Iris) | Provides the `.box` namespace pattern for conflict-free extensions, and (module `FoundationToolbox`) the `NotificationCenter.Backport` machinery the typed notification messages are built on |
 | `AssociatedObject` (p-x9) | `@AssociatedObject` macro for runtime-associated properties |
 | `AppKitPlus` (AppKitSupportProgram, **binary**) | UIKit APIs ported to AppKit. Behind the `AppKitPlus` trait (default: off); supplies `NSLayerBackedView`, the base class `LayerBackedView` adopts when the trait is on |
 
@@ -414,6 +414,74 @@ Three things about the split-view one, all measured on macOS 26.5.2 AppKit:
   (generic builder, non-generic builder, `buildPartialBlock` and variadic `buildBlock` all fail
   alike), so a builder would force `NSSplitView.InitialDividerPosition.distanceFromStart(…)` in
   full at every line. An array literal keeps the leading-dot form.
+
+### Typed notification messages (`<Subject>.Backport`)
+
+Apple's macOS 27 AppKit and iOS 26 UIKit SDKs declare typed notification messages —
+`NSWindow.DidBecomeKeyMessage` with the identifier `.didBecomeKey`, and so on. `UIFoundationToolbox`
+backports 137 AppKit and 71 UIKit ones to every OS this package supports, as
+`<Subject>.Backport.<AppleName>Message`, on top of FrameworkToolbox's `NotificationCenter.Backport`
+(module `FoundationToolbox`, which also carries Foundation's own 32). One file per subject type:
+`Sources/UIFoundationToolbox/{AppKit,UIKit}/NotificationMessages/<Subject>+NotificationMessages.swift`;
+the shared conventions are spelled out in `Shared/NotificationMessages.swift`. No trait. Decision record
+is Evolution [`0027`](Documentations/Evolutions/0027-appkit-uikit-notification-messages.md);
+the binary evidence for every message is
+[`Researchs/AppKit-UIKit-NotificationMessages-Internals.md`](Researchs/AppKit-UIKit-NotificationMessages-Internals.md).
+
+- **`Backport` is a nested type added straight onto AppKit / UIKit classes, not a `.box` member** — a
+  deliberate exception to the rule above. The migration contract is "delete `Backport.` and you have
+  Apple's spelling", the same as FrameworkToolbox's Foundation batch.
+- **Every identifier is `@_disfavoredOverload`, and it is load-bearing.** Without it, Apple's own
+  shorthand (`.didBecomeKey` in a macOS 27 context) turns ambiguous as soon as a client imports this
+  package. `AppKitNotificationMessageShorthandGuard.swift` and `UIKitNotificationMessageShorthandGuard.swift`
+  write every identifier once inside `#available`, result discarded; dropping the attribute fails the
+  build there (checked on both). Keep the results discarded: assigned to a typed variable or array, the
+  parameter type picks the overload and the guard silently stops guarding.
+- **Behaviour is copied from Apple's binaries, not from the `.swiftinterface`.** 88 AppKit messages get
+  `makeMessage` / `makeNotification` from extensions of AppKit-internal protocols the interface does not
+  show, so read naively they seem to use the protocol default — which returns `nil` and would deliver
+  nothing. Where Apple shares one implementation through such a protocol, so does this package, under
+  Apple's name where it has one (`StandardNSWindowMessage`, `KeyboardNotificationMessageProviding`, …). A
+  message with properties returns `nil` when any required value is missing or mistyped, unlike most of
+  the Foundation batch, and `makeNotification` writes the runtime types Apple writes (a Swift `Int` /
+  `Bool` / `CGRect` in one place, an `NSNumber` / `NSValue` in another). Change a conversion only against
+  the research report.
+- **Availability follows the notification constant, not Apple's 26 / 27**; Apple's per-platform
+  unavailability and deprecations are copied. Not ported: `UIDocument.DidMoveToWritableLocationMessage`
+  and `UIApplication.SystemPrefersReducedResourceUsageDidChangeMessage`, whose constants are themselves
+  iOS 26 / 27. Nothing on watchOS — this package does not build for it (AssociatedObject fails there).
+- **A subclass's own `Backport` hides its superclass's** (measured on a probe):
+  `NSComboBox.Backport.TextDidChangeMessage` does not exist, `NSControl.Backport.TextDidChangeMessage`
+  does. Four groups are affected — `NSView`, `NSControl`, `NSWindow`, `UIResponder` — listed in the
+  guide. It is documented rather than bridged with ~110 typealiases; reopen that decision in the proposal
+  before adding any.
+- **`FoundationToolbox` is not re-exported.** Clients with `MemberImportVisibility` need
+  `import FoundationToolbox` for `addObserver(of:for:)`; re-exporting would push its whole API into
+  `import UIFoundation`.
+- **The FrameworkToolbox floor is 0.15.0**, the first release carrying `NotificationCenter.Backport`
+  (and Foundation's 32 messages). Lowering it lets a consumer resolve 0.13.0 / 0.14.0, where none of
+  this compiles.
+
+Tests live in `Tests/UIFoundationTests/NotificationMessages/`:
+
+- **Parity with Apple's own messages, all 208**: `name`; `makeMessage` over each fixture's variants
+  (complete, no object, an object of an unrelated class, no user info, each key missing or mistyped);
+  `makeNotification`'s contents, value types included. The AppKit cases outside `NSWorkspace` compile
+  only against the macOS 27 SDK (`#if canImport(AppKit, _version: 2700)`), so Xcode 26 still builds the
+  package. Subjects whose initializers need a running app (`UIScene`, `UIScreen`, `UIFocusSystem`) come
+  from `IdentityOnlyObjects` — allocated without `init`, kept alive for the whole run.
+- **UIKit parity runs on Mac Catalyst, never a simulator**:
+  `xcodebuild test -scheme UIFoundation-Package -destination 'platform=macOS,variant=Mac Catalyst'
+  -only-testing:UIFoundationTests/UIKitNotificationMessageParityTests`, with `UIFoundation.xcworkspace`
+  moved aside as for `FilterResourcesTests`.
+- **End-to-end tests spell the message type** (`for: NSWindow.Backport.DidResizeMessage.self`), never the
+  shorthand: once the test target's deployment target reaches 27, a shorthand would quietly test Apple's
+  implementation. Two measured traps when driving AppKit objects in the test process: `NSToolbar` posts
+  `WillAddItem` only once something reads `items` after the insertion (a removal posts at once), and
+  `setFrame(_:display:)` on a window that was never ordered in posts the resize but not the move —
+  `setFrameOrigin(_:)` posts the move.
+
+Guide: [`Documentations/NotificationMessages.md`](Documentations/NotificationMessages.md).
 
 ### `@ViewInvalidating` Property Wrapper
 
