@@ -73,6 +73,14 @@
   带属性的消息缺一个值或类型不对，观察者就不被调用（手动 `post` 的通知最容易踩）。另有经子类找不到父类消息的四组类型、
   `NSTableView` 与 `NSOutlineView` 四对同名标识符的歧义、在苹果原生可用处简写会选苹果的那个，以及迁回原生的步骤。
 
+## Agent 插件
+
+- [`AgentPlugins/uifoundation/`](../AgentPlugins/uifoundation/) —— 使用方的 coding agent 安装的插件 `uifoundation`，
+  带两个英文 skill：`uifoundation-widgets`（写 AppKit 代码前先查本库已有的组件与构建器，以及 `Label`、
+  `ScrollView`、构建器的坑）与 `uifoundation-settings-layer`（在 `PersistentSettings` 上搭设置层，含两条踩了就
+  静默不存盘的规则）。**改了它们描述的公开 API，同一提交里更新对应 skill 并升插件版本号**（规则见 `AGENTS.md`）。
+  安装方式见 README 的 Agent Plugin 一节，由来见提案 [0028](Evolutions/0028-agent-plugin.md)。
+
 ## 术语表
 
 | 文档 | 说明 |

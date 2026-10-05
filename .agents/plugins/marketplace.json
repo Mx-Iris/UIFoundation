@@ -1,0 +1,20 @@
+{
+  "name": "uifoundation",
+  "interface": {
+    "displayName": "UIFoundation"
+  },
+  "plugins": [
+    {
+      "name": "uifoundation",
+      "source": {
+        "source": "local",
+        "path": "./AgentPlugins/uifoundation"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

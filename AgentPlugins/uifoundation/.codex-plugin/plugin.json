@@ -1,0 +1,28 @@
+{
+  "name": "uifoundation",
+  "version": "1.0.0",
+  "description": "Teaches coding agents to build AppKit UI on UIFoundation: the widgets, stacks, result builders and .box helpers to reach for instead of hand-rolling, their traps, and an app settings layer on PersistentSettings.",
+  "author": {
+    "name": "Mx-Iris",
+    "url": "https://github.com/Mx-Iris"
+  },
+  "homepage": "https://github.com/Mx-Iris/UIFoundation#agent-plugin",
+  "repository": "https://github.com/Mx-Iris/UIFoundation",
+  "license": "MIT",
+  "keywords": ["appkit", "macos", "swift", "uifoundation", "result-builder", "settings"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "UIFoundation",
+    "shortDescription": "AppKit UI and app settings on UIFoundation",
+    "longDescription": "Two skills for projects that depend on UIFoundation. uifoundation-widgets: what the library already provides before hand-rolling AppKit code — scrollable view factories, .box cell reuse, VStackView / HStackView, the NSToolbar and NSMenu result builders — and the traps in Label, ScrollView and the builders. uifoundation-settings-layer: an app's settings layer on PersistentSettings and SettingsStore, including the two rules whose violation silently stops settings from persisting. Requires the UIFoundation package (Swift Package Manager).",
+    "developerName": "Mx-Iris",
+    "category": "Developer Tools",
+    "capabilities": ["Read"],
+    "websiteURL": "https://github.com/Mx-Iris/UIFoundation",
+    "defaultPrompt": [
+      "Does UIFoundation already have a helper for this view code?",
+      "Migrate this AppKit screen to UIFoundation",
+      "Add a settings layer to this app with UIFoundation"
+    ]
+  }
+}

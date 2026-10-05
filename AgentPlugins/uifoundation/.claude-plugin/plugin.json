@@ -1,0 +1,13 @@
+{
+  "name": "uifoundation",
+  "version": "1.0.0",
+  "description": "Teaches coding agents to build AppKit UI on UIFoundation: the widgets, stacks, result builders and .box helpers to reach for instead of hand-rolling, their traps, and an app settings layer on PersistentSettings.",
+  "author": {
+    "name": "Mx-Iris",
+    "url": "https://github.com/Mx-Iris"
+  },
+  "homepage": "https://github.com/Mx-Iris/UIFoundation#agent-plugin",
+  "repository": "https://github.com/Mx-Iris/UIFoundation",
+  "license": "MIT",
+  "keywords": ["appkit", "macos", "swift", "uifoundation", "result-builder", "settings"]
+}

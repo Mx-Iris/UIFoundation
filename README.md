@@ -342,6 +342,36 @@ class MyView: NSUIView {
 }
 ```
 
+## Agent Plugin
+
+The `uifoundation` plugin teaches coding agents to work with this library. Its
+`uifoundation-widgets` skill covers what UIFoundation already provides before an agent
+hand-rolls AppKit code — the scrollable view factories, `.box` cell reuse, the stack views,
+the toolbar and menu result builders — and the traps in `Label`, `ScrollView` and the
+builders. Its `uifoundation-settings-layer` skill covers wiring an app's settings on
+`PersistentSettings`, including the two mistakes that silently stop settings from
+persisting. It is skills only — add the package itself separately (see
+[Installation](#installation)).
+
+**Claude Code** — inside a session:
+
+```
+/plugin marketplace add Mx-Iris/UIFoundation
+/plugin install uifoundation@uifoundation
+```
+
+**Codex**:
+
+```bash
+codex plugin marketplace add Mx-Iris/UIFoundation
+codex plugin add uifoundation@uifoundation
+```
+
+An installed plugin only picks up a new release when its `version` changes. To pull one in:
+`claude plugin marketplace update uifoundation` then
+`claude plugin update uifoundation@uifoundation` for Claude Code,
+`codex plugin marketplace upgrade uifoundation` for Codex.
+
 ## Dependencies
 
 - [FrameworkToolbox](https://github.com/Mx-Iris/FrameworkToolbox) — Provides the `.box` namespace pattern and `NotificationCenter.Backport`, which the typed notification messages build on
