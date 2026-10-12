@@ -133,14 +133,40 @@ class TextFinderDemoViewController: NSViewController {
 
     // MARK: - Responder Chain for Find Bar
 
+    // `MainMenu.standard()` sends `performFindPanelAction:` from its Find group, exactly like
+    // Xcode's template menu — not `performTextFinderAction:` — so both have to be answered or ⌘F
+    // finds no target and the menu item stays disabled. The two selectors' tags share values
+    // (1 = show the find bar, 2 = next, 3 = previous, 7 = use selection, 12 = show replace), so
+    // either sender's tag reads directly as an `NSTextFinder.Action`.
+
     @IBAction override func performTextFinderAction(_ sender: Any?) {
-        let tag: Int
-        if let menuItem = sender as? NSMenuItem {
-            tag = menuItem.tag
-        } else {
-            tag = NSTextFinder.Action.showFindInterface.rawValue
+        textFinderClient.performTextFinderAction(textFinderAction(for: sender))
+    }
+
+    @IBAction func performFindPanelAction(_ sender: Any?) {
+        textFinderClient.performTextFinderAction(textFinderAction(for: sender))
+    }
+
+    private func textFinderAction(for sender: Any?) -> NSTextFinder.Action {
+        guard let menuItem = sender as? NSMenuItem else { return .showFindInterface }
+        return NSTextFinder.Action(rawValue: menuItem.tag) ?? .showFindInterface
+    }
+}
+
+// MARK: - NSMenuItemValidation
+
+@available(macOS 12.0, *)
+extension TextFinderDemoViewController: NSMenuItemValidation {
+    // Lets the text finder disable what this read-only client cannot do (Find and Replace…).
+    // Find… stays enabled before the lazy index exists: `validateAction(_:)` answers
+    // `.showFindInterface` from the client's method set alone, never from the string length.
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        switch menuItem.action {
+        case #selector(performTextFinderAction(_:)), #selector(performFindPanelAction(_:)):
+            return textFinderClient.textFinder.validateAction(textFinderAction(for: menuItem))
+        default:
+            return true
         }
-        textFinderClient.performTextFinderAction(NSTextFinder.Action(rawValue: tag) ?? .showFindInterface)
     }
 }
 

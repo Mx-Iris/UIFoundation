@@ -27,15 +27,40 @@ boundary so matches never span cells.
 let textFinderClient = TableViewTextFinderClient(tableView: tableView)
 textFinderClient.dataSource = self
 
-// Responder chain entry point (⌘F, ⌘G, …):
+// Responder chain entry points (⌘F, ⌘G, …) — answer both selectors:
 override func performTextFinderAction(_ sender: Any?) {
-    let action = (sender as? NSMenuItem).flatMap { NSTextFinder.Action(rawValue: $0.tag) } ?? .showFindInterface
-    textFinderClient.performTextFinderAction(action)
+    textFinderClient.performTextFinderAction(textFinderAction(for: sender))
+}
+
+@IBAction func performFindPanelAction(_ sender: Any?) {
+    textFinderClient.performTextFinderAction(textFinderAction(for: sender))
+}
+
+private func textFinderAction(for sender: Any?) -> NSTextFinder.Action {
+    (sender as? NSMenuItem).flatMap { NSTextFinder.Action(rawValue: $0.tag) } ?? .showFindInterface
 }
 
 // After any data change that affects cell strings:
 textFinderClient.invalidateIndex()
 ```
+
+**The standard Find menu sends `performFindPanelAction:`, not
+`performTextFinderAction:`.** That holds for `MainMenu.standard()` and for
+Xcode's template `MainMenu.xib` alike, so a host that answers only
+`performTextFinderAction(_:)` is never found on the responder chain: AppKit
+disables Find… and ⌘F does nothing, with no error. Answer both. Their tags
+share values (Find… = 1, Find Next = 2, Find Previous = 3, Use Selection for
+Find = 7, Find and Replace… = 12), so one tag-to-`NSTextFinder.Action`
+conversion serves both.
+
+To grey out what the client cannot do — Find and Replace… on these read-only
+clients — validate both selectors with
+`textFinderClient.textFinder.validateAction(_:)`. That does not disable Find…
+while the lazy index is still empty: measured on macOS 26.7,
+`-[_NSTextFinderImpl _validateAction:]` answers `.showFindInterface` with YES
+as soon as the client implements `stringAtIndex:…` and `stringLength`, without
+calling either. The example app's `TextFinderDemoViewController` shows the
+full wiring.
 
 Always route actions through `performTextFinderAction(_:)` (or call
 `prepareIndexIfNeeded()` first) — driving `textFinderClient.textFinder`
