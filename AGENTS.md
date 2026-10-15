@@ -381,6 +381,29 @@ while estimating (measured). Guide:
 [`Documentations/TableViewRowHeightEstimation.md`](Documentations/TableViewRowHeightEstimation.md).
 Evidence: [`Researchs/AppKit-NSTableView-RowHeightEstimation-Internals.md`](Researchs/AppKit-NSTableView-RowHeightEstimation-Internals.md).
 
+### Scroll pockets (`AppleInternal` trait)
+
+From macOS 26 AppKit fades content out where it scrolls under a bar — the scroll edge effect, drawn by an
+`NSScrollPocket` view the scroll view adds along an edge. AppKit arranges it for the title bar and for split view item
+accessories only; a bar of your own floating over a list gets it through `NSScrollView.box`:
+`registerScrollPocketContainer(_:on:)` / `unregisterScrollPocketContainer(_:on:)`, `alwaysShownScrollPocketEdges`,
+`scrollPocketStyle(on:)` / `setScrollPocketStyle(_:on:)` and the read-only `scrollPocket(on:)`. A registered bar answers
+`NSView.barScrollPocketElementStyle` (2) from an override of `_scrollPocketElementStyle`, as Xcode's bars do. Three
+things to know, all measured on macOS 27.2:
+
+- **The bottom pocket is as tall as the scroll view's own bottom content inset, not its clip view's.** A scroll view
+  whose content is inset through its clip view alone gets a bottom pocket 0 points tall, while its rows still clear
+  the bar — nothing looks wrong but the effect is gone. Keep the scroll view's own automatic insets on and let the bar
+  reach it as safe area. The top pocket follows the top safe area inset, not a content inset.
+- **The bottom pocket exists only while a container is registered on that edge or the edge is always shown.** Unregister
+  a container that stops floating over the edge; 27.2 has no way to list the containers back.
+- **Private methods disappear between point releases.** macOS 27.0's `_registeredPocketContainersOnEdge:` is gone from
+  27.2 and raises `unrecognized selector`, so every call checks `instancesRespond(to:)` first — keep it that way, and
+  re-read the `_scrollPocketElementStyle` values (`ScrollPocketTests` pins them) on a new OS.
+
+Guide: [`Documentations/ScrollPockets.md`](Documentations/ScrollPockets.md). Evidence:
+[`Researchs/AppKit-NSScrollView-ScrollPocket-Internals.md`](Researchs/AppKit-NSScrollView-ScrollPocket-Internals.md).
+
 ### `.box` Namespace Extensions
 
 All extensions on framework types go through the `.box` namespace (from FrameworkToolbox) to avoid naming collisions:

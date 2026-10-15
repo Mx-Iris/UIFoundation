@@ -67,6 +67,11 @@
   delegate 代理自己重设 delegate 时也要跟着再关。另有「切换不会挪动屏幕上已有的行」（所以只能在行显示之前切，
   或切换后自己 `reloadData()`）、为何不用应用级默认值 `NSTableViewCanEstimateRowHeights`，以及关掉估算后带动画
   收起的一处存疑现象。
+- [ScrollPockets](ScrollPockets.md) —— `AppleInternal` trait 下 `NSScrollView.box` 的 scroll pocket 封装：让浮在列表上的
+  自制栏也有 macOS 26 的滚动边缘效果（登记容器、常显一条边、样式、只读查看 pocket），以及栏要回答的
+  `NSView.barScrollPocketElementStyle`。**含一条踩了就没有效果、却看不出错的契约**：底部 pocket 的高度跟滚动视图自己的
+  `contentInsets.bottom` 走，只设 clip view 的 inset 时高度为 0。另有顶部 pocket 跟安全区而不跟 inset、登记要配对撤销、
+  私有方法会在小版本之间消失（27.0 的 `_registeredPocketContainersOnEdge:` 在 27.2 已删）。
 - [NotificationMessages](NotificationMessages.md) —— 在 macOS 27 / iOS 26 之前的系统上，用 AppKit / UIKit 预置的类型化通知消息
   （`NSWindow.Backport.DidBecomeKeyMessage` 配 `.didBecomeKey` 之类，AppKit 137 个、UIKit 71 个），转换行为逐个照抄苹果二进制。
   **含两条踩了就静默收不到的契约**：`NSWorkspace` 的消息只在 `NSWorkspace.shared.notificationCenter` 上发；

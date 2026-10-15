@@ -89,6 +89,21 @@ typedef NS_ENUM(NSInteger, NSViewSemanticContext) {
 
 @end
 
+@interface NSView ()
+
+/// What a scroll pocket takes the view to be when the view is registered as one of its containers
+/// (`-[NSScrollView registerPocketContainer:onEdge:]`). AppKit declares it in its `NSScrollPocketElement`
+/// protocol, which every view adopts. Measured on macOS 27.2: a plain view and a stack view answer -1,
+/// `NSControl` itself and a slider 0, a glass effect view 1, `_NSSplitViewItemAccessoryViewWrapper` — the view
+/// a split view item puts around an accessory — 2, and a button, a text field, a search field, a pop-up button
+/// and a segmented control 3. A bar floating over a scroll view's edge overrides it to answer 2, the style
+/// DVTUserInterfaceKit 27.2 calls Bar (`NSViewWithScrollPocketElementStyleBar`): Xcode's filter bar
+/// (`-[DVTFilterExpressionControlBar _scrollPocketElementStyle]`) and navigator chooser
+/// (`-[IDETwoLevelChooserView _scrollPocketElementStyle]`) both do.
+@property (readonly) NSInteger _scrollPocketElementStyle API_AVAILABLE(macos(26.0));
+
+@end
+
 NS_HEADER_AUDIT_END(nullability, sendability)
 
 #endif
