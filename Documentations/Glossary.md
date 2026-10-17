@@ -15,7 +15,20 @@
 
 ## 术语
 
-**暂无词条。**
+### 快照模型（snapshot model）
+
+`AsyncDocument` 的读写拆法，分保存和打开两个方向：
+
+- **保存**：先在主线程上**同步**把要写的内容复制成一个值，这个值就是快照；再在后台 `async` 写盘。
+- **打开或恢复**：先在后台 `async` 读出快照，再在主线程上**同步**把它填回文档。
+
+选型时与它对照的是「原钩子改 async」：把 NSDocument 原有的 `data(ofType:)`、`read(from:ofType:)` 直接改成
+`async`，在主线程上执行。这条路被否决了。
+
+macOS 27 SwiftUI 的 `Document` 协议在 API 上也是快照模型。见 [AsyncDocument](AsyncDocument.md) 与提案
+[0030](Evolutions/0030-async-document.md)。
+
+### 历史
 
 本表原有的五条（`ExclaveCore / ExclaveKit`、`field 与 column`、`guest 进程`、`style（呈现样式）`、
 `platform（本项目含义）`）全部随 RunningApplicationKit 并入时登记，已在 2026-09-05

@@ -733,6 +733,52 @@ Two findings behind that implementation, both measured rather than assumed:
 
 > **Testing note.** The animation itself is not observable in a test process — with no display, rows land at their final position either way and the row views are not even layer-backed. `SelfSizingRowViewsTests` therefore asserts on the *animation context* the disclosure runs in (`NSAnimationContext.current.duration`, read from the delegate callback), and pairs it with a plain `OutlineView` control that reads 0.25. Without that control the assertion would pass against an implementation that does nothing.
 
+### AsyncDocument (`UIFoundationAppKit/Document/`)
+
+`AsyncDocument<Snapshot: Sendable>` is an `NSDocument` whose reading and writing are `async`
+methods running off the main thread. The main actor only takes a snapshot when saving
+(`snapshot(ofType:for:)`) and applies one when opening or reverting (`apply(_:ofType:)`); the disk
+work is `write(_:to:context:)` and `readSnapshot(from:ofType:)`. `NSDocument.box` (in
+`UIFoundationToolbox/AppKit/NSDocument+.swift`) adds `async` spellings of the
+delegate / selector / contextInfo operations: `canClose()`, `save()`, `runModalSavePanel(for:)` and
+six more. No trait. Decision record is Evolution
+[`0030`](Documentations/Evolutions/0030-async-document.md); evidence is
+[`Researchs/AppKit-NSDocument-AsyncReadingAndWriting-Internals.md`](Researchs/AppKit-NSDocument-AsyncReadingAndWriting-Internals.md).
+
+Each of these looks simplifiable and is not (all measured on macOS 27.2 or read off the 27.0 binary):
+
+- **The snapshot is taken inside `canAsynchronouslyWrite(to:ofType:for:)`, not in the writer.** It
+  is the one moment after NSDocument's change-count token and before NSDocument blocks the main
+  thread in an `NSConditionLock`, where no main-queue block and no `@MainActor` job runs. SwiftUI's
+  `URLPlatformDocument` takes its snapshot from the writer instead, and deadlocks when the main
+  thread is waiting for file access at that moment.
+- **`canAsynchronouslyWrite` answers `true` only when `autosavesInPlace` is.** Without autosaving
+  in place NSDocument takes no token and clears the change count when the save completes, marking
+  every edit made during an asynchronous write as saved. Do not make it unconditional.
+- **The main thread is reached through `continueAsynchronousWorkOnMainThread(_:)`, never
+  `DispatchQueue.main` or `MainActor`**, and without a time limit. It is the only channel NSDocument
+  services inside its own synchronous waits. The prototype's 5-second limit was a measuring aid;
+  in production it would turn a busy main thread into a failed open.
+- **`init()` is `nonisolated`, and the warning on its `super.init()` is deliberate.** Concurrent
+  opening runs `-init` on a background queue. NSDocument's `init()` is imported as main-actor
+  isolated, so a Swift 6 subclass initializer that inherits that isolation asserts the main thread
+  in its `@objc` entry and traps. Every subclass initializer shape inherits `nonisolated` from the
+  base instead (checked in SILGen output). Nothing silences the warning: `@preconcurrency` and
+  SE-0522's `@diagnose` were both tried. Remove `nonisolated` and `AsyncDocumentTests` stops
+  compiling.
+- **`final` covers two groups.** The three bridge overrides are `canAsynchronouslyWrite`,
+  `write(to:ofType:for:originalContentsURL:)` and the URL `read(from:ofType:)`. The other five are
+  NSDocument hooks the class never calls: `data(ofType:)`, `fileWrapper(ofType:)`,
+  `read(from:ofType:)` for `Data` and `FileWrapper`, and `write(to:ofType:)`. Sealing them makes an
+  override carried over from a plain `NSDocument` a compile error instead of dead code.
+  `canConcurrentlyReadDocuments(ofType:)` deliberately stays `open`: reading works on either thread,
+  and turning it off is the workaround for the Versions-browser risk in the guide.
+- **Do not call `performSynchronousFileAccess(_:)` from Swift.** When it has to wait it keeps its
+  `NS_NOESCAPE` block, and Swift traps. Send it with `perform(_:with:)` and a `@convention(block)`
+  closure, as `AsyncDocumentTests` does.
+
+Guide: [`Documentations/AsyncDocument.md`](Documentations/AsyncDocument.md).
+
 ### NSAttributedStringBuilder (ported from `ethanhuang13/NSAttributedStringBuilder`)
 
 SwiftUI-style `@resultBuilder` for composing `NSAttributedString`. Ships as part of `UIFoundationShared` behind an **opt-in SPM trait** called `NSAttributedStringBuilder` (default: disabled), mirroring the `FilterUI` / `IDEIcons` pattern:

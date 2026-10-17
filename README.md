@@ -132,6 +132,44 @@ Each message reads and writes its notification exactly as Apple's does — the c
 
 See [`Documentations/NotificationMessages.md`](Documentations/NotificationMessages.md) for the full list and the contracts — `NSWorkspace` messages arrive only on `NSWorkspace.shared.notificationCenter`, and a notification missing a required value never reaches the observer.
 
+### Async Document
+
+`AsyncDocument` is an `NSDocument` whose reading and writing are `async` and run off the main thread. A subclass splits each into a quick synchronous step on the main actor and an `async` step that touches the disk:
+
+```swift
+final class NoteDocument: AsyncDocument<String> {
+    var text = ""
+
+    override class var autosavesInPlace: Bool { true }
+
+    override func snapshot(ofType typeName: String, for saveOperation: SaveOperationType) throws -> String {
+        text
+    }
+
+    nonisolated override func write(_ snapshot: String, to url: URL, context: WriteContext) async throws {
+        try Data(snapshot.utf8).write(to: url)
+    }
+
+    nonisolated override func readSnapshot(from url: URL, ofType typeName: String) async throws -> String {
+        String(decoding: try Data(contentsOf: url), as: UTF8.self)
+    }
+
+    override func apply(_ snapshot: String, ofType typeName: String) throws {
+        text = snapshot
+    }
+}
+```
+
+An edit made while a save is being written stays out of that save, an error from any step reaches NSDocument, and documents open on a background thread. `NSDocument.box` adds `async` versions of the operations that report back through a delegate and a selector:
+
+```swift
+if await document.box.canClose() {
+    document.close()
+}
+```
+
+See [`Documentations/AsyncDocument.md`](Documentations/AsyncDocument.md) for the contracts — `write` and `readSnapshot` must never hop to the main actor, and a document that does not autosave in place saves synchronously.
+
 ### `@ViewInvalidating` Property Wrapper
 
 Auto-triggers view invalidation when property values change:

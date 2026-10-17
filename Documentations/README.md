@@ -8,7 +8,7 @@
 
 ## 使用指南
 
-十二篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
+十四篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
 **接入任何一个组件前先读对应那篇。**
 
 - [MainMenu](MainMenu.md) —— 纯代码构建 MainMenu.xib 等价的标准主菜单，四级粒度自定义，
@@ -77,6 +77,12 @@
   **含两条踩了就静默收不到的契约**：`NSWorkspace` 的消息只在 `NSWorkspace.shared.notificationCenter` 上发；
   带属性的消息缺一个值或类型不对，观察者就不被调用（手动 `post` 的通知最容易踩）。另有经子类找不到父类消息的四组类型、
   `NSTableView` 与 `NSOutlineView` 四对同名标识符的歧义、在苹果原生可用处简写会选苹果的那个，以及迁回原生的步骤。
+- [AsyncDocument](AsyncDocument.md) —— `AsyncDocument<Snapshot>`：读写都是 async 的 NSDocument 子类。子类实现四个方法：
+  主线程同步取快照、后台 async 写盘、后台 async 读盘、主线程同步填回。另附 `NSDocument.box` 上 9 个 async 方法，
+  把 `canClose`、带面板的保存这类回调式操作改成可以 `await`。**含一条踩了就静默卡死的契约**：`write` 和 `readSnapshot`
+  绝不能跳回主线程，恢复版本、复制文档、手动保存的文档都是主线程在等它们。另有：不开 `autosavesInPlace` 就是同步写盘；
+  后台打开时 `init` 不在主线程（Swift 6 子类因此需要基类的 `nonisolated init()`）；被 `final` 封住的 NSDocument 原有读写方法；
+  与 SwiftUI `DocumentGroup` 的三处实测差别；版本浏览器的一处未实测风险。
 
 ## Agent 插件
 
@@ -90,4 +96,4 @@
 
 | 文档 | 说明 |
 |------|------|
-| [Glossary.md](Glossary.md) | 本库术语。**当前为空** —— 原有五条随 RunningApplication 的撤销一并移除（见 [0014](Evolutions/0014-running-application-merge.md)），骨架与维护约定保留待新术语登记 |
+| [Glossary.md](Glossary.md) | 本库术语。现有一条：快照模型（`AsyncDocument` 的读写拆法）。原有五条随 RunningApplication 的撤销一并移除（见 [0014](Evolutions/0014-running-application-merge.md)） |
