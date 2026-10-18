@@ -2,6 +2,7 @@
 
 import Foundation
 import Observation
+import OSToolbox
 import Testing
 
 @testable import UIFoundationSettings
@@ -11,39 +12,38 @@ import Testing
 /// Implements only the synchronous `SettingsStorage` pair — the synchronous
 /// methods witness the async requirements too, which is exactly the
 /// conformance shape real storages use.
-private final class RecordingStorage: SettingsStorage, @unchecked Sendable {
-    private let lock = NSLock()
-    private var recordedSaveCount = 0
-    private var storedData: Data?
+private final class RecordingStorage: SettingsStorage {
+    private struct State {
+        var recordedSaveCount = 0
+        var storedData: Data?
+    }
+
+    private let state: Mutex<State>
 
     init(initialData: Data? = nil) {
-        self.storedData = initialData
+        state = Mutex(State(storedData: initialData))
     }
 
     var saveCount: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return recordedSaveCount
+        state.withLock { $0.recordedSaveCount }
     }
 
     func save(_ data: Data) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        recordedSaveCount += 1
-        storedData = data
+        state.withLock { state in
+            state.recordedSaveCount += 1
+            state.storedData = data
+        }
     }
 
     func load() throws -> Data {
-        lock.lock()
-        defer { lock.unlock() }
-        guard let storedData else { throw FileSystemSettingsStorage.LoadError.noStoredData }
+        guard let storedData = state.withLock({ $0.storedData }) else {
+            throw FileSystemSettingsStorage.LoadError.noStoredData
+        }
         return storedData
     }
 
     func decodedValue<Value: Decodable>(as type: Value.Type) throws -> Value? {
-        lock.lock()
-        defer { lock.unlock() }
-        guard let storedData else { return nil }
+        guard let storedData = state.withLock({ $0.storedData }) else { return nil }
         return try JSONDecoder().decode(Value.self, from: storedData)
     }
 }
@@ -91,20 +91,15 @@ private final class DemoSettings: SettingsModel, Equatable {
     }
 }
 
-private final class ObservationChangeRecorder: @unchecked Sendable {
-    private let lock = NSLock()
-    private var recordedChangeCount = 0
+private final class ObservationChangeRecorder: Sendable {
+    private let recordedChangeCount = Mutex(0)
 
     var changeCount: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return recordedChangeCount
+        recordedChangeCount.withLock { $0 }
     }
 
     func recordChange() {
-        lock.lock()
-        recordedChangeCount += 1
-        lock.unlock()
+        recordedChangeCount.withLock { $0 += 1 }
     }
 }
 

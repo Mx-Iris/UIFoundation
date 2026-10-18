@@ -2,6 +2,7 @@
 
 import AppKit
 import AssociatedObject
+import OSToolbox
 import UIFoundationToolbox
 
 // MARK: - Direct extensions (init, nested types, associated storage)
@@ -139,8 +140,7 @@ extension NSToolbar {
 // MARK: - Identifier counter storage (private, file-scoped)
 
 private enum ToolbarIdentifierStore {
-    static let lock = NSLock()
-    nonisolated(unsafe) static var counters: [String: Int] = [:]
+    static let counters = Mutex<[String: Int]>([:])
 }
 
 // MARK: - Instance API via .box
@@ -225,11 +225,12 @@ extension FrameworkToolbox where Base: NSToolbar {
 
     /// Returns an automatically generated identifier string of the form `"<name> <n>"`.
     public static func makeAutomaticIdentifier(for name: String) -> String {
-        ToolbarIdentifierStore.lock.lock()
-        defer { ToolbarIdentifierStore.lock.unlock() }
-        let next = (ToolbarIdentifierStore.counters[name] ?? -1) + 1
-        ToolbarIdentifierStore.counters[name] = next
-        return "\(name) \(next)"
+        let number = ToolbarIdentifierStore.counters.withLock { counters in
+            let next = (counters[name] ?? -1) + 1
+            counters[name] = next
+            return next
+        }
+        return "\(name) \(number)"
     }
 
     /// Returns an automatically generated `NSToolbarItem.Identifier`.

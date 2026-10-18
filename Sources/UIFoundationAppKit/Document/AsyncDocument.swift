@@ -1,6 +1,7 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
+import OSToolbox
 
 /// An `NSDocument` whose contents are read and written by `async` code off the main thread.
 ///
@@ -85,7 +86,7 @@ open class AsyncDocument<Snapshot: Sendable>: NSDocument {
 
     /// The snapshot ``canAsynchronouslyWrite(to:ofType:for:)`` took for the save in flight,
     /// waiting for the background writer to collect it.
-    private nonisolated let pendingSnapshot = AsyncDocumentLockedValue<Result<Snapshot, any Error>>()
+    private nonisolated let pendingSnapshot = Mutex<Result<Snapshot, any Error>?>(nil)
 
     /// Creates an empty document.
     ///
@@ -158,7 +159,9 @@ open class AsyncDocument<Snapshot: Sendable>: NSDocument {
         for saveOperation: SaveOperationType
     ) -> Bool {
         guard type(of: self).autosavesInPlace else { return false }
-        pendingSnapshot.store(Result { try snapshot(ofType: typeName, for: saveOperation) })
+        // Taken before locking: the subclass's code must never run with the lock held.
+        let snapshotResult = Result { try snapshot(ofType: typeName, for: saveOperation) }
+        pendingSnapshot.withLock { $0 = snapshotResult }
         return true
     }
 
@@ -206,10 +209,10 @@ open class AsyncDocument<Snapshot: Sendable>: NSDocument {
             // duplicating or sharing never asked. Nothing has run since the save began, so take a
             // fresh one; a snapshot left by a save that never reached its write must not be written
             // by this one.
-            _ = pendingSnapshot.take()
+            _ = pendingSnapshot.withLock { $0.take() }
             return try MainActor.assumeIsolated { try snapshot(ofType: typeName, for: saveOperation) }
         }
-        if let pending = pendingSnapshot.take() {
+        if let pending = pendingSnapshot.withLock({ $0.take() }) {
             return try pending.get()
         }
         // Not reachable through NSDocument's own save path, which always asks

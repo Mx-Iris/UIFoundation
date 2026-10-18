@@ -281,6 +281,8 @@ let package = Package(
                     name: "UIFoundationAppleInternal",
                     condition: .when(platforms: appkitPlatforms, traits: ["AppleInternal"])
                 ),
+                // `Mutex`, for the test doubles that several threads write to.
+                .product(name: "OSToolbox", package: "FrameworkToolbox"),
                 .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(platforms: appkitPlatforms, traits: ["AppKitPlus"])),
             ],
         ),

@@ -2,6 +2,7 @@
 
 import Foundation
 import Observation
+import OSToolbox
 import SwiftUI
 import Testing
 
@@ -9,35 +10,34 @@ import Testing
 @testable import UIFoundationSettingsUI
 
 /// Counts writes so a projected-value edit can be shown to persist.
-private final class WriteCountingStorage: SettingsStorage, @unchecked Sendable {
-    private let lock = NSLock()
-    private var recordedSaveCount = 0
-    private var storedData: Data?
+private final class WriteCountingStorage: SettingsStorage {
+    private struct State {
+        var recordedSaveCount = 0
+        var storedData: Data?
+    }
+
+    private let state = Mutex(State())
 
     var saveCount: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return recordedSaveCount
+        state.withLock { $0.recordedSaveCount }
     }
 
     func save(_ data: Data) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        recordedSaveCount += 1
-        storedData = data
+        state.withLock { state in
+            state.recordedSaveCount += 1
+            state.storedData = data
+        }
     }
 
     func load() throws -> Data {
-        lock.lock()
-        defer { lock.unlock() }
-        guard let storedData else { throw FileSystemSettingsStorage.LoadError.noStoredData }
+        guard let storedData = state.withLock({ $0.storedData }) else {
+            throw FileSystemSettingsStorage.LoadError.noStoredData
+        }
         return storedData
     }
 
     func decodedValue<Value: Decodable>(as type: Value.Type) throws -> Value? {
-        lock.lock()
-        defer { lock.unlock() }
-        guard let storedData else { return nil }
+        guard let storedData = state.withLock({ $0.storedData }) else { return nil }
         return try JSONDecoder().decode(Value.self, from: storedData)
     }
 }
