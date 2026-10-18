@@ -40,3 +40,4 @@
 | 2026-10-18 | 描边测试改比内缘，并在裁剪状态下比；删掉「`.circular` 下描边仍是路径」那条 | 第一版只比外缘，在描边还是圆弧时就通过了：AppKit 已把宿主的裁剪打开，宿主的连续曲率遮罩替描边修掉了外缘，露馅的只有内缘。「仍是路径」是在断言实现方式，而圆弧一例的像素比较已经守住了行为 |
 | 2026-10-18 | 参考用的填充一律在裁剪状态下渲染 | `CALayer.render(in:)` 画不裁剪图层的圆角背景会往外偏多达 1.5pt（圆弧半径 20 时最上一行从第 31 列开始，几何上和裁剪时都是第 34 列），拿它当参考会把 2 个像素的误差算进来 |
 | 2026-10-18 | 系统打开裁剪这件事记为后续，不在本分支处理 | 它与曲线无关，而且改它会改变现有使用方在 macOS 27 上的样子，超出本提案范围 |
+| 2026-10-18 | 实现完成，待合并 | 验证（macOS 27.2，退出码为准）：默认配置整套 `swift test` 0（217 个测试）；全 trait `swift build` 0（AppKitPlus 按锁定的 0.6.0；中途一次误解析到 0.17.0，也编过）；全 trait 整套 `swift test` 1。后者的失败逐个核对过：`QuickActionBarPresentationTests`「Resuming a dismissal keeps the existing presentation alive」在 `main` 上同样失败，是基线问题；`MainMenuTests`「rewriting a special menu through the builder keeps it wired」只在整套并行时失败，单独跑全 trait 通过，断言的窗口菜单内容受同时开着的窗口影响；第一次全 trait 运行进程中途 SIGSEGV 退出过一次，之后两次（含 `main`）都没再出现。三者都与本改动无关。不需要另写使用指南：`AGENTS.md` 的这一节就是这组 API 的说明；没有新术语 |
