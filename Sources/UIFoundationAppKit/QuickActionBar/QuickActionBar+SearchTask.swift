@@ -11,6 +11,7 @@
 #if QuickActionBar && os(macOS)
 
 import Foundation
+import OSToolbox
 
 public extension QuickActionBar {
     /// An async-capable search task representing a single search term query.
@@ -20,32 +21,34 @@ public extension QuickActionBar {
 
         /// Is the current search task cancelled?
         public var isCancelled: Bool {
-            self.completionLock.lock()
-            defer { self.completionLock.unlock() }
-            return completion == nil
+            completion.withLock { $0 == nil }
         }
 
         /// Supply the results for this search query.
         public func complete(with results: [AnyHashable]) {
-            self.completionLock.lock()
-            defer { self.completionLock.unlock() }
-            self.completion?(results)
+            completion.withLock { $0?(results) }
         }
 
         /// Cancel the current search request.
         public func cancel() {
-            self.completionLock.lock()
-            defer { self.completionLock.unlock() }
-            self.completion?(nil)
+            completion.withLock { $0?(nil) }
         }
 
-        internal init(searchTerm: String, completion: @escaping ([AnyHashable]?) -> Void) {
-            self.completion = completion
+        /// `completion` is `sending` because the task takes it over: every call to it is made with
+        /// the lock held.
+        internal init(searchTerm: String, completion: sending @escaping ([AnyHashable]?) -> Void) {
+            self.completion = Mutex(completion)
             self.searchTerm = searchTerm
         }
 
-        internal var completion: (([AnyHashable]?) -> Void)?
-        internal let completionLock = NSLock()
+        /// Detaches the task from the bar: from here on it reports `isCancelled` and delivers
+        /// nothing.
+        internal func invalidate() {
+            completion.withLock { $0 = nil }
+        }
+
+        /// Called with the lock held, so once `invalidate()` returns it is never called again.
+        private let completion: Mutex<(([AnyHashable]?) -> Void)?>
     }
 }
 

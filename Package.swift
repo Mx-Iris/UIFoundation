@@ -158,6 +158,7 @@ let package = Package(
                 "UIFoundationUtilities",
                 "UIFoundationShared",
                 .product(name: "AssociatedObject", package: "AssociatedObject"),
+                .product(name: "OSToolbox", package: "FrameworkToolbox"),
                 .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(platforms: appkitPlatforms, traits: ["AppKitPlus"])),
             ],
             resources: [

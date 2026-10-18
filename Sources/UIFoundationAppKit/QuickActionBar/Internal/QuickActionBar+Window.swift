@@ -455,7 +455,7 @@ extension QuickActionBar.Window {
     private func cancelCurrentSearchTask() {
         precondition(Thread.isMainThread)
 
-        currentSearchRequestTask?.completion = nil
+        currentSearchRequestTask?.invalidate()
         currentSearchRequestTask = nil
     }
 }
