@@ -1,10 +1,10 @@
-# Draft - LayerBackgroundRenderer：连续曲率圆角（cornerCurve）
+# 0031 - LayerBackgroundRenderer：连续曲率圆角（cornerCurve）
 
-- **状态**: In Progress
+- **状态**: Implemented
 - **作者**: JH
 - **创建日期**: 2026-10-18
 - **最后更新**: 2026-10-18
-- **实现分支 / PR**: `feature/layer-background-corner-curve`
+- **实现分支 / PR**: `feature/layer-background-corner-curve`（已快进合进 `main`，随 `0.40.0` 发布）
 
 ## 摘要
 
@@ -41,3 +41,4 @@
 | 2026-10-18 | 参考用的填充一律在裁剪状态下渲染 | `CALayer.render(in:)` 画不裁剪图层的圆角背景会往外偏多达 1.5pt（圆弧半径 20 时最上一行从第 31 列开始，几何上和裁剪时都是第 34 列），拿它当参考会把 2 个像素的误差算进来 |
 | 2026-10-18 | 系统打开裁剪这件事记为后续，不在本分支处理 | 它与曲线无关，而且改它会改变现有使用方在 macOS 27 上的样子，超出本提案范围 |
 | 2026-10-18 | 实现完成，待合并 | 验证（macOS 27.2，退出码为准）：默认配置整套 `swift test` 0（217 个测试）；全 trait `swift build` 0（AppKitPlus 按锁定的 0.6.0；中途一次误解析到 0.17.0，也编过）；全 trait 整套 `swift test` 1。后者的失败逐个核对过：`QuickActionBarPresentationTests`「Resuming a dismissal keeps the existing presentation alive」在 `main` 上同样失败，是基线问题；`MainMenuTests`「rewriting a special menu through the builder keeps it wired」只在整套并行时失败，单独跑全 trait 通过，断言的窗口菜单内容受同时开着的窗口影响；第一次全 trait 运行进程中途 SIGSEGV 退出过一次，之后两次（含 `main`）都没再出现。三者都与本改动无关。不需要另写使用指南：`AGENTS.md` 的这一节就是这组 API 的说明；没有新术语 |
+| 2026-10-18 | 落地：快进合进 `main`，编号 0031，随 `0.40.0` 发布 | 落地前在最终代码上重跑全 trait 整套 `swift test`：退出码 1，唯一的失败是 `QuickActionBarPresentationTests`「Resuming a dismissal keeps the existing presentation alive」，与 `main` 上相同；上次那条 `MainMenuTests` 这次通过，确认是并行时的偶发失败。实现与方案一致，没有没做完的项；「系统打开裁剪」仍是后续。不需要另写使用指南或实现说明（`AGENTS.md` 的 `LayerBackgroundRenderer` 一节就是说明），没有新术语 |
