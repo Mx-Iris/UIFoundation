@@ -78,6 +78,11 @@ extension LayerBackgroundProviding {
         set { backgroundRenderer.cornerRadius = newValue }
     }
 
+    public var cornerCurve: CALayerCornerCurve {
+        get { backgroundRenderer.cornerCurve }
+        set { backgroundRenderer.cornerCurve = newValue }
+    }
+
     public var backgroundColor: NSColor? {
         get { backgroundRenderer.backgroundColor }
         set { backgroundRenderer.backgroundColor = newValue }

@@ -79,6 +79,15 @@ public final class LayerBackgroundRenderer {
         didSet { setNeedsDisplay() }
     }
 
+    /// The curve the rounded corners follow, written to the backing layer's `cornerCurve`.
+    ///
+    /// `.continuous` is the smoother curve of SwiftUI's `RoundedRectangle(style: .continuous)` and
+    /// of the system's own controls: it leaves the straight edge earlier and blends into the arc.
+    /// A full border follows whichever curve this is.
+    public var cornerCurve: CALayerCornerCurve = .circular {
+        didSet { setNeedsDisplay() }
+    }
+
     public var backgroundColor: NSColor? {
         didSet { setNeedsDisplay() }
     }
@@ -124,28 +133,30 @@ public final class LayerBackgroundRenderer {
     public func updateLayer() {
         guard let owner, let layer = owner.layer else { return }
 
-        let usesRoundedPath = cornerRadius > 0 && borderPositions == .all
-        let borderPath = NSBezierPath(
-            bounds: owner.bounds,
-            cornerRadius: cornerRadius,
-            borderWidth: borderWidth,
-            borderInsets: borderInsets,
-            borderLocation: borderLocation,
-            borderPositions: borderPositions,
-        ).box.cgPath
-
-        borderLayer?.path = borderPath
-        borderLayer?.strokeColor = borderColor?.cgColor
-        borderLayer?.fillColor = NSColor.clear.cgColor
-        borderLayer?.lineWidth = borderWidth
-        // When the path already encodes the rounded shape we don't need the
-        // layer-level corner mask — masking would clip the curved stroke.
-        // For partial borders fall back to the layer mask so straight strokes
-        // don't bleed past the host's rounded corners.
-        borderLayer?.cornerRadius = usesRoundedPath ? 0 : cornerRadius
-        borderLayer?.masksToBounds = !usesRoundedPath && cornerRadius > 0
+        if let borderLayer {
+            layoutBorderLayer(borderLayer, in: owner.bounds)
+            if drawsBorderNatively {
+                borderLayer.strokeColor = nil
+                borderLayer.borderColor = borderColor?.cgColor
+                borderLayer.borderWidth = borderWidth
+                borderLayer.masksToBounds = false
+            } else {
+                borderLayer.borderColor = nil
+                borderLayer.borderWidth = 0
+                borderLayer.strokeColor = borderColor?.cgColor
+                borderLayer.fillColor = NSColor.clear.cgColor
+                borderLayer.lineWidth = borderWidth
+                // When the path already encodes the rounded shape we don't need the
+                // layer-level corner mask — masking would clip the curved stroke.
+                // For partial borders fall back to the layer mask so straight strokes
+                // don't bleed past the host's rounded corners.
+                borderLayer.masksToBounds = !usesRoundedPath && cornerRadius > 0
+            }
+            borderLayer.cornerCurve = cornerCurve
+        }
 
         layer.cornerRadius = cornerRadius
+        layer.cornerCurve = cornerCurve
         layer.backgroundColor = backgroundColor?.cgColor
         layer.shadowColor = shadowColor?.cgColor
         layer.shadowOpacity = shadowOpacity
@@ -159,15 +170,58 @@ public final class LayerBackgroundRenderer {
     /// Call from the owner's `layout()` override.
     public func layout() {
         guard let owner, let borderLayer else { return }
-        borderLayer.frame = owner.bounds
-        borderLayer.path = NSBezierPath(
-            bounds: owner.bounds,
-            cornerRadius: cornerRadius,
-            borderWidth: borderWidth,
-            borderInsets: borderInsets,
-            borderLocation: borderLocation,
-            borderPositions: borderPositions,
-        ).box.cgPath
+        layoutBorderLayer(borderLayer, in: owner.bounds)
+    }
+
+    private var usesRoundedPath: Bool {
+        cornerRadius > 0 && borderPositions == .all
+    }
+
+    /// Whether the full rounded border is drawn by the border layer's own `borderWidth` instead of
+    /// by stroking a path.
+    ///
+    /// Only a continuous corner needs it. Core Animation has no API that hands out the continuous
+    /// corner as a path and `NSBezierPath` only knows circular arcs, so a stroked path would keep
+    /// circular corners while the fill it surrounds turns continuous. A layer's own border follows
+    /// `cornerCurve`, which keeps the two on the same curve. Circular corners keep the stroked
+    /// path they have always had.
+    private var drawsBorderNatively: Bool {
+        usesRoundedPath && cornerCurve == .continuous
+    }
+
+    /// The border layer's geometry: its frame, and either the path it strokes or the radius its
+    /// own border takes.
+    private func layoutBorderLayer(_ borderLayer: CAShapeLayer, in bounds: NSRect) {
+        guard drawsBorderNatively else {
+            borderLayer.frame = bounds
+            borderLayer.path = NSBezierPath(
+                bounds: bounds,
+                cornerRadius: cornerRadius,
+                borderWidth: borderWidth,
+                borderInsets: borderInsets,
+                borderLocation: borderLocation,
+                borderPositions: borderPositions,
+            ).box.cgPath
+            borderLayer.cornerRadius = usesRoundedPath ? 0 : cornerRadius
+            return
+        }
+
+        // A layer draws its own border inside its bounds, so the layer reaches past the owner's
+        // bounds by as far as `borderLocation` puts the border's outer edge outside them, and its
+        // radius grows by the same amount to stay concentric with the owner's corners.
+        let outset: CGFloat = switch borderLocation {
+        case .inside: 0
+        case .center: borderWidth / 2
+        case .outside: borderWidth
+        }
+        borderLayer.path = nil
+        borderLayer.frame = NSRect(
+            x: bounds.minX + borderInsets.left - outset,
+            y: bounds.minY + borderInsets.bottom - outset,
+            width: bounds.width - borderInsets.left - borderInsets.right + outset * 2,
+            height: bounds.height - borderInsets.top - borderInsets.bottom + outset * 2
+        )
+        borderLayer.cornerRadius = cornerRadius + outset
     }
 
     private func setNeedsDisplay() {
