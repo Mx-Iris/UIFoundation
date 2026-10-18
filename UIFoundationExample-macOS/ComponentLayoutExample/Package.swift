@@ -27,6 +27,8 @@ let package = Package(
     dependencies: [
         .package(path: "../..", traits: ["AppKitPlus"]),
         .package(url: "https://github.com/AppKitSupportProgram/AppKitPlus-Release", from: "0.6.0"),
+        // For `Mutex` (module `OSToolbox`); UIFoundation already depends on it.
+        .package(url: "https://github.com/Mx-Iris/FrameworkToolbox", from: "0.15.0"),
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "602.0.0"),
         // Syntax highlighting for the code blocks. `tree-sitter-swift` ships its
         // generated parser and its `queries/highlights.scm` only on the
@@ -53,6 +55,7 @@ let package = Package(
                 "ComponentLayoutExampleMacros",
                 .product(name: "UIFoundationComponent", package: "UIFoundation"),
                 .product(name: "AppKitPlus", package: "AppKitPlus-Release"),
+                .product(name: "OSToolbox", package: "FrameworkToolbox"),
                 .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
                 .product(name: "TreeSitterSwift", package: "tree-sitter-swift"),
             ]

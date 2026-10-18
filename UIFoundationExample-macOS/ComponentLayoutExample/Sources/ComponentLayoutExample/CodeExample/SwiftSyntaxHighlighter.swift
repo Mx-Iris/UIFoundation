@@ -27,6 +27,7 @@
 //
 
 import AppKit
+import OSToolbox
 import SwiftTreeSitter
 import TreeSitterSwift
 
@@ -34,26 +35,12 @@ import TreeSitterSwift
 ///
 /// Reach it through ``shared``; a second instance would pay the 78 ms query
 /// compilation again for nothing.
-final class SwiftSyntaxHighlighter: @unchecked Sendable {
+final class SwiftSyntaxHighlighter: Sendable {
     static let shared = SwiftSyntaxHighlighter()
 
-    /// Everything below is touched from both the warm-up queue and the main
-    /// thread, and none of tree-sitter's Swift types are `Sendable`.
-    private let lock = NSLock()
-
-    private var language: Language?
-    private var parser: Parser?
-    private var query: Query?
-    private var didAttemptLoad = false
-
-    private struct MemoKey: Hashable {
-        let code: String
-        let isDark: Bool
-        let fontName: String
-        let fontSize: CGFloat
-    }
-
-    private var memo: [MemoKey: NSAttributedString] = [:]
+    /// Touched from both the warm-up queue and the main thread, and none of
+    /// tree-sitter's Swift types are `Sendable`.
+    private let state = Mutex(State())
 
     private init() {}
 
@@ -67,9 +54,7 @@ final class SwiftSyntaxHighlighter: @unchecked Sendable {
     /// and it is over long before a chapter is picked.
     func warmUp() {
         DispatchQueue.global(qos: .utility).async { [self] in
-            lock.lock()
-            defer { lock.unlock() }
-            loadIfNeededLocked()
+            state.withLock { $0.loadIfNeeded() }
         }
     }
 
@@ -83,93 +68,107 @@ final class SwiftSyntaxHighlighter: @unchecked Sendable {
     func highlighted(_ code: String, isDark: Bool, font: NSFont) -> NSAttributedString {
         let key = MemoKey(code: code, isDark: isDark, fontName: font.fontName, fontSize: font.pointSize)
 
-        lock.lock()
-        defer { lock.unlock() }
-
-        if let hit = memo[key] {
-            return hit
+        return state.withLock { state in
+            if let hit = state.memo[key] {
+                return hit
+            }
+            let result = state.build(code: code, isDark: isDark, font: font)
+            state.memo[key] = result
+            return result
         }
-        let result = buildLocked(code: code, isDark: isDark, font: font)
-        memo[key] = result
-        return result
     }
 
     // MARK: - Implementation
 
-    /// - Important: call with `lock` held.
-    private func loadIfNeededLocked() {
-        guard !didAttemptLoad else { return }
-        didAttemptLoad = true
-
-        let language = Language(language: tree_sitter_swift())
-        self.language = language
-
-        let parser = Parser()
-        guard (try? parser.setLanguage(language)) != nil else { return }
-        self.parser = parser
-
-        guard let queryURL = Self.highlightsQueryURL() else { return }
-        query = try? language.query(contentsOf: queryURL)
+    private struct MemoKey: Hashable {
+        let code: String
+        let isDark: Bool
+        let fontName: String
+        let fontSize: CGFloat
     }
 
-    /// - Important: call with `lock` held.
-    private func buildLocked(code: String, isDark: Bool, font: NSFont) -> NSAttributedString {
-        loadIfNeededLocked()
+    /// Everything the highlighter mutates. It lives in `state`'s `Mutex`, so
+    /// these methods can only run with the lock held.
+    private struct State {
+        var language: Language?
+        var parser: Parser?
+        var query: Query?
+        var didAttemptLoad = false
+        var memo: [MemoKey: NSAttributedString] = [:]
 
-        let theme = CodeTheme(isDark: isDark)
-        let result = NSMutableAttributedString(
-            string: code,
-            attributes: [.font: font, .foregroundColor: theme.plainText]
-        )
+        mutating func loadIfNeeded() {
+            guard !didAttemptLoad else { return }
+            didAttemptLoad = true
 
-        guard let parser, let query,
-              let tree = parser.parse(code), let root = tree.rootNode
-        else {
-            return result
+            let language = Language(language: tree_sitter_swift())
+            self.language = language
+
+            let parser = Parser()
+            guard (try? parser.setLanguage(language)) != nil else { return }
+            self.parser = parser
+
+            guard let queryURL = SwiftSyntaxHighlighter.highlightsQueryURL() else { return }
+            query = try? language.query(contentsOf: queryURL)
         }
 
-        // tree-sitter's convention is **first pattern wins**: a capture may not
-        // repaint a range an earlier one already claimed. Without this, the
-        // broad `@variable` pattern at the end of `highlights.scm` would
-        // overwrite every `@function.call` before it, and every call site would
-        // come out the colour of a plain identifier.
-        var claimed = [Bool](repeating: false, count: (code as NSString).length)
-        let cursor = query.execute(node: root, in: tree)
+        mutating func build(code: String, isDark: Bool, font: NSFont) -> NSAttributedString {
+            loadIfNeeded()
 
-        while let match = cursor.next() {
-            for capture in match.captures {
-                let name = capture.nameComponents.joined(separator: ".")
-                guard let colour = theme.colour(forCapture: name) else { continue }
+            let theme = CodeTheme(isDark: isDark)
+            let result = NSMutableAttributedString(
+                string: code,
+                attributes: [.font: font, .foregroundColor: theme.plainText]
+            )
 
-                let range = capture.range
-                guard range.location >= 0, range.location + range.length <= claimed.count else { continue }
+            guard let parser, let query,
+                  let tree = parser.parse(code), let root = tree.rootNode
+            else {
+                return result
+            }
 
-                var runStart: Int?
-                for index in range.location ..< (range.location + range.length) {
-                    if claimed[index] {
-                        if let start = runStart {
-                            result.addAttribute(.foregroundColor, value: colour,
-                                                range: NSRange(location: start, length: index - start))
-                            runStart = nil
+            // tree-sitter's convention is **first pattern wins**: a capture may
+            // not repaint a range an earlier one already claimed. Without this,
+            // the broad `@variable` pattern at the end of `highlights.scm` would
+            // overwrite every `@function.call` before it, and every call site
+            // would come out the colour of a plain identifier.
+            var claimed = [Bool](repeating: false, count: (code as NSString).length)
+            let cursor = query.execute(node: root, in: tree)
+
+            while let match = cursor.next() {
+                for capture in match.captures {
+                    let name = capture.nameComponents.joined(separator: ".")
+                    guard let colour = theme.colour(forCapture: name) else { continue }
+
+                    let range = capture.range
+                    guard range.location >= 0, range.location + range.length <= claimed.count else { continue }
+
+                    var runStart: Int?
+                    for index in range.location ..< (range.location + range.length) {
+                        if claimed[index] {
+                            if let start = runStart {
+                                result.addAttribute(.foregroundColor, value: colour,
+                                                    range: NSRange(location: start, length: index - start))
+                                runStart = nil
+                            }
+                        } else {
+                            claimed[index] = true
+                            if runStart == nil { runStart = index }
                         }
-                    } else {
-                        claimed[index] = true
-                        if runStart == nil { runStart = index }
+                    }
+                    if let start = runStart {
+                        let end = range.location + range.length
+                        result.addAttribute(.foregroundColor, value: colour,
+                                            range: NSRange(location: start, length: end - start))
+                    }
+
+                    if theme.isItalic(capture: name) {
+                        result.addAttribute(.font, value: CodeTheme.italic(of: font), range: range)
                     }
                 }
-                if let start = runStart {
-                    let end = range.location + range.length
-                    result.addAttribute(.foregroundColor, value: colour,
-                                        range: NSRange(location: start, length: end - start))
-                }
-
-                if theme.isItalic(capture: name) {
-                    result.addAttribute(.font, value: CodeTheme.italic(of: font), range: range)
-                }
             }
-        }
 
-        return result
+            return result
+        }
     }
 
     /// Finds `queries/highlights.scm` inside the grammar package's own resource
