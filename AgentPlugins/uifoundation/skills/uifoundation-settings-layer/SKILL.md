@@ -36,27 +36,33 @@ throws `FileSystemSettingsStorage.LoadError.noStoredData`. The store reads exact
 error as "nothing written yet" and keeps the defaults; anything else comes back from
 `store.load()` as `.failed`.
 
+The store calls its storage from more than one thread, so the data sits in a `Mutex`:
+FrameworkToolbox's, from its `OSToolbox` module. UIFoundation already depends on
+FrameworkToolbox, so linking the `OSToolbox` product adds no package, and unlike the
+standard library's `Mutex` it does not need macOS 15. `SettingsStorage` refines
+`Sendable`, and with the `Mutex` the class passes that check without `@unchecked`.
+
 ```swift
-final class InMemorySettingsStorage: SettingsStorage, @unchecked Sendable {
-    private let lock = NSLock()
-    private var storedData: Data?
+import OSToolbox
+
+final class InMemorySettingsStorage: SettingsStorage {
+    private let storedData = Mutex<Data?>(nil)
 
     func save(_ data: Data) throws {
-        lock.lock(); defer { lock.unlock() }
-        storedData = data
+        storedData.withLock { $0 = data }
     }
 
     func load() throws -> Data {
-        lock.lock(); defer { lock.unlock() }
-        guard let storedData else { throw FileSystemSettingsStorage.LoadError.noStoredData }
-        return storedData
+        guard let data = storedData.withLock({ $0 }) else {
+            throw FileSystemSettingsStorage.LoadError.noStoredData
+        }
+        return data
     }
 
     /// What the last save wrote, for tests asserting that persistence happened.
     func decodedSettings() throws -> Settings? {
-        lock.lock(); defer { lock.unlock() }
-        guard let storedData else { return nil }
-        return try JSONDecoder().decode(Settings.self, from: storedData)
+        guard let data = storedData.withLock({ $0 }) else { return nil }
+        return try JSONDecoder().decode(Settings.self, from: data)
     }
 }
 ```
