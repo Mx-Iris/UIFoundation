@@ -15,8 +15,8 @@
 >
 > **§10 is a later addition, read off macOS 27.2** (build 26B118), where the code has moved out of
 > the app binary into private frameworks. It covers Escape and the results platter's resize curve,
-> consumed by both `SpotlightPanel` and `QuickActionBar` through the escape-clears-query proposal in
-> `Documentations/Evolutions/`.
+> consumed by both `SpotlightPanel` and `QuickActionBar` through
+> [`Documentations/Evolutions/0032-escape-clears-query-before-dismissing.md`](../Documentations/Evolutions/0032-escape-clears-query-before-dismissing.md).
 
 ---
 

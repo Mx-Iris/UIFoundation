@@ -1,10 +1,10 @@
-# Draft - QuickActionBar 与 SpotlightPanel：Esc 先清空查询再关闭，收起动画对齐 Spotlight
+# 0032 - QuickActionBar 与 SpotlightPanel：Esc 先清空查询再关闭，收起动画对齐 Spotlight
 
-- **状态**: In Progress
+- **状态**: Implemented
 - **作者**: JH
 - **创建日期**: 2026-10-21
 - **最后更新**: 2026-10-21
-- **实现分支 / PR**: `feature/escape-clears-query-before-dismissing`
+- **实现分支 / PR**: `feature/escape-clears-query-before-dismissing`（已快进合进 `main`，按用户要求暂未推送）
 
 ## 摘要
 
@@ -81,3 +81,4 @@
 | 2026-10-21 | 第 3 步完成 | 两组弹簧测试对 SwiftUI 的 `Spring` 全部通过；把 QuickActionBar 的参数临时换成旧常数对应的 duration 0.363、bounce 0.19，三条弹簧测试全部失败，说明对照能分辨出原来那条曲线。弹簧测试测的是新函数，改动前无法编译，所以用这次替换代替「改动前先红」 |
 | 2026-10-21 | 第 4 步完成；顺带更正「SpotlightPanel 的搜索框从不交出 first responder」的说法 | 指南第 7 节、`AGENTS.md` 和 `ContentViewController` 的注释都这样写，但实测宿主不接 Tab 时，Tab 会把焦点移到结果列表——第二层 Esc 正是为这种情况加的。改为「拖动列表时搜索框保持焦点，Tab 例外」。研究报告新增第 10 节，第 9 节里已找到的两项加了注 |
 | 2026-10-21 | 实现完成，待合并 | 验证（macOS 27.2，以退出码为准）：全 trait `swift build` 0；全 trait 整套 `swift test` 1，483 个测试、64 个套件，失败只有 `MainMenuTests` 第 200 行与 `QuickActionBarPresentationTests` 第 35 行，外加 1 个已知 issue。同样的全 trait 整套测试在 `main`（`80eaca7`，`git archive` 出来单独编译）上是 473 个测试、62 个套件，失败的正是这两条，所以没有新引入的失败；多出的 10 个测试、2 个套件都是本分支新加的。默认配置整套 `swift test` 0（208 个测试）。示例 App 从功能分支的 `git archive` 构建成功：工程按 `../../UIFoundation` 引用本库，在 worktree 里会解析到不存在的 `.worktrees/UIFoundation`，所以没有在 worktree 里直接构建。没有做交互式的界面验证，示例 App 里新增的人工检查第 6 条留给用户。文档：`README.md`、`AGENTS.md`、`Documentations/SpotlightPanel.md` 与研究报告都已更新；`QuickActionBar` 没有单独的使用指南，`README.md` 与 `AGENTS.md` 的两节就是它的说明；没有新术语 |
+| 2026-10-21 | 落地：快进合进 `main`，编号 0032，按用户要求暂未推送 | 合并前 `main` 是功能分支的祖先，合并后的代码与验证过的完全相同，不重跑验证（用的是「实现完成，待合并」那一行记的结果，之后只改过文档）。实现与方案一致；没做的项都已列在「后续」与「没有核实的部分」。不需要另写使用指南或实现说明：SpotlightPanel 的指南已更新，QuickActionBar 没有单独的指南，`README.md` 与 `AGENTS.md` 的两节就是它的说明；没有新术语 |
