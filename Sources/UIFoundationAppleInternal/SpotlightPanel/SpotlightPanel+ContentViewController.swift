@@ -12,8 +12,10 @@ extension SpotlightPanel {
     ///
     /// It also owns the keyboard table. Spotlight puts those thirteen commands on its
     /// `SearchViewController`; here they arrive through the field editor's
-    /// `control(_:textView:doCommandBy:)`, because the query field never gives up first
-    /// responder — typing has to keep working while the arrow keys drive the list.
+    /// `control(_:textView:doCommandBy:)`, because the query field keeps first responder while
+    /// the list is driven — typing has to keep working while the arrow keys move the selection.
+    /// Tab can move the focus on to the results list, which is why Escape also arrives through
+    /// ``Panel``.
     final class ContentViewController: NSViewController {
         private let metrics: Metrics
         let searchField: SearchField

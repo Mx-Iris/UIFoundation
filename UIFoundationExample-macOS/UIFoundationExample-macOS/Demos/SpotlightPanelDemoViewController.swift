@@ -343,9 +343,13 @@ final class SpotlightPanelDemoViewController: NSViewController {
         3.  The top edge does not move when results appear. The query field stays put; only the \
         bottom edge travels. Type a letter and watch the top of the panel.
         4.  Reopening mid-dismissal reverses it rather than restarting. Press the button above, \
-        or press Escape and immediately hit ⏎ here.
+        or press Escape on an empty query and immediately hit ⏎ here.
         5.  Placement is anchored, not centred. With no results the panel sits above centre; \
         once expanded it lands in the middle. Drag "Anchor height" and reopen to see it move.
+        6.  Escape clears before it closes. Type a letter, then press Escape: the query empties \
+        and the list changes to the empty query's results, resizing along a spring that overshoots \
+        a little. A second Escape closes the panel. Tab into the list first and Escape should \
+        still clear the query and put the cursor back in the field.
         """)
         checksField.font = .systemFont(ofSize: 11)
         checksField.textColor = .secondaryLabelColor

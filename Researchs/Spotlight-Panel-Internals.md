@@ -12,6 +12,11 @@
 > Consumed by `SpotlightPanel` — see
 > [`Documentations/Evolutions/0021-spotlight-panel-replica.md`](../Documentations/Evolutions/0021-spotlight-panel-replica.md)
 > and the guide at [`Documentations/SpotlightPanel.md`](../Documentations/SpotlightPanel.md).
+>
+> **§10 is a later addition, read off macOS 27.2** (build 26B118), where the code has moved out of
+> the app binary into private frameworks. It covers Escape and the results platter's resize curve,
+> consumed by both `SpotlightPanel` and `QuickActionBar` through the escape-clears-query proposal in
+> `Documentations/Evolutions/`.
 
 ---
 
@@ -26,6 +31,7 @@
 - [7. Measured constants](#7-measured-constants)
 - [8. The keyboard table](#8-the-keyboard-table)
 - [9. What was not recovered](#9-what-was-not-recovered)
+- [10. macOS 27.2: Escape and the resize curve](#10-macos-272-escape-and-the-resize-curve)
 
 ---
 
@@ -401,11 +407,124 @@ system — a process-wide effect, and out of scope for a UI library.
   `+[SearchConstants standardWindowWidth]` (`0x1000A91E4`) is a single `B` into
   `SpotlightUIShared`, which is not in the Spotlight binary. The prebuilt shared-cache database on
   `/Volumes/DyldSharedCaches/macOS/26.6.2/` does not carry that image, and building one was not
-  worth two constants that a host should be choosing anyway.
+  worth two constants that a host should be choosing anyway. *(The 27.2 standard width has since
+  been read — §10.4.)*
 - **The search field's font size and padding.** `+[SearchConstants searchFieldPadding]`
   (`0x1000A90B4`) returns 21 on the old path but reads a global and doubles it on the macOS 26
   path; the global's initialiser was not traced.
 - **The expand / collapse resize curve.** The present and dismiss springs are exact; the curve
-  used when the window grows to fit results was not isolated.
+  used when the window grows to fit results was not isolated. *(Recovered from 27.2 — §10.4.)*
 - **`SUIUtilities.isInvocationAnimationEnabled`.** A private framework defaults switch with no
   public equivalent.
+
+---
+
+## 10. macOS 27.2: Escape and the resize curve
+
+Read off macOS 27.2 build 26B118. Addresses are unslid addresses in that build's dyld shared cache
+(cache UUID `b39b8e818b0e3d1491b55ed0494535d6`, archived at
+`/Volumes/DyldSharedCaches/macOS/27.2/`); the IDA databases are
+`SpotlightUIInternal+SpotlightUIShared+SpotlightUIServices.i64` and `AppKit.i64` in the same
+directory, and the app binary's is `/Volumes/RE/Spotlight/27.2/Spotlight.i64`. Every method address
+came from the interface dumps beside them or from `runtime-viewer-cli` on the running system, and
+every conclusion below was checked against the disassembly.
+
+### 10.1 Where the code went
+
+The 27.2 `Spotlight.app` executable is a shell, 124 KB per slice: `SPApplication` and the
+`AppDelegate`. The panel, the search field and the keyboard handling moved to
+`SpotlightUIInternal.framework`, with `SpotlightUIShared` and `SpotlightUIServices` beside it —
+all three `BuildAliasOf = SpotlightApp`, with the app's own `SourceVersion` (250001012107000). The
+Swift module is now `SpotlightUIInternal`, so the classes of §1 appear as
+`_TtC19SpotlightUIInternal20SearchViewController` and so on.
+
+Most calls between these classes go through Swift vtables (`(isa & swift_isaMask) + offset`). A
+slot was resolved by reading the class metadata at that offset: the metadata address is the
+`_OBJC_CLASS_$_…` symbol (from `ipsw dyld symaddr`), and for a pure Swift class the `…CN` symbol.
+swift-section's "VTable offset" numbers are those byte offsets divided by eight —
+`didPressLeadingButton` is slot 224, offset `0x700`.
+
+### 10.2 Escape, in two layers
+
+**The search field.** `-[SearchField control:textView:doCommandBySelector:]` (`0x2ADF78550`, Swift
+body `0x2ADF81318`) handles `cancelOperation:` and nothing else. If the field's current query is not
+empty (vtable `+0x170`, `0x2ADF76880`: `!QueryRepresentation.isEmpty`), it clears the field
+(`+0x2A8`, `0x2ADF78E80`: `stringValue = ""` when it is not empty already, then the text-change path
+and the field's delegate), sends an `SFClearInputFeedback`, and returns `YES`. An empty field
+returns `[[self nextResponder] tryToPerform:@selector(cancelOperation:) with:self]`.
+
+**The view controller.** `SearchViewController.cancelOperation(_:)` (Swift `0x2AE004D28`, thunk
+`0x2AE004FF8`) drops a pending Return, then takes the first of:
+
+1. The page controller holds two or more pages (`+0x708`, `0x2ADFF9E64`): go back, through
+   `didPressLeadingButton()` (`0x2ADFF9BC0`).
+2. The search field has a query, or a top-level browsing filter is active (`+0x2B0`,
+   `0x2ADFEF194`, read from the browse button controller): clear the filter (`+0x6F8`,
+   `0x2ADFF9A98`), reset the search (`0x2ADFF550C`, which clears the field through the same
+   `+0x2A8`), and put the focus back in the field (navigation bar `+0x248`, `0x2ADF8C394`, called
+   with `true`).
+3. Otherwise dismiss: the window state's `dismiss(with:completion:)` (`+0x120`) with
+   `SFViewDisappearEvent` 5 and no completion.
+
+So with text in the field, Escape empties it and the empty query collapses the results; the
+second Escape reaches the view controller with nothing to clear and closes the panel.
+
+Two neighbours that do not take part: `-[FluidWindow cancelOperation:]` (`0x2AE039948`, body
+`0x2AE0397D0`) acts only for a transient window style, forwarding to its forwarding responder or to
+`super`; and `-[SPApplication sendEvent:]` in the app binary (`0x100002278`) handles no keys, only
+application deactivation (type 13, subtype 2, `applicationLostFocusWithReason:` 22).
+
+### 10.3 How AppKit routes the command
+
+From the same build's AppKit:
+
+- **Nothing on a field editor's chain implements `cancelOperation:` except the window.** `NSTextView`,
+  `NSTextField`, `NSControl`, `NSView`, `NSResponder`, `NSPanel`, `NSWindowController` and
+  `NSApplication` have no implementation (`runtime-viewer-cli`), so an Escape a text field's
+  delegate does not take travels up to the window.
+- **`-[NSTableView cancelOperation:]`** (`0x18AF5F8B8`) aborts an in-cell edit when one is active.
+  Otherwise it walks the whole `nextResponder` chain and sends `cancelOperation:` to **every**
+  responder that implements it, without stopping after the first — a view controller handling it
+  does not keep it from reaching the window too.
+- **`-[NSWindow cancelOperation:]`** (`0x18ADF1BA0`) calls `-[NSWindow _cancelKey:]` (`0x18ADF38A0`)
+  when the window is visible, which tries an Escape key equivalent and otherwise sends `cancel:` (or
+  `complete:`) to the first responder.
+- **For a first responder that is not a text view, Escape becomes a command in the window.**
+  `-[NSTableView keyDown:]` (`0x18A6BF13C`) only ends a type-select search on Escape;
+  `-[NSWindow keyDown:]` (`0x18A678DA4`) tries `performKeyEquivalent:`, then
+  `_NSPostProcessKeyboardUIKey`, then `-[NSApplication _handleKeyEquivalent:]`. In a test process —
+  the window is never key there — a key-down Escape sent to a table changes nothing at all
+  (measured), so tests send `cancelOperation:` to the table directly.
+
+### 10.4 The resize curve
+
+The results platter's size animation is described by `SpotlightUIShared.WindowSizingAnimation`: a
+horizontal and a vertical `AxisAnimation`, each with an `expansion` and a `collapse`
+`SwiftUI.Animation` and optional callbacks run alongside.
+
+- `AxisAnimation.default` (getter `0x22F18F700`, initialiser `0x22F18F4B8`) sets both to
+  `Animation.spring(Spring(duration: 0.3, bounce: 0.2), blendDuration: 0)`;
+  `WindowSizingAnimation.default` (`0x22F18FC0C`, initialiser `0x22F18FAF4`) uses it on both axes.
+- `ResultPlatterBehavior.standard` (`0x22F190A58`), the behaviour of an ordinary query, carries
+  that default. `sizingAnimation` (`0x22F192530`) falls back to `linear(duration: 0)` — no animation
+  — when a behaviour has none.
+- `standard`'s sizes: width 640 (520 when `SUIUtilities.isCampoEnabled`, the `spotlightWidth`
+  default when that is positive), a preferred height of 410 and a maximum of 5000;
+  `heightCanPersist` and `ignoreIndexing` are on.
+
+For a unit mass, `Spring(duration: 0.3, bounce: 0.2)` is a natural frequency of 2π / 0.3 and a
+damping ratio of 0.8: stiffness ≈ 438.65 and damping ≈ 33.51. It peaks a quarter of a second in, at
+1 + e^(−0.8π / 0.6) ≈ 1.0152, and settles a little after its duration.
+
+The panel's content is SwiftUI in 27.2: the search field and the results sit in one glass element
+clipped to a rounded rectangle, whose height comes from `WindowAnimatedHeightModifier`, driven by
+the Observable `WindowAnimationCoordinator` (class metadata `0x2E3F6E400`; `sizingHAnimation` /
+`sizingVAnimation`, `animatedWindowHeight`, `immediateWindowHeight`). The browse buttons beside the
+field are a `MitosisButtonStack`.
+
+### 10.5 Not settled
+
+- Whether the results stay visible, clipped by the shrinking platter, while it collapses, or are
+  cleared first.
+- How soon after a cleared query the collapse starts. 26.6.2 had an expansion debouncer (§6); 27.2's
+  `WindowSizingCoordinator` still has one, but its delay was not read.

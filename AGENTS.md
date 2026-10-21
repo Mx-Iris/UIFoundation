@@ -881,6 +881,9 @@ Differences from upstream `DSFQuickActionBar`:
 - `PrivacyInfo.xcprivacy` is not bundled (UIFoundation has no privacy manifest of its own).
 - Original MIT license and per-file copyright are preserved, plus a top-level entry in `THIRD_PARTY_LICENSES.md` at the repo root.
 - show/dismiss animation 支持在原 window 上反向打断；通过 animation identifier 淘汰过期 completion，避免快速重复触发时出现短暂无窗口或旧 completion 误关新状态。
+- **Escape clears a non-empty query before it closes the bar**, as Spotlight does on macOS 27.2 — the clear searches again for the empty term at once (the pending debounce is cancelled), and the results collapse unless the content source returns some for it. It lives in the window's `cancelOperation(_:)` override and nowhere else, which is enough: from the search field, nothing between the field editor and the window implements `cancelOperation:`; from the results table, `NSTableView` hands the command to every responder above it that implements it (both read off 27.2 AppKit). Decision record and evidence: the escape-clears-query proposal in `Documentations/Evolutions/`.
+- **The expand / collapse resize is Spotlight's spring, in closed form** — `QuickActionBar.ResizeSpring`, `Spring(duration: 0.3, bounce: 0.2)`, the default resize animation of Spotlight's results platter on 27.2. Upstream stepped a numerical spring with hand-tuned constants (300 / 28) that ran about a fifth slow. Don't go back to tuning constants: `QuickActionBarResizeSpringTests` compares the curve with SwiftUI's own `Spring`.
+- **Testing the bar from a test process:** the window never becomes key there, so a key-down Escape sent to a non-text first responder does nothing (the window derives `cancelOperation:` only in its keyboard-UI step) — send the command instead, as `QuickActionBarEscapeTests` does. And keep a content source alive past the end of its test: results arrive on a later main-queue turn, and `ResultsView.buildShortcuts()` traps when the content source is gone by then (a known, unfixed trap).
 
 ### Tab Bar (ported from `onekiloparsec/KPCTabsControl`)
 
@@ -1309,7 +1312,7 @@ reverse-engineering evidence is [`Researchs/Spotlight-Panel-Internals.md`](Resea
 **It replicates the shell, not the index** — the host supplies results through
 `SpotlightPanelDataSource`. `QuickActionBar` is untouched and the two share no code.
 
-Six things measured rather than assumed, and each is a thing a later edit would plausibly
+Eight things measured rather than assumed, and each is a thing a later edit would plausibly
 "tidy away":
 
 - **The window is borderless, and `.titled` must stay out of its style mask.** The platter is
@@ -1342,12 +1345,26 @@ Six things measured rather than assumed, and each is a thing a later edit would 
   can be asserted without a window.
 - **Two constants are choices, not measurements** — `standardWidth` (680) and
   `standardExpandedHeight` (430). Spotlight's own resolve through `SpotlightUIShared`, which the
-  dump did not cover. Everything else in `Metrics` is measured; don't "correct" those.
+  original dump did not cover; macOS 27.2's have been read since (640 wide, 520 in its "Campo"
+  mode; a preferred results height of 410) and the defaults deliberately not moved yet.
+  Everything else in `Metrics` is measured; don't "correct" those.
+- **The resize is Spotlight's spring, `Spring(duration: 0.3, bounce: 0.2)`, in closed form.** It is
+  the default resize animation of 27.2's results platter, both ways (`SpotlightUIShared`'s
+  `WindowSizingAnimation.AxisAnimation.default`). `Configuration.resizeAnimationDuration` is the
+  spring's duration and the bounce is fixed; a resize ends when the spring comes to rest, not when
+  the duration runs out. `SpotlightPanelWindowFrameAnimatorTests` checks it against SwiftUI's own
+  `Spring`.
+- **Escape has two layers, and the second is on the panel.** The command table clears a non-empty
+  query and dismisses only on an empty one; an Escape that starts outside the query field (Tab
+  moves the focus to the results list) arrives through `Panel.cancelOperation(_:)`. Not on the
+  content view controller: `NSTableView` hands `cancelOperation:` to every responder above it
+  without stopping, so the window's own implementation would run after it — and that one, which
+  looks for an Escape key equivalent and then sends `cancel:`, is why the panel used to stay up.
 
 Divergences from Spotlight, all deliberate: Quick Look is ⌘Y rather than Space (the query field
-never yields first responder, so Space has to stay a space); the panel closes on resigning key by
-default where Spotlight does not; no filter bar / history / navigation stack yet (phases two and
-three); no preview pane and no ⌘Space takeover, ever.
+keeps first responder while the list is driven, so Space has to stay a space); the panel closes
+on resigning key by default where Spotlight does not; no filter bar / history / navigation stack
+yet (phases two and three); no preview pane and no ⌘Space takeover, ever.
 
 **Full guide:** `Documentations/SpotlightPanel.md`. Demo: **Spotlight Panel** in the example app.
 

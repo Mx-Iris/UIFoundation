@@ -126,9 +126,12 @@ All five fail quietly rather than loudly.
    is correct. Do not cache views keyed by row: rows move.
 
 3. **Panel width and standard expanded height are choices, not measurements.** Both of
-   Spotlight's own values resolve through `SpotlightUIShared`, which the reverse engineering did
-   not cover (see the research note's §9). The defaults — 680 wide, 430 tall — place the panel
-   close to the original but are not it. Everything else in `Metrics` *is* measured.
+   Spotlight's own values resolve through `SpotlightUIShared`, which the original reverse
+   engineering did not cover. The defaults — 680 wide, 430 tall — place the panel close to the
+   original but are not it. Everything else in `Metrics` *is* measured. macOS 27.2's values have
+   since been read (research note §10): 640 wide — 520 in its "Campo" mode, or the user's
+   `spotlightWidth` default when set — and a preferred results height of 410. The defaults here
+   have not been moved to them.
 
 4. **The content blur degrades silently.** `NSWindow._setContentBlurRadius:` is private. If a
    future AppKit drops it, `SpotlightPanel.isContentBlurSupported` goes false and the
@@ -238,6 +241,14 @@ Resize requests are debounced separately from the search itself
 (`Configuration.sizingDebounceDelay`, default 0.05 s, against `searchDebounceDelay`'s 0.2 s).
 Spotlight keeps the same two timers apart for the same reason.
 
+**The resize follows Spotlight's own spring.** On macOS 27.2 the default resize animation of
+Spotlight's results platter is `Spring(duration: 0.3, bounce: 0.2)`, the same for expanding and for
+collapsing. `Configuration.resizeAnimationDuration` is that spring's duration (default 0.3); the
+bounce stays Spotlight's 0.2, so the bottom edge overshoots by about 1.5 % before it settles. The
+spring is evaluated in closed form, as SwiftUI evaluates it, and a resize ends once it has come to
+rest — a little after `resizeAnimationDuration`, which is when `expansionState` leaves `expanding`.
+A duration of `0` resizes without animating.
+
 `expansionState` reports `uninitialized` / `collapsed` / `expanding` / `expanded`. The two
 transitional cases exist because a second resize arriving mid-animation has to be coalesced rather
 than acted on.
@@ -272,20 +283,33 @@ documented conversion to a mass/stiffness/damping triple, not an approximation.
 
 ## 7. The keyboard table
 
-The query field never gives up first responder — typing has to keep working while the arrow keys
-drive the list — so the commands arrive through the field editor.
+The query field keeps first responder while the list is driven — typing has to keep working while
+the arrow keys move the selection — so the commands arrive through the field editor. Tab is the
+exception: unless the delegate consumes it, it moves the focus on to the results list (measured),
+which is why Escape has a second way in.
 
 | Key | Behaviour |
 |---|---|
 | ↑ / ↓ | Move the selection, skipping unselectable rows |
 | Return | Activate the selection |
-| Escape | Dismiss |
+| Escape | Clear the query if there is one; dismiss only once it is empty (see below) |
 | Tab / Shift-Tab | Forwarded to `didPressTabForward:`; return `true` to consume |
 | → | Drill in, but **only when the caret is already at the end of the query**, so it keeps working as a cursor key |
 | ← | Left to the field editor |
 | ⌘C | `didRequestCopyForItem:`, but **only when the field has no selected text** — with text selected the user means the text |
 | ⌘Y | `didRequestQuickLookForItem:` |
 | Delete, ⌘A, ⌘V | Left to the field editor |
+
+**Escape, in Spotlight's order.** A non-empty query is cleared first — the host gets
+`searchTermDidChange:` with an empty term and a search for it, which collapses the results unless
+the data source returns some for an empty term — and only an Escape on an empty query dismisses.
+`spotlightPanelDidCancel(_:)` follows the dismissal, not the clear. Spotlight 27.2 does the same in
+two layers, and so does this panel: the command table handles the query field's own Escape, and
+an Escape that starts anywhere else — the results list, reached with Tab or, before macOS 27, with
+a click — arrives through the panel's `cancelOperation(_:)` and also puts the focus back in the
+query field. That second layer sits on the panel rather than on the content view controller
+because `NSTableView` hands `cancelOperation:` to every responder above it that implements it,
+without stopping at the first; on the controller, the window's own implementation would run next.
 
 ---
 
@@ -299,8 +323,13 @@ drive the list — so the commands arrive through the field editor.
 - **No system hotkey takeover.** Spotlight claims ⌘Space through a second window-server
   connection and `CGSSetSymbolicHotKeyWithExclusion`. That is a process-wide effect and does not
   belong in a UI component; a host wanting a global hotkey should register one itself.
-- **The expand / collapse resize curve is this library's**, not Spotlight's — that one curve was
-  not recovered. It is `Configuration.resizeAnimationDuration` on an ease-in-ease-out.
+- **Escape only clears the query.** Spotlight's own Escape first goes back a page when its
+  navigation stack holds one, and clears a top-level browsing filter along with the query; this
+  panel has neither.
+- **What the results do while the panel collapses is this library's.** The curve is Spotlight's
+  (§5), but when a response comes back empty this panel hides its results at once and starts to
+  collapse after `sizingDebounceDelay`. Whether Spotlight keeps the old results visible, clipped by
+  the shrinking platter, and how soon after a cleared query it starts, was not settled.
 
 ---
 

@@ -257,6 +257,8 @@ if actionBar.resumePresentation() {
 
 `resumePresentation()` returns `true` only while the existing panel is dismissing. Its fade and transform animations continue from their current presentation values, allowing repeated shortcut presses to reverse the transition smoothly.
 
+Escape works the way it does in Spotlight: with text in the search field it clears the query and searches again for the empty term — which collapses the results, unless your content source returns some for an empty term — and only on an empty field does it close the bar. `quickActionBarDidCancel(_:)` is called for the close, not for the clear. The results expand and collapse along Spotlight's own spring, `Spring(duration: 0.3, bounce: 0.2)`.
+
 ### Tab Bar
 
 Enable the `TabBar` trait for a multi-tab control styled after the macOS 26 window tab bar:
