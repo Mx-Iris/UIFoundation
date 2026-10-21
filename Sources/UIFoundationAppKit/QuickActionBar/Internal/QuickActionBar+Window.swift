@@ -265,9 +265,33 @@ extension QuickActionBar.Window {
 }
 
 extension QuickActionBar.Window {
+    /// Escape, in Spotlight's order (macOS 27.2): a query is cleared first, which collapses the
+    /// results it produced, and only an Escape on an empty field closes the bar.
+    ///
+    /// Both places Escape can start end up here. From the search field it travels up the chain,
+    /// since nothing between the field editor and the window implements `cancelOperation:`; from
+    /// the results list, `NSTableView` hands it to every responder above it that does.
     override func cancelOperation(_: Any?) {
+        if clearSearchText() {
+            return
+        }
         // Make the window lose its initial responder status, which will close it.
         resignMain()
+    }
+
+    /// Empties the search field and searches again for the empty term straight away, rather than
+    /// after the debounce. `false` when the field was empty already.
+    private func clearSearchText() -> Bool {
+        guard !editLabel.stringValue.isEmpty else {
+            return false
+        }
+        debouncer.cancel()
+        currentSearchText = ""
+        if editLabel.currentEditor() == nil {
+            makeFirstResponder(editLabel)
+        }
+        searchTermDidChange()
+        return true
     }
 
     func pressedLeftArrowInResultsView() {

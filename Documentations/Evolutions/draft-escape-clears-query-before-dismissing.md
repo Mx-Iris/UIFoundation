@@ -1,6 +1,6 @@
 # Draft - QuickActionBar 与 SpotlightPanel：Esc 先清空查询再关闭，收起动画对齐 Spotlight
 
-- **状态**: Accepted
+- **状态**: In Progress
 - **作者**: JH
 - **创建日期**: 2026-10-21
 - **最后更新**: 2026-10-21
@@ -42,15 +42,16 @@
   - `quickActionBarDidCancel(_:)` / `spotlightPanelDidCancel(_:)` 只在真正关闭时调用，清空查询不算取消。SpotlightPanel 的宿主会照常收到一次 `searchTermDidChange("")`。
   - 不加「Esc 直接关闭」的开关：Spotlight 没有，三个下游也没有这个需求。
 - **测试**：Esc 和 Tab 都用真实的 keyDown 事件送进窗口（`NSWindow.sendEvent(_:)`），让 AppKit 自己翻译成命令、沿响应链派发；焦点移到结果列表也用 Tab 键完成，不伸手进私有的表格。结果从公开状态读：`currentSearchText` / `searchTerm`、宿主收到的搜索词、`resumePresentation()`（只有正在关闭时返回 `true`）、窗口的 `firstResponder`、`cancelRequested`。每条先在改动前跑一遍，确认会失败（「搜索框为空时 Esc 关闭」那条守的是旧行为，改动前后都应通过）。
-  - QuickActionBar（`QuickActionBarEscapeTests.swift`，经公开的 `present` 打开，窗口从 `@testable` 可见的 `quickActionBarWindow` 取）：有字时 Esc 清空文字、宿主收到空字符串的搜索、面板不进入关闭；为空时 Esc 开始关闭；Tab 到结果列表后 Esc 同样先清空，焦点回到搜索框。
+  - QuickActionBar（`QuickActionBarEscapeTests.swift`，经公开的 `present` 打开，窗口从 `@testable` 可见的 `quickActionBarWindow` 取）：有字时 Esc 清空文字、宿主收到空字符串的搜索、面板不进入关闭；为空时 Esc 开始关闭；Tab 到结果列表后 Esc 同样先清空，焦点回到搜索框。三条写成 `QuickActionBarPresentationTests` 的扩展、并入那个串行套件：面板一被呈现就成为 key window，不再是 key 时会自己关闭，两个套件并行呈现会互相把对方关掉。结果列表那条不送 Esc 的 keyDown，而是把窗口会从 Esc 派生出的 `cancelOperation:` 直接发给表格：实测在测试进程里，送给表格的 Esc keyDown 什么也不触发（面板从来不是 key window，应用也不在前台），而从表格到窗口的那段仍由 AppKit 自己走。
   - SpotlightPanel（`SpotlightPanel/SpotlightPanelEscapeTests.swift`，沿用现有测试单独构造 `ContentViewController` 与 `Panel` 的做法，两者按 `wireUpEvents` 的方式接起来）：有字时 Esc 清空并发出 `searchTermDidChange("")`、不调 `cancelRequested`；为空时调 `cancelRequested`；Tab 到结果列表后 Esc 同样先清空，焦点回到搜索框。
   - 弹簧（两个组件各一条，期望值来自阻尼振动的解析解，不照抄实现）：阻尼比 0.8 的弹簧最大超调为 e^(−0.8π/0.6) ≈ 1.52%，数值积分的结果应落在这附近；SpotlightPanel 的 `WindowFrameAnimator` 改用弹簧后，中途的 frame 应出现这次超调，落定时等于目标 frame。
   - `QuickActionBarPresentationTests` 第 35 行在 `main` 上本来就失败，与本改动无关，照旧对照 `main` 判断。
 - **文档**：`README.md` 的 Quick Action Bar 一节写明两步 Esc；`AGENTS.md` 的 QuickActionBar 一节（与上游 DSFQuickActionBar 的差异、弹簧常数的出处）和 SpotlightPanel 一节各加一条；`Documentations/SpotlightPanel.md` 第 7 节键盘表的 Escape 一行、第 5 节的尺寸动画，以及第 8 节已知偏离里「展开 / 收起曲线是本库自定的」那一条（改为已对齐，并写明内容可见性仍是本库的做法）；`resizeAnimationDuration` 的文档注释；示例 App SpotlightPanel 演示里人工检查第 4 条（现在要在空查询上按 Esc 才会关闭）；`Researchs/Spotlight-Panel-Internals.md` 新增 27.2 一节（代码位置变化、Esc 判定链、尺寸动画的取值），并更新第 9 节「没有恢复的内容」里已经找到的两项。`uifoundation-widgets` skill 没写到这两个组件，插件版本不动。
 - **下游影响**：用 QuickActionBar 的是 XCOrganizer、StarLight 和 RuntimeViewer（Open Quickly）：搜索框有字时第一下 Esc 由关闭变为清空；展开 / 收起动画变快约两成、回弹略有变化。API 不变，源码兼容。SpotlightPanel 只有示例 App 在用，`resizeAnimationDuration` 的含义与默认值随之改变。MachOKitUI、PrivateSymbols 不用这两个组件。
 - **逆向材料**（不进仓库）：`/Volumes/RE/Spotlight/27.2/`（Spotlight.app 副本、主程序的接口导出、`Spotlight.i64`）；`/Volumes/DyldSharedCaches/macOS/27.2/` 下三个框架的接口导出、合并数据库 `SpotlightUIInternal+SpotlightUIShared+SpotlightUIServices.i64`、`AppKit.i64`，以及这次归档的 27.2 dyld shared cache（cache UUID `b39b8e818b0e3d1491b55ed0494535d6`）。
+- **后续（不在本提案内）**：`QuickActionBar.ResultsView.buildShortcuts()` 在 content source 已经释放时直接 `fatalError()`。bar 对 content source 是弱引用，搜索结果又是在下一轮主队列上才送达，所以宿主若在一次搜索还没返回时释放了自己的 content source，进程就会崩溃。这是移植过来的既有行为，与 Esc 无关；本分支的测试为此把 content source 留到运行结束，修它需要另起一项。
 - **落地步骤**（每步自己能构建通过、相关测试通过，各提交一次）：
-  1. QuickActionBar 的 Esc：窗口 `cancelOperation(_:)` 先清空查询、`Debounce.cancel()`，`QuickActionBarEscapeTests`。
+  1. QuickActionBar 的 Esc：窗口 `cancelOperation(_:)` 先清空查询、`Debounce.cancel()`，`QuickActionBarEscapeTests`。（已完成）
   2. SpotlightPanel 的 Esc：命令表那一项、`Panel.cancelOperation(_:)` 与它在 `wireUpEvents` 里的接线，`SpotlightPanelEscapeTests`。
   3. 尺寸弹簧：QuickActionBar 的 `SpringState` 常数；SpotlightPanel 的 `WindowFrameAnimator` 改用弹簧、`resizeAnimationDuration` 的含义与默认值；两组弹簧测试，现有 `SpotlightPanelWindowFrameAnimatorTests` 随曲线更新。
   4. 文档：上面「文档」一条列的全部内容。
@@ -68,3 +69,7 @@
 | 2026-10-21 | SpotlightPanel 保留 `resizeAnimationDuration`，改作弹簧 duration，默认 0.3 | 不新增 API，示例 App 的滑块仍有意义；bounce 固定用 Spotlight 的 0.2 |
 | 2026-10-21 | 收起时内容是否保留、何时开始收起，暂不改 | 这两点还没核实，按猜测改会把一处已知偏离换成一处未知偏离 |
 | 2026-10-21 | 用户批准，开始实现 | 经 `/accept-proposal`；实现放在 `feature/escape-clears-query-before-dismissing`，worktree 为 `.worktrees/UIFoundation-EscapeClearsQuery`。原来的「一步完成」拆成五步，每步单独构建、测试、提交 |
+| 2026-10-21 | QuickActionBar 的 Esc 测试并入现有的串行套件，不单开套件 | 两个套件并行时，后呈现的面板抢走 key window，先前那个面板就会关闭，测试互相干扰 |
+| 2026-10-21 | 结果列表那条测试直接向表格发 `cancelOperation:` | 实测：测试进程里送给表格的 Esc keyDown 什么也不触发。窗口要在键盘 UI 那一步才把 Esc 换成命令，而测试里的面板从来不是 key window |
+| 2026-10-21 | 测试里的 content source 留到运行结束；`buildShortcuts()` 的 `fatalError` 记为后续 | 第一次跑绿时进程崩溃：空查询的结果在测试返回后才送达，弱引用的 content source 已经释放。这是既有问题，不在本提案范围内修 |
+| 2026-10-21 | 第 1 步完成 | 修复前，有字时的 Esc 与结果列表上的 Esc 两条测试失败，空查询那条通过；修复后三条都通过。同一套件里只有 `QuickActionBarPresentationTests` 第 35 行失败，它在 `main` 上本来就失败 |

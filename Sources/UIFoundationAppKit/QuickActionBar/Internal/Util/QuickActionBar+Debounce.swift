@@ -29,6 +29,11 @@ extension QuickActionBar {
             self.workItem = DispatchWorkItem(block: { action() })
             self.queue.asyncAfter(deadline: .now() + self.interval, execute: self.workItem)
         }
+
+        /// Drops the pending action, if any.
+        func cancel() {
+            self.workItem.cancel()
+        }
     }
 }
 
