@@ -23,6 +23,9 @@ extension SpotlightPanel {
         var copyRequested: (() -> Bool)?
         /// Raised for ⌘Y.
         var quickLookRequested: (() -> Bool)?
+        /// Raised for an Escape that did not start in the query field, whose own Escape arrives
+        /// through the content's command table instead.
+        var cancelOperationRequested: (() -> Void)?
 
         var dismissesWhenResigningKey = true
 
@@ -89,6 +92,15 @@ extension SpotlightPanel {
             super.resignKey()
             guard dismissesWhenResigningKey, !isDismissing else { return }
             resignedKey?()
+        }
+
+        /// With the results list focused, `NSTableView` hands `cancelOperation:` to every responder
+        /// above it, and the panel is the one that answers. Handling it on the content view
+        /// controller instead would not stop the walk there: the table goes on to the window, whose
+        /// own implementation (`-[NSWindow cancelOperation:]` → `_cancelKey:`) looks for an Escape key
+        /// equivalent and then sends `cancel:` to the first responder. Hence no `super` either.
+        override func cancelOperation(_ sender: Any?) {
+            cancelOperationRequested?()
         }
 
         /// ⌘C and ⌘Y, which never reach `doCommandBy:` because they are key equivalents rather

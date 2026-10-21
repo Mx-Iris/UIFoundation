@@ -272,6 +272,9 @@ public final class SpotlightPanel {
         panel.resignedKey = { [weak self] in
             self?.dismiss()
         }
+        panel.cancelOperationRequested = { [weak self] in
+            self?.contentViewController?.handleEscape()
+        }
         panel.copyRequested = { [weak self] in
             guard let self,
                   self.contentViewController?.searchFieldHasSelectedText == false,

@@ -1,7 +1,6 @@
 #if QuickActionBar && os(macOS)
 
 import AppKit
-import Carbon.HIToolbox
 import Testing
 @testable import UIFoundationAppKit
 
@@ -15,9 +14,10 @@ import Testing
 /// implements it. `resumePresentation()` is the observable for "a dismissal started": it only
 /// answers `true` while the bar is on its way out.
 ///
-/// These live in the presentation suite rather than a suite of their own because that one is
-/// serialized: presenting a bar makes it key, and a bar closes when it stops being key, so two
-/// suites presenting bars side by side would close each other's.
+/// These live in the presentation suite rather than a suite of their own so that the two never run
+/// side by side: a bar closes itself when it resigns key or main, and serializing keeps a single
+/// bar on screen at a time. A precaution rather than a measured clash — in a test process the bar
+/// never actually becomes the key window.
 @MainActor
 extension QuickActionBarPresentationTests {
     @Test("Escape with a query clears it and keeps the bar presented")
@@ -29,7 +29,7 @@ extension QuickActionBarPresentationTests {
         defer { actionBar.cancel() }
         let window = try #require(actionBar.quickActionBarWindow)
 
-        window.sendEvent(keyDownEvent(.escape, in: window))
+        window.sendEvent(.keyDown(.escape, in: window))
 
         #expect(actionBar.currentSearchText == "")
         #expect(contentSource.searchedTerms.last == "")
@@ -44,7 +44,7 @@ extension QuickActionBarPresentationTests {
         defer { actionBar.cancel() }
         let window = try #require(actionBar.quickActionBarWindow)
 
-        window.sendEvent(keyDownEvent(.escape, in: window))
+        window.sendEvent(.keyDown(.escape, in: window))
 
         #expect(actionBar.resumePresentation())
     }
@@ -58,7 +58,7 @@ extension QuickActionBarPresentationTests {
         let window = try #require(actionBar.quickActionBarWindow)
         actionBar.provideResultIdentifiers(["alpha", "beta"])
 
-        window.sendEvent(keyDownEvent(.tab, in: window))
+        window.sendEvent(.keyDown(.tab, in: window))
         let resultsTable = try #require(window.firstResponder as? NSTableView)
 
         // Escape is a key-down only for a text view. For any other first responder the window
@@ -84,40 +84,6 @@ extension QuickActionBarPresentationTests {
         actionBar.contentSource = contentSource
         actionBar.present(initialSearchText: initialSearchText, width: 480, height: 240)
         return actionBar
-    }
-
-    private enum Key {
-        case escape
-        case tab
-
-        var characters: String {
-            switch self {
-            case .escape: "\u{1B}"
-            case .tab: "\t"
-            }
-        }
-
-        var keyCode: UInt16 {
-            switch self {
-            case .escape: UInt16(kVK_Escape)
-            case .tab: UInt16(kVK_Tab)
-            }
-        }
-    }
-
-    private func keyDownEvent(_ key: Key, in window: NSWindow) -> NSEvent {
-        NSEvent.keyEvent(
-            with: .keyDown,
-            location: .zero,
-            modifierFlags: [],
-            timestamp: ProcessInfo.processInfo.systemUptime,
-            windowNumber: window.windowNumber,
-            context: nil,
-            characters: key.characters,
-            charactersIgnoringModifiers: key.characters,
-            isARepeat: false,
-            keyCode: key.keyCode
-        )!
     }
 }
 

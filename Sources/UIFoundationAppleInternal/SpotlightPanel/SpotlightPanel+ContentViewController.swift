@@ -27,7 +27,8 @@ extension SpotlightPanel {
         var itemDidActivate: ((AnyHashable) -> Void)?
         /// Raised when the selection moves.
         var selectionDidChange: ((AnyHashable?) -> Void)?
-        /// Raised on Escape.
+        /// Raised on Escape once the query is empty; a non-empty query is cleared instead. See
+        /// ``handleEscape()``.
         var cancelRequested: (() -> Void)?
         /// Raised on Tab / Shift-Tab; return `true` to swallow the event.
         var tabPressed: ((Bool) -> Bool)?
@@ -82,6 +83,23 @@ extension SpotlightPanel {
 
         func focusSearchField() {
             view.window?.makeFirstResponder(searchField)
+        }
+
+        /// Escape, in Spotlight's order (macOS 27.2): a non-empty query is cleared, which collapses
+        /// the results it produced, and only an Escape on an empty one raises `cancelRequested`.
+        ///
+        /// The command table calls this for the query field. Every other first responder reaches
+        /// it through ``Panel``'s `cancelOperation(_:)`, which is why the focus goes back to the
+        /// query field when it was elsewhere.
+        func handleEscape() {
+            guard !searchTerm.isEmpty else {
+                cancelRequested?()
+                return
+            }
+            searchTerm = ""
+            if searchField.currentEditor() == nil {
+                focusSearchField()
+            }
         }
 
         var searchFieldHasSelectedText: Bool { searchField.hasSelectedText }
@@ -231,7 +249,7 @@ extension SpotlightPanel.ContentViewController: NSTextFieldDelegate {
             return true
 
         case #selector(NSResponder.cancelOperation(_:)):
-            cancelRequested?()
+            handleEscape()
             return true
 
         case #selector(NSResponder.insertTab(_:)):
