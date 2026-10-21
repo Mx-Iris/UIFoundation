@@ -160,11 +160,10 @@ extension QuickActionBar {
         private var currentSearchRequestTask: QuickActionBar.SearchTask?
 
         private var springAnimationTimer: Timer?
-        private var springState = SpringState()
         private var animationStartFrame: NSRect = .zero
         private var animationTargetFrame: NSRect = .zero
         private var animationIsShowing: Bool = true
-        private var lastSpringTickTime: CFTimeInterval = 0
+        private var animationStartTime: CFTimeInterval = 0
     }
 }
 
@@ -331,11 +330,10 @@ extension QuickActionBar.Window {
             results.isHidden = false
         }
 
-        springState = SpringState()
         animationStartFrame = startFrame
         animationTargetFrame = targetFrame
         animationIsShowing = showing
-        lastSpringTickTime = CACurrentMediaTime()
+        animationStartTime = CACurrentMediaTime()
 
         // Manual timer keeps the model frame and visual frame in sync;
         // animator().setFrame would let Auto Layout resolve against the
@@ -348,14 +346,10 @@ extension QuickActionBar.Window {
     }
 
     private func springAnimationTick() {
-        let now = CACurrentMediaTime()
-        let deltaTime = CGFloat(now - lastSpringTickTime)
-        lastSpringTickTime = now
+        let elapsed = CGFloat(CACurrentMediaTime() - animationStartTime)
+        let settled = QuickActionBar.ResizeSpring.isSettled(at: elapsed)
 
-        let clampedDeltaTime = min(deltaTime, 1.0 / 30.0)
-        let settled = springState.step(deltaTime: clampedDeltaTime)
-
-        let progress = springState.position
+        let progress = QuickActionBar.ResizeSpring.position(at: elapsed)
         let currentFrame = interpolateRect(
             from: animationStartFrame,
             to: animationTargetFrame,
@@ -410,33 +404,42 @@ extension QuickActionBar.Window {
     }
 }
 
-// MARK: - Spring Physics Solver
+// MARK: - Resize Spring
 
-/// Damped harmonic oscillator for smooth window frame animation.
-/// Parameters approximate `Spring(duration: 0.3, bounce: 0.2)`.
-private struct SpringState {
-    var position: CGFloat = 0   // 0 = start, 1 = target
-    var velocity: CGFloat = 0
+extension QuickActionBar {
+    /// The curve the window frame follows when the results expand or collapse.
+    ///
+    /// It is Spotlight's own. On macOS 27.2 the default resize animation of `SpotlightUIShared`'s
+    /// results platter (`WindowSizingAnimation.AxisAnimation.default`) is
+    /// `Animation.spring(Spring(duration: 0.3, bounce: 0.2))`, the same for expanding and for
+    /// collapsing. Evaluated in closed form, as SwiftUI evaluates a spring, from rest at 0 to rest
+    /// at 1 — passing 1 by about 1.5 % a quarter second in. Each resize starts from rest, from
+    /// wherever the frame is.
+    enum ResizeSpring {
+        static let duration: CGFloat = 0.3
+        static let bounce: CGFloat = 0.2
 
-    static let stiffness: CGFloat = 300
-    static let damping: CGFloat = 28
-    static let mass: CGFloat = 1
+        private static let naturalFrequency = 2 * .pi / duration
+        private static let dampingRatio = 1 - bounce
+        private static let decayRate = dampingRatio * naturalFrequency
+        private static let dampedFrequency = naturalFrequency * (1 - dampingRatio * dampingRatio).squareRoot()
 
-    private static let positionThreshold: CGFloat = 0.0005
-    private static let velocityThreshold: CGFloat = 0.01
+        private static let positionThreshold: CGFloat = 0.0005
+        private static let velocityThreshold: CGFloat = 0.01
 
-    /// Advance the spring simulation. Returns `true` when settled at the target.
-    mutating func step(deltaTime: CGFloat) -> Bool {
-        let displacement = position - 1.0
-        let springForce = -Self.stiffness * displacement
-        let dampingForce = -Self.damping * velocity
-        let acceleration = (springForce + dampingForce) / Self.mass
+        /// How far the resize has come `elapsed` seconds in, 0 being where it started and 1 the
+        /// target.
+        static func position(at elapsed: CGFloat) -> CGFloat {
+            let envelope = exp(-decayRate * elapsed)
+            let oscillation = cos(dampedFrequency * elapsed) + decayRate / dampedFrequency * sin(dampedFrequency * elapsed)
+            return 1 - envelope * oscillation
+        }
 
-        velocity += acceleration * deltaTime
-        position += velocity * deltaTime
-
-        return abs(position - 1.0) < Self.positionThreshold
-            && abs(velocity) < Self.velocityThreshold
+        /// Whether the spring has come to rest on the target.
+        static func isSettled(at elapsed: CGFloat) -> Bool {
+            let velocity = exp(-decayRate * elapsed) * naturalFrequency * naturalFrequency / dampedFrequency * sin(dampedFrequency * elapsed)
+            return abs(position(at: elapsed) - 1) < positionThreshold && abs(velocity) < velocityThreshold
+        }
     }
 }
 

@@ -114,7 +114,7 @@ final class SpotlightPanelDemoViewController: NSViewController {
     private let sizingDebounceSlider = NSSlider(value: 0.05, minValue: 0, maxValue: 0.4, target: nil, action: nil)
     private let sizingDebounceValueField = NSTextField(labelWithString: "")
 
-    private let resizeDurationSlider = NSSlider(value: 0.2, minValue: 0, maxValue: 0.8, target: nil, action: nil)
+    private let resizeDurationSlider = NSSlider(value: 0.3, minValue: 0, maxValue: 0.8, target: nil, action: nil)
     private let resizeDurationValueField = NSTextField(labelWithString: "")
 
     private let dismissesWhenResigningKeyCheckbox = NSButton(

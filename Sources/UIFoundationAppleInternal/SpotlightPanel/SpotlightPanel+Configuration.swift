@@ -39,10 +39,12 @@ extension SpotlightPanel {
         /// the same two timers apart for the same reason.
         public var sizingDebounceDelay: TimeInterval
 
-        /// Duration of the expand / collapse resize.
+        /// Duration of the spring the expand / collapse resize follows.
         ///
-        /// Spotlight's own curve for this was not recovered; the present and dismiss springs in
-        /// ``SpotlightPanel/AnimationRecipe`` were.
+        /// The spring is Spotlight's own: on macOS 27.2 the default resize animation of its results
+        /// platter is `Spring(duration: 0.3, bounce: 0.2)`, both ways. This sets the duration; the
+        /// bounce stays Spotlight's 0.2. A resize ends when the spring comes to rest, a little after
+        /// this long. `0` resizes without animating.
         public var resizeAnimationDuration: TimeInterval
 
         /// Whether losing key status dismisses the panel.
@@ -67,7 +69,7 @@ extension SpotlightPanel {
             searchFieldFontSize: CGFloat = 24,
             searchDebounceDelay: TimeInterval = 0.2,
             sizingDebounceDelay: TimeInterval = 0.05,
-            resizeAnimationDuration: TimeInterval = 0.2,
+            resizeAnimationDuration: TimeInterval = 0.3,
             dismissesWhenResigningKey: Bool = true,
             activatesApplicationOnPresent: Bool = true,
             maximumHeightFractionOfScreen: CGFloat = 0.6

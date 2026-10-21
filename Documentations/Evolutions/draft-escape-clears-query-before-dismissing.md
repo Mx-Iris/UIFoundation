@@ -31,8 +31,9 @@
 - **收起动画（展开用同一条）**：
   - Spotlight 的取值（`SpotlightUIShared.framework`，同一构建）：结果平台的尺寸动画按横、纵两个轴各有一条「展开」和一条「收起」曲线（`WindowSizingAnimation.AxisAnimation`）。默认值四条都是 `Animation.spring(Spring(duration: 0.3, bounce: 0.2))`，普通查询用的 `ResultPlatterBehavior.standard` 用的就是这份默认值；没设动画的平台退回 `linear(duration: 0)`，即不做动画。面板是一整块圆角裁剪的玻璃，顶边不动，高度变化由底边承担。
   - 换算成弹簧常数（质量 1）：stiffness = (2π / 0.3)² ≈ 438.65，damping = 4π × (1 − 0.2) / 0.3 ≈ 33.51，阻尼比 0.8。
-  - QuickActionBar：`SpringState` 的常数由 300 / 28 改为上面两个数，在代码里由 duration 与 bounce 算出来并注明出处。展开与收起本来就共用这一个弹簧，结构不动：窗口照旧按 120 Hz 计时器逐帧改 frame，结果视图照旧在收起落定后才隐藏，收起过程中被圆角裁掉。
-  - SpotlightPanel：`WindowFrameAnimator` 的 ease-in-ease-out 换成同一个弹簧。`Configuration.resizeAnimationDuration` 保留，含义改为弹簧的 duration，默认值由 0.2 改为 Spotlight 的 0.3；bounce 固定为 Spotlight 的 0.2，不新增配置项。示例 App 里调这个值的滑块继续有效。
+  - QuickActionBar：数值积分的 `SpringState`（常数 300 / 28）换成 `QuickActionBar.ResizeSpring`，按经过的时间直接求阻尼振动的闭式解，参数就是 duration 0.3 与 bounce 0.2，出处写在注释里。展开与收起本来就共用这一个弹簧，其余结构不动：窗口照旧按 120 Hz 计时器逐帧改 frame，结果视图照旧在收起落定后才隐藏，收起过程中被圆角裁掉；每次开始新的尺寸动画都从当前 frame、静止状态起步。
+  - SpotlightPanel：`WindowFrameAnimator` 的 ease-in-ease-out 换成同一个弹簧，同样求闭式解，动画在弹簧静止时结束，而不是到点结束。`Configuration.resizeAnimationDuration` 保留，含义改为弹簧的 duration，默认值由 0.2 改为 Spotlight 的 0.3；bounce 固定为 Spotlight 的 0.2，不新增配置项。示例 App 里调这个值的滑块继续有效，初始值随之改为 0.3。
+  - 两边各写一份弹簧公式，不抽成共享代码：本库对这两个组件的约定是互不共享代码，公式也只有十几行。
   - 顺带补上之前没找到的两个常数：标准宽度 640（`SUIUtilities.isCampoEnabled` 为真时 520，用户默认值 `spotlightWidth` 大于 0 时以它为准）；标准平台的 preferred 高度 410，最大高度 5000。SpotlightPanel 的 `standardWidth` 本来就选了 680，是否改成 640 不在本提案内，只在研究报告和指南里记下实测值。
   - **没有核实的部分**：收起时结果内容是保持原样被平台裁掉，还是先清空再缩；清空查询后多久开始收起。这两点要么继续逆向 SwiftUI 那一层，要么实际观察 Spotlight 才能定。在定下来之前，两个组件各保留现在的做法（QuickActionBar 内容留到收起结束，SpotlightPanel 结果一变空就隐藏、再按 `sizingDebounceDelay` 防抖后开始收起），不凭猜测改。
 - **没有问就采用的假设**：
@@ -45,7 +46,7 @@
   - QuickActionBar（`QuickActionBarEscapeTests.swift`，经公开的 `present` 打开，窗口从 `@testable` 可见的 `quickActionBarWindow` 取）：有字时 Esc 清空文字、宿主收到空字符串的搜索、面板不进入关闭；为空时 Esc 开始关闭；Tab 到结果列表后 Esc 同样先清空，焦点回到搜索框。三条写成 `QuickActionBarPresentationTests` 的扩展、并入那个串行套件，保证同一时间只开着一个面板：面板失去 key 或 main 时会自己关闭。这是预防而不是实测到的冲突——测试进程里面板其实从来不会成为 key window。结果列表那条不送 Esc 的 keyDown，而是把窗口会从 Esc 派生出的 `cancelOperation:` 直接发给表格：实测在测试进程里，送给表格的 Esc keyDown 什么也不触发，而从表格到窗口的那段仍由 AppKit 自己走。
   - SpotlightPanel（`SpotlightPanel/SpotlightPanelEscapeTests.swift`）：经公开的 `present()` 打开，只从内部取它开出的那个 `Panel` 窗口，用来送按键、读 `isDismissing`。有字时 Esc 清空、宿主收到 `searchTermDidChange("")`、面板不开始关闭；为空时 Esc 开始关闭；Tab 到结果列表后 Esc 同样先清空，焦点回到搜索框。
   - 两组共用的按键辅助在 `KeyDownEvents.swift`。
-  - 弹簧（两个组件各一条，期望值来自阻尼振动的解析解，不照抄实现）：阻尼比 0.8 的弹簧最大超调为 e^(−0.8π/0.6) ≈ 1.52%，数值积分的结果应落在这附近；SpotlightPanel 的 `WindowFrameAnimator` 改用弹簧后，中途的 frame 应出现这次超调，落定时等于目标 frame。
+  - 弹簧（`QuickActionBarResizeSpringTests.swift`；SpotlightPanel 的在 `SpotlightPanelWindowFrameAnimatorTests` 里，替换原来那条 ease-in-ease-out 曲线测试）：期望值取自 SwiftUI 自己的 `Spring(duration:bounce:).value(target:initialVelocity:time:)`，在十个左右的时间点上比对，不照抄被测公式；SpotlightPanel 那组用 0.3 与 0.5 两个时长。另有两条：0.25 秒处到达约 1.52% 的峰值（阻尼比 0.8 的解析解），以及弹簧最终静止在目标上。
   - `QuickActionBarPresentationTests` 第 35 行在 `main` 上本来就失败，与本改动无关，照旧对照 `main` 判断。
 - **文档**：`README.md` 的 Quick Action Bar 一节写明两步 Esc；`AGENTS.md` 的 QuickActionBar 一节（与上游 DSFQuickActionBar 的差异、弹簧常数的出处）和 SpotlightPanel 一节各加一条；`Documentations/SpotlightPanel.md` 第 7 节键盘表的 Escape 一行、第 5 节的尺寸动画，以及第 8 节已知偏离里「展开 / 收起曲线是本库自定的」那一条（改为已对齐，并写明内容可见性仍是本库的做法）；`resizeAnimationDuration` 的文档注释；示例 App SpotlightPanel 演示里人工检查第 4 条（现在要在空查询上按 Esc 才会关闭）；`Researchs/Spotlight-Panel-Internals.md` 新增 27.2 一节（代码位置变化、Esc 判定链、尺寸动画的取值），并更新第 9 节「没有恢复的内容」里已经找到的两项。`uifoundation-widgets` skill 没写到这两个组件，插件版本不动。
 - **下游影响**：用 QuickActionBar 的是 XCOrganizer、StarLight 和 RuntimeViewer（Open Quickly）：搜索框有字时第一下 Esc 由关闭变为清空；展开 / 收起动画变快约两成、回弹略有变化。API 不变，源码兼容。SpotlightPanel 只有示例 App 在用，`resizeAnimationDuration` 的含义与默认值随之改变。MachOKitUI、PrivateSymbols 不用这两个组件。
@@ -54,7 +55,7 @@
 - **落地步骤**（每步自己能构建通过、相关测试通过，各提交一次）：
   1. QuickActionBar 的 Esc：窗口 `cancelOperation(_:)` 先清空查询、`Debounce.cancel()`，`QuickActionBarEscapeTests`。（已完成）
   2. SpotlightPanel 的 Esc：命令表那一项、`Panel.cancelOperation(_:)` 与它在 `wireUpEvents` 里的接线，`SpotlightPanelEscapeTests`。（已完成）
-  3. 尺寸弹簧：QuickActionBar 的 `SpringState` 常数；SpotlightPanel 的 `WindowFrameAnimator` 改用弹簧、`resizeAnimationDuration` 的含义与默认值；两组弹簧测试，现有 `SpotlightPanelWindowFrameAnimatorTests` 随曲线更新。
+  3. 尺寸弹簧：QuickActionBar 的 `ResizeSpring`；SpotlightPanel 的 `WindowFrameAnimator` 改用弹簧、`resizeAnimationDuration` 的含义与默认值；两组弹簧测试，现有 `SpotlightPanelWindowFrameAnimatorTests` 随曲线更新。（已完成）
   4. 文档：上面「文档」一条列的全部内容。
   5. 验证：全 trait 构建、整套测试、示例 App 构建，结果记进决策日志。
 
@@ -76,3 +77,5 @@
 | 2026-10-21 | 第 1 步完成 | 修复前，有字时的 Esc 与结果列表上的 Esc 两条测试失败，空查询那条通过；修复后三条都通过。同一套件里只有 `QuickActionBarPresentationTests` 第 35 行失败，它在 `main` 上本来就失败 |
 | 2026-10-21 | SpotlightPanel 的 Esc 测试走公开的 `present()`，不单独拼装 `ContentViewController` 与 `Panel` | 原计划要在测试里照抄 `wireUpEvents` 的接线，那一行就没人测；走公开入口只需从内部取出它开的窗口 |
 | 2026-10-21 | 第 2 步完成 | 修复前，有字时的 Esc 直接开始关闭、结果列表上的 Esc 什么也不做（落进 `-[NSWindow cancelOperation:]`），两条失败，空查询那条通过；修复后 SpotlightPanel 全部 9 个套件通过，同批跑的 QuickActionBar 套件只有第 35 行那条基线失败 |
+| 2026-10-21 | 弹簧改为按时间求闭式解，不再沿用逐帧数值积分只换常数 | SwiftUI 的 `Spring` 本身就按闭式解求值，这样两边的曲线逐点一致，也能直接拿 SwiftUI 的值做测试对照；数值积分在 120 Hz 步长下会带进额外误差 |
+| 2026-10-21 | 第 3 步完成 | 两组弹簧测试对 SwiftUI 的 `Spring` 全部通过；把 QuickActionBar 的参数临时换成旧常数对应的 duration 0.363、bounce 0.19，三条弹簧测试全部失败，说明对照能分辨出原来那条曲线。弹簧测试测的是新函数，改动前无法编译，所以用这次替换代替「改动前先红」 |

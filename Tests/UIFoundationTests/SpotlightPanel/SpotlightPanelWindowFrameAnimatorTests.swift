@@ -1,6 +1,7 @@
 #if SpotlightPanel && os(macOS)
 
 import AppKit
+import SwiftUI
 import Testing
 @testable import UIFoundationAppleInternal
 
@@ -104,15 +105,26 @@ struct SpotlightPanelWindowFrameAnimatorTests {
 
     // MARK: The curve
 
-    @Test("The easing curve is symmetric and pinned at both ends")
-    func easingCurveIsSymmetric() {
-        #expect(SpotlightPanel.WindowFrameAnimator.easeInEaseOut(0) == 0)
-        #expect(SpotlightPanel.WindowFrameAnimator.easeInEaseOut(1) == 1)
-        #expect(SpotlightPanel.WindowFrameAnimator.easeInEaseOut(0.5) == 0.5)
+    /// Spotlight's resize curve on macOS 27.2 is `Spring(duration: 0.3, bounce: 0.2)`; the expected
+    /// values come from SwiftUI's implementation of that spring, not from the formula under test.
+    /// Two durations, because the duration is the configurable half.
+    @Test(
+        "The resize follows SwiftUI's Spring(duration:bounce: 0.2)",
+        arguments: [0.3, 0.5], [0.02, 0.05, 0.1, 0.2, 0.25, 0.3, 0.45, 0.7]
+    )
+    func resizeFollowsSpotlightsSpring(duration: Double, elapsed: Double) {
+        let spotlightSpring = SwiftUI.Spring(duration: duration, bounce: 0.2)
+        let expectedProgress = spotlightSpring.value(target: 1.0, initialVelocity: 0.0, time: elapsed)
 
-        // Slow at the start, slow at the end, fast in the middle.
-        #expect(SpotlightPanel.WindowFrameAnimator.easeInEaseOut(0.25) < 0.25)
-        #expect(SpotlightPanel.WindowFrameAnimator.easeInEaseOut(0.75) > 0.75)
+        let progress = SpotlightPanel.WindowFrameAnimator.springProgress(at: elapsed, duration: duration)
+
+        #expect(abs(progress - expectedProgress) < 0.0001)
+    }
+
+    @Test("The spring comes to rest on the target frame, a little after its duration")
+    func springSettles() {
+        #expect(!SpotlightPanel.WindowFrameAnimator.springHasSettled(at: 0.3, duration: 0.3))
+        #expect(SpotlightPanel.WindowFrameAnimator.springHasSettled(at: 1, duration: 0.3))
     }
 
     @Test("Interpolation moves every edge and lands exactly at both ends")
