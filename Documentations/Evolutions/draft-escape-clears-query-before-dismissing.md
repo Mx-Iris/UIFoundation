@@ -57,7 +57,7 @@
   2. SpotlightPanel 的 Esc：命令表那一项、`Panel.cancelOperation(_:)` 与它在 `wireUpEvents` 里的接线，`SpotlightPanelEscapeTests`。（已完成）
   3. 尺寸弹簧：QuickActionBar 的 `ResizeSpring`；SpotlightPanel 的 `WindowFrameAnimator` 改用弹簧、`resizeAnimationDuration` 的含义与默认值；两组弹簧测试，现有 `SpotlightPanelWindowFrameAnimatorTests` 随曲线更新。（已完成）
   4. 文档：上面「文档」一条列的全部内容。（已完成）
-  5. 验证：全 trait 构建、整套测试、示例 App 构建，结果记进决策日志。
+  5. 验证：全 trait 构建、整套测试、示例 App 构建，结果记进决策日志。（已完成）
 
 ## 决策日志
 
@@ -80,3 +80,4 @@
 | 2026-10-21 | 弹簧改为按时间求闭式解，不再沿用逐帧数值积分只换常数 | SwiftUI 的 `Spring` 本身就按闭式解求值，这样两边的曲线逐点一致，也能直接拿 SwiftUI 的值做测试对照；数值积分在 120 Hz 步长下会带进额外误差 |
 | 2026-10-21 | 第 3 步完成 | 两组弹簧测试对 SwiftUI 的 `Spring` 全部通过；把 QuickActionBar 的参数临时换成旧常数对应的 duration 0.363、bounce 0.19，三条弹簧测试全部失败，说明对照能分辨出原来那条曲线。弹簧测试测的是新函数，改动前无法编译，所以用这次替换代替「改动前先红」 |
 | 2026-10-21 | 第 4 步完成；顺带更正「SpotlightPanel 的搜索框从不交出 first responder」的说法 | 指南第 7 节、`AGENTS.md` 和 `ContentViewController` 的注释都这样写，但实测宿主不接 Tab 时，Tab 会把焦点移到结果列表——第二层 Esc 正是为这种情况加的。改为「拖动列表时搜索框保持焦点，Tab 例外」。研究报告新增第 10 节，第 9 节里已找到的两项加了注 |
+| 2026-10-21 | 实现完成，待合并 | 验证（macOS 27.2，以退出码为准）：全 trait `swift build` 0；全 trait 整套 `swift test` 1，483 个测试、64 个套件，失败只有 `MainMenuTests` 第 200 行与 `QuickActionBarPresentationTests` 第 35 行，外加 1 个已知 issue。同样的全 trait 整套测试在 `main`（`80eaca7`，`git archive` 出来单独编译）上是 473 个测试、62 个套件，失败的正是这两条，所以没有新引入的失败；多出的 10 个测试、2 个套件都是本分支新加的。默认配置整套 `swift test` 0（208 个测试）。示例 App 从功能分支的 `git archive` 构建成功：工程按 `../../UIFoundation` 引用本库，在 worktree 里会解析到不存在的 `.worktrees/UIFoundation`，所以没有在 worktree 里直接构建。没有做交互式的界面验证，示例 App 里新增的人工检查第 6 条留给用户。文档：`README.md`、`AGENTS.md`、`Documentations/SpotlightPanel.md` 与研究报告都已更新；`QuickActionBar` 没有单独的使用指南，`README.md` 与 `AGENTS.md` 的两节就是它的说明；没有新术语 |
