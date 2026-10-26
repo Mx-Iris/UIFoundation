@@ -1,8 +1,8 @@
 # AsyncDocument —— 读写都是 async 的 NSDocument
 
-`UIFoundationAppKit` 里的 `AsyncDocument<Snapshot>`，不挂 trait。它是 NSDocument 的子类，读盘、写盘都写成
+`UIFoundationAppKit` 里的 `AsyncDocument<Snapshot: Sendable>`（源码在 `Sources/UIFoundationAppKit/Document/`），不挂 trait。它是 NSDocument 的子类，读盘、写盘都写成
 `async` 方法，在后台执行器上运行。主线程上只做两件同步的事：保存时把要写的内容复制成一个值（快照），打开和
-恢复时把读到的快照填回文档。另附 `NSDocument.box` 上 9 个 async 方法，把 `canClose`、带面板的保存这类回调式
+恢复时把读到的快照填回文档。另附 `NSDocument.box` 上 9 个 async 方法（在 `Sources/UIFoundationToolbox/AppKit/NSDocument+.swift`），把 `canClose`、带面板的保存这类回调式
 操作改成可以 `await`。
 
 决策记录见 [`Evolutions/0030-async-document.md`](Evolutions/0030-async-document.md)，逆向与实测依据见
@@ -127,6 +127,8 @@ if await document.box.canClose() {
    - 从普通 NSDocument 子类迁移过来时，编译器会在这几处报错，把逻辑分别挪进上面的四个方法。
    - 三个接法本身也是 `final`：`canAsynchronouslyWrite(to:ofType:for:)`、`write(to:ofType:for:originalContentsURL:)`、
      URL 版 `read(from:ofType:)`。
+   - `canConcurrentlyReadDocuments(ofType:)` 有意保持 `open`：读盘在哪个线程上都能工作，而覆写它返回 `false` 正是
+     后文「版本浏览器可能卡住」的绕过办法。
 
 ## 和 SwiftUI `DocumentGroup` 的差别
 
@@ -154,13 +156,28 @@ macOS 27 SwiftUI 的 `Document` 协议在 API 上也是快照模型。它接到 
     写盘之前一定会先有一次新的询问。
 - **本模块的构建有一条警告，压不掉。**
   - 位置是 `AsyncDocument.init()` 里的 `super.init()`，内容是 "call to main actor-isolated initializer"。
-  - 这是契约 4 的代价。`@preconcurrency` 和 Swift 6.4 的 `@diagnose` 都压不住它，原因见调研报告第 8 节。
+  - 这是契约 4 的代价。`@preconcurrency` 和 Swift 6.4 的 `@diagnose`（SE-0522）都试过，都压不住它，原因见调研报告第 8 节。
 - **相关的 AppKit 陷阱：`performSynchronousFileAccess(_:)` 不能从 Swift 直接调用。**
   - 它在需要等待时会留住传进去的 block，违反头文件里的 `NS_NOESCAPE` 标注。
   - Swift 检查到后会直接 trap："closure argument passed as @noescape to Objective-C has escaped"，macOS 27.2 实测。
-  - 需要时改发 Objective-C 消息：
+  - 需要时改发 Objective-C 消息，`AsyncDocumentTests` 就是这样调用的：
 
     ```swift
     let block: @convention(block) () -> Void = { /* … */ }
     document.perform(#selector(NSDocument.performSynchronousFileAccess(_:)), with: block)
     ```
+
+## 实现说明
+
+写给维护者。下面几处看起来都能简化，其实都不能。结论都在 macOS 27.2 上实测过，或者是从 macOS 27.0 的 AppKit 二进制里读出来的。
+
+- **快照在 `canAsynchronouslyWrite(to:ofType:for:)` 里取，不在写盘方法里取。**
+  - 这是唯一合适的时刻：NSDocument 已经拿到 change-count token，又还没有用 `NSConditionLock` 把主线程挡住。
+    挡住之后，主队列上的 block 和 `@MainActor` 任务都不会再执行。
+  - SwiftUI 的 `URLPlatformDocument` 改在写盘方法里取快照，主线程恰好在等文件访问时就会死锁（见上文对比表）。
+- **`canAsynchronouslyWrite` 只在 `autosavesInPlace` 为 `true` 时回答 `true`，不要改成无条件回答 `true`。**
+  原因见契约 3：没有 token，保存完成时写盘期间的编辑会被标成已保存。
+- **回主线程只走 `continueAsynchronousWorkOnMainThread(_:)`，绝不用 `DispatchQueue.main` 或 `MainActor`，也不设超时。**
+  - NSDocument 在它自己的同步等待里只处理这一条通道。
+  - 原型里的 5 秒超时只是测量用的；放进正式代码，主线程一忙，打开文件就会失败。
+- **`init()` 上的 `nonisolated` 不能删。** 删掉之后 `AsyncDocumentTests` 就编译不过，它就是这条的守卫（原因见契约 4）。

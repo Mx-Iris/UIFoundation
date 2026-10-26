@@ -7,7 +7,10 @@
 > from UIKit; the default *look* is UIKit's, with the App Store's available as a preset. Every
 > constant on both sides is measured, not estimated — for the App Store's, see
 > [`Researchs/AppStore-Custom-Navigation-Internals.md`](../Researchs/AppStore-Custom-Navigation-Internals.md).
-> Ships behind the opt-in SPM trait `Navigation`. macOS only, no private API.
+> Ships behind the opt-in SPM trait `Navigation` (default: disabled); every file under
+> `Sources/UIFoundationAppKit/Navigation/` is compiled only under `#if Navigation && os(macOS)`.
+> macOS only, pure AppKit — no private API, no resources. Decision record: Evolution
+> [`0001`](Evolutions/0001-appstore-style-navigation-controller.md).
 
 ---
 
@@ -22,6 +25,7 @@
 - [7. The animation layer on its own](#7-the-animation-layer-on-its-own)
 - [8. What was not ported](#8-what-was-not-ported)
 - [9. Known divergences from the App Store](#9-known-divergences-from-the-app-store)
+- [10. Implementation notes](#10-implementation-notes)
 
 ---
 
@@ -175,10 +179,16 @@ visible longest is the outgoing page drifting left, which reads as content slidi
 than as one page moving over another. `.uiKit`'s 9 pt shadow is what gives the arriving page a
 visible edge, and it is the single biggest difference between the two.
 
+**Do not flip the default back to `.appStore`.** It was the default for one review round and was
+rejected on sight, for exactly the reasons above. Fidelity stayed available as a preset; the default
+is the one that looks like a navigation push.
+
 Two more things worth knowing:
 
 - The **incoming** page always travels the full width; `parallaxFactor` is only the counter-slide
-  behind it. The difference between the two speeds is the parallax.
+  behind it. The difference between the two speeds is the parallax. The counter-slide distance is
+  rounded down to whole points: `floor(width × 0.3)` for `.uiKit`, `floor(width × 0.2527)` for
+  `.appStore`.
 - The App Store uses **the same curve in both directions** — it does not reverse it for the pop.
   `TimingCurve.appStoreNavigation.reversed` is there if you disagree; AppStoreKit ships that exact
   reversed curve too, and never calls it.
@@ -230,6 +240,13 @@ On the pop side the colour really is written onto your page's `layer.backgroundC
 at the end, followed by `needsDisplay = true`. That last step matters: a page that repaints its own
 background in `updateLayer()` — anything built on this package's `LayerBackedView` — would
 otherwise keep the transition's colour until something else happened to redraw it.
+
+That pop-side write is the exception, forced by the flash described above; it is not the pattern to
+copy. **Do not "simplify" the push side into writing `layer.backgroundColor` on the arriving page and
+restoring it afterwards.** This package's own `LayerBackedView` rewrites that property in
+`updateLayer()`, so a redraw in the middle of the transition clobbers the value, and the restore at
+the end writes back a stale one. A sibling stand-in view has no state to restore, which is why the
+push uses one.
 
 Assigning `configuration` while a transition is running does **not** disturb it: the slide keeps
 the geometry it started with, and the new values take effect on the next transition. (Without that
@@ -342,9 +359,54 @@ transformation.apply(0.5)
 | dimming is an `AppStoreKit.BackgroundView` | a plain layer-backed `NSView` | only ever used for a solid fill. |
 | defaults are the App Store's | defaults are **UIKit's** (`.uiKit`); the App Store's are one preset away (`.appStore`) | the App Store look is flatter than UIKit's — no edge shadow, less parallax, a front-loaded curve — and reads as sliding content rather than a page moving over another. Fidelity is still available, it is just not the default. |
 | a see-through page shows the page it covers | a backdrop is slipped under the travelling page (`pageBackdrop`) | the App Store's pages are opaque, so it never had to solve this. macOS 26 forces clear pages wherever glass has to show through. |
-| there is no edge shadow | a 9 pt edge shadow by default | ported from UIKit's `_UIVerticalEdgeShadowView` (via AppKitPlus). Set `edgeShadowWidth = 0` for the App Store's look. |
+| there is no edge shadow | a 9 pt edge shadow by default | `NavigationEdgeShadowView`, ported from UIKit's `_UIVerticalEdgeShadowView` (via AppKitPlus). Set `edgeShadowWidth = 0` for the App Store's look. |
 | the swipe's tracking options are the raw value `7` | the same raw value `7` | `NSEvent.SwipeTrackingOptions` names only bits 0 and 1; bit 2 is undocumented. Kept verbatim, because matching the shipped feel is the point. |
 
 The three `InteractiveViewTransition` members are **designed, not copied**: the App Store protocol
 of the same shape was only confirmed to have three method slots, and the semantics behind them
 were never decompiled.
+
+## 10. Implementation notes
+
+For maintainers. Each of these looks like it could be simplified, and each is load-bearing.
+
+### Why the App Store's container and not UIKit's transition
+
+The port follows the macOS App Store's own navigation stack, not UIKit, on purpose. UIKit's
+`_UINavigationParallaxTransition` only yields an *animator* on AppKit:
+`NSViewControllerPresentationAnimator` has two methods and no transition context, so it can carry
+neither a stack nor an interactive gesture. The App Store's version is a real container, is
+AppKit-native throughout, and gets its back swipe from the public `NSEvent.trackSwipeEvent`. The
+full reverse-engineering report, with every address, is
+[`Researchs/AppStore-Custom-Navigation-Internals.md`](../Researchs/AppStore-Custom-Navigation-Internals.md).
+
+### Four decoupled layers
+
+The bottom two layers know nothing about navigation, and the transition layer knows nothing about
+the stack:
+
+```
+NavigationController                  stack, delegates, swipe
+  └── any ViewTransition              PushViewTransition / PopViewTransition
+        ├── ViewPropertyInterpolator  [any Transformation] + TimingCurve
+        │     └── Interpolator<Value: Interpolatable>
+        └── ViewPropertyAnimator      NSAnimationContext wrapper
+```
+
+### The animation mechanism
+
+Transitions never build a `CABasicAnimation`. They assign *final* values to `frame` /
+`alphaValue` inside an `NSAnimationContext` group with `allowsImplicitAnimation = true`, which is
+why `prepare()` forces `wantsLayer` on every participating view ([3.2](#32-children-are-made-layer-backed)).
+Keep it that way: `apply(_:)` can be stepped frame by frame from a gesture only *because* it is
+plain assignment. Building explicit animations would silently cost the interactive pop.
+
+Ease exactly once — see [section 7](#7-the-animation-layer-on-its-own): each `Interpolator` applies
+its own curve and `ViewPropertyInterpolator.apply(_:)` passes the fraction through un-eased. Easing
+again at the bundle level makes a released gesture jump.
+
+### The edge shadow's falloff
+
+`NavigationEdgeShadowView`'s falloff is a **blur spill**, as in UIKit's
+`_UIVerticalEdgeShadowView`: an opaque block filled entirely outside the view's clip, so only its
+shadow survives. Do not replace it with a linear gradient, which reads noticeably harder.

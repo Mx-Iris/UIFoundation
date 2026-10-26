@@ -8,8 +8,8 @@
 
 ## 使用指南
 
-十四篇都是面向调用方的完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离。
-**接入任何一个组件前先读对应那篇。**
+十九篇都是完整指南：怎么用、宿主必须遵守什么契约、有哪些已知偏离，以及维护时看似能简化、实则不能动的实现细节。
+**接入或修改任何一个组件前先读对应那篇。** 根目录的 `AGENTS.md` 只给每个组件留一行指向这里，细节一律写在指南里。
 
 - [MainMenu](MainMenu.md) —— 纯代码构建 MainMenu.xib 等价的标准主菜单，四级粒度自定义，
   含仿 `UIMenuBuilder` 的 `MainMenu.Builder`（全部标准项可按 identifier 查询 / 插入 / 替换 /
@@ -83,6 +83,24 @@
   绝不能跳回主线程，恢复版本、复制文档、手动保存的文档都是主线程在等它们。另有：不开 `autosavesInPlace` 就是同步写盘；
   后台打开时 `init` 不在主线程（Swift 6 子类因此需要基类的 `nonisolated init()`）；被 `final` 封住的 NSDocument 原有读写方法；
   与 SwiftUI `DocumentGroup` 的三处实测差别；版本浏览器的一处未实测风险。
+- [AppKitPlus](AppKitPlus.md) —— 打开 `AppKitPlus` trait 后会变什么：`LayerBackedView` 与 `LayerBackedViewController`
+  换用 AppKitPlus 的基类、`NSEdgeInsets` 的相等性改由 AppKitPlus 提供，以及为什么不管开不开 trait，macOS 下限都是 12。
+  **含一条踩了就连下游一起编不过的契约**：trait 打开时，子类不能声明 AppKitPlus 已经加到该类上的同名属性
+  （`center`、`transform`、`layoutMargins` 等），这条限制会随模块传给每个下游。另有升级 AppKitPlus 前的撞名排查
+  （查公开头文件，不查 `.swiftinterface`）和版本下限的来历。
+- [LayerBackground](LayerBackground.md) —— `LayerBackedView` 与它背后的图层背景管线（圆角、背景色、边框、阴影），
+  以及怎样把它装到不能继承它的 `NSView` 子类（如 `NSTableCellView`）上。**含一条踩了就静默失效的契约**：
+  本身已有 `backgroundColor` 的类（`NSTextField`、`NSTableView`、`NSScrollView`）不能遵守这个协议，否则协议的属性
+  被遮蔽、收不到值。另有 macOS 27.2 上设圆角会自动打开裁剪、连续圆角边框的画法，以及按像素测试时参照物要先裁剪。
+- [QuickActionBar](QuickActionBar.md) —— 从 DSFQuickActionBar 移植的 Spotlight 式浮动操作栏：公开 API、两段式 Escape
+  （先清空查询再关闭）、可以中途反转的收起动画、Spotlight 的弹簧尺寸动画，以及与上游的差异。另有在测试进程里驱动它的
+  两个坑：窗口不会成为 key，所以要直接发 `cancelOperation:`；content source 要活到结果返回之后。
+- [FilterUI](FilterUI.md) —— 从 filter-ui 移植的 AppKit 过滤控件（搜索框、token 框、可过滤菜单）：公开 API 版与
+  私有 API 版 `FilteringMenu` 的分工、资源与 `defaultLocalization`。**含一条命令行下必踩的坑**：`swift build` /
+  `swift test` 不跑 `actool`，资源取出来全是 `nil`，跟资源有关的测试只能走 `xcodebuild`。
+- [CustomToolTip](CustomToolTip.md) —— `AppleInternal` trait 下替换 AppKit 工具提示外观的 `CustomToolTipManager`：
+  全局与单个视图的样式、按引用计数安装、对 `NSToolTipManager` 单例的 isa-swizzle 钩子、在系统材质与图层背景内容视图
+  之间切换，以及用到的私有头文件。
 
 ## Agent 插件
 

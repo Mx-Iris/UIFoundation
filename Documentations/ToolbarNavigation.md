@@ -24,6 +24,7 @@
 - [6. Keyboard shortcuts](#6-keyboard-shortcuts)
 - [7. Known limits](#7-known-limits)
 - [8. How this is verified](#8-how-this-is-verified)
+- [9. The toolbar item base classes](#9-the-toolbar-item-base-classes)
 
 ---
 
@@ -75,7 +76,9 @@ Everything else on the data source has a default that means *no history menu*. A
 `didSelectHistoryEntryAt:in:` on the delegate receives a choice from one.
 
 A complete worked example — a pretend documentation site with a visit list, a cursor and per-row
-icons — is the **Toolbar Navigation** demo in `UIFoundationExample-macOS`.
+icons — is the **Toolbar Navigation** demo in `UIFoundationExample-macOS`. It opens a window of its
+own, since the demo browser's detail pane has no toolbar, and lists the four checks only a human can
+perform — the long press being the main one.
 
 ---
 
@@ -145,7 +148,7 @@ Two AppKit behaviours are held in place structurally rather than by a comment:
 
 | Behaviour | How it is held |
 |---|---|
-| A segment menu opens on a *click* rather than a long press when the control's action is `nil`. | The control is internal and nothing forwards to it, so `target` / `action` are wired once in `init` and there is no typed door to reach them through. |
+| A segment menu opens on a *click* rather than a long press when the control's action is `nil` — single-step navigation silently disappears. | The control is internal and nothing forwards to it, so `target` / `action` are wired once in `init` and there is no typed door to reach them through. |
 | An empty `NSMenu` still pops, as a blank box. | An empty direction gets `setMenu(nil, forSegment:)`, never a menu with no rows. |
 
 A third, often repeated alongside them, **did not reproduce**: attaching a menu does not raise a
@@ -161,7 +164,9 @@ failure rather than as a stray arrow.
 
 There is no styling API, and the `NSSegmentedControl` behind the item is internal. A navigation pair
 has one correct look, and the door a host would reach through is the same one that holds the first
-contract in place — hand the control out "for styling" and its `target` / `action` go with it.
+contract in place — hand the control out "for styling" and its `target` / `action` go with it. So
+don't add a `segmentStyle` / `controlSize` passthrough "for flexibility": the control it would
+forward to is the one carrying the action.
 
 One caveat, stated rather than glossed: AppKit needs the view on the toolbar item, so
 `navigationItem.item.view` still leads to the control for anyone who casts it. No design can close
@@ -201,6 +206,9 @@ them.
 @objc func goBack(_ sender: Any?) { navigationItem.performNavigation(in: .backward) }
 ```
 
+`performNavigation(in:)` is also the only supported way to cause a click from code: the control's
+`target` / `action` are out of reach by design (see [4](#4-what-the-item-handles-so-a-host-does-not)).
+
 ---
 
 ## 7. Known limits
@@ -233,6 +241,45 @@ Three things the suite cannot reach, and what covers them instead:
   action resolves at all is tested by sending it.
 - **AppKit's own validation cycle** needs a key window. What is tested is the half that is ours —
   that the native `NSToolbarItem` forwards its validation to the managed item.
+
+---
+
+## 9. The toolbar item base classes
+
+`NSToolbar.Navigation` is one item of a larger builder-style `NSToolbar` API in
+`Sources/UIFoundationAppKit/Toolbar/`: a `ToolbarItem` base class with chained modifiers, and the
+subclasses `NSToolbar.Button` / `.Item` / `.Group` / `.Menu` / `.PopUpButton` / `.Search` /
+`.SegmentedControl` / `.View` / `.TrackingSeparator` / `.Navigation`. Like `Navigation`, it has no
+trait and ships unconditionally on macOS. `Navigation` is the reason its base is split in two. Design
+record: [Evolution 0019](Evolutions/0019-toolbar-item-action-and-bordered.md).
+
+**The base is two classes, and which one an item derives from is the whole design.** `ToolbarItem`
+carries what every item has — the `NSToolbarItem` forwarding properties, `isBordered` and
+`isNavigational` among them. `ActionableToolbarItem` adds `target` / `action`, their three chained
+modifiers (`target(_:)` / `action(_:)` / `target(_:action:)`) and the trampoline behind each
+subclass's typed `actionBlock`, all resolved against one overridable `actionHost`: the item itself by
+default, the hosted control for `Button`, `PopUpButton` and `SegmentedControl`.
+
+**`Search`, `TrackingSeparator` and `Navigation` deliberately derive from `ToolbarItem` directly**,
+and they are the only reason the middle class exists rather than these members living on the common
+base. Measured on macOS 26: `NSToolbarItem` forwards `target`, `action` *and* `isBordered` to its
+custom view — AppKit's header scopes `isBordered` to items *without* a custom view, but the setter
+forwards anyway. `Navigation`'s custom view *is* the segmented control whose `target` / `action` are
+wired once in `init` and must stay unreachable (see
+[4](#4-what-the-item-handles-so-a-host-does-not)), so putting the pair on `ToolbarItem` would hand out
+exactly the door that item's design closes. `ToolbarItemActionTests` keeps a canary on both the
+forwarding and the three classes staying outside `ActionableToolbarItem`.
+
+**Do not turn a typed `actionBlock` back into a stored property with a `didSet`.** A property
+observer does not fire for an assignment made inside an initializer (measured), so that shape made
+every `init(…, action:)` store the closure and wire nothing. `Item` and `Button` shipped broken that
+way; `SegmentedControl` only escaped because its `commonInit()` called the installer a second time.
+The computed-property-over-private-storage shape is what makes the initializer parameter work at all.
+
+**Two chained modifiers are deprecated in favour of the base-class spelling.** `NSToolbar.Item`'s and
+`NSToolbar.Button`'s `bordered(_:)` both point at `isBordered(_:)`, which matches the existing
+`isDefault(_:)` / `isSelectable(_:)` / `isEnabled(_:)` naming. Both spellings reach the same place: the
+button's wrote `NSButton.isBordered`, and the item property forwards there.
 
 ---
 

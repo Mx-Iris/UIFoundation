@@ -33,7 +33,7 @@ scrollView.box.alwaysShownScrollPocketEdges = [.top, .bottom]
 ```
 
 所有方法在 macOS 26 以前、或 AppKit 缺这个私有方法时什么都不做；`alwaysShownScrollPocketEdges` 此时读回
-`nil`，`scrollPocketStyle(on:)` 读回 `nil`。检查 pocket 实际摆成什么样用 `scrollPocket(on:)`，它只读，不会创建。
+`nil`，`scrollPocketStyle(on:)` 读回 `nil`。改某条边的 pocket 样式用 `setScrollPocketStyle(_:on:)`（取值的含义见契约 5）。检查 pocket 实际摆成什么样用 `scrollPocket(on:)`，它只读，不会创建。
 
 登记为容器的栏，再覆写 `_scrollPocketElementStyle`（声明在 `NSView_Private.h`）回答 2，也就是 bar 样式：
 AppKit 给 split view item accessory 套的包装视图答 2，Xcode 的过滤栏和导航区分段控件栏也都答 2，
@@ -48,6 +48,8 @@ override var _scrollPocketElementStyle: Int {
 ```
 
 ## 必须遵守的契约
+
+以下各条都是在 macOS 27.2 上实测的。
 
 1. **底部 pocket 的高度跟的是滚动视图自己的 `contentInsets.bottom`，不是 clip view 的。** 只给 clip view 设了
    inset、滚动视图自己是 0 时，常显的底部 pocket 高度为 0，等于没有效果，而列表照样让开了栏——看上去一切正常。
@@ -66,4 +68,4 @@ override var _scrollPocketElementStyle: Int {
 
 - **从外面看不出 pocket 画没画。** 实测所有 pocket 视图都是 `isHidden == false`、alpha 为 1，测试只能测几何。
 - **私有方法会在小版本之间消失。** `_registeredPocketContainersOnEdge:` 在 27.0 里有、27.2 里没有，直接调用会抛
-  `unrecognized selector`。封装里每个方法都先查 `instancesRespond(to:)`，自己绕过封装直接调私有方法时也要这么做。
+  `unrecognized selector`。封装里每个方法都先查 `instancesRespond(to:)`（维护时保持这一点，新加的方法也要查），自己绕过封装直接调私有方法时也要这么做。

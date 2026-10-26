@@ -4,7 +4,8 @@
 > single line of text, shown below the centre of the active screen and faded out after a delay.
 >
 > Ported from [Mx-Iris/SystemHUD](https://github.com/Mx-Iris/SystemHUD).
-> Ships behind the opt-in SPM trait `SystemHUD`. macOS only.
+> Ships behind the opt-in SPM trait `SystemHUD` (default: off); every source file is wrapped in
+> `#if SystemHUD && os(macOS)`. macOS only.
 
 ---
 
@@ -61,7 +62,9 @@ buildHUD.show(delay: 1.2)
 | `configuration` | Assigning re-lays out the panel immediately. |
 | `show(delay:)` | Shows the panel, then fades it out `delay` seconds later. |
 
-`SystemHUD` is `@MainActor`. Call it from the main thread, as with any AppKit object.
+`SystemHUD` (a `@MainActor public final class`) is the only top-level symbol; `Configuration` and the
+internal `ContentView` (an `NSVisualEffectView` subclass), `Window` and `AlphaAnimation` are nested
+under it. Call it from the main thread, as with any AppKit object.
 
 ## 2. Configuration
 
@@ -117,14 +120,16 @@ user moves to another screen or changes resolution.
 fires, the panel fades to zero over `dismissAnimationDuration` on an ease-in curve.
 
 The fade is driven by `SystemHUD.AlphaAnimation`, an `NSAnimation` subclass that maps each progress
-step onto the panel's `alphaValue` and runs `.nonblocking`. Two details matter to a host that shows
+step (`currentProgress`) onto the panel's `alphaValue` and runs `.nonblocking`. It is the upstream
+implementation, kept deliberately: **do not replace it with `NSAnimationContext`** — the timing was
+matched to the original, and a swap changes the feel. Two details matter to a host that shows
 HUDs in bursts:
 
 - **The timer runs in `.common` run loop mode**, so a HUD raised while a menu is tracking or a
   window is being resized still dismisses itself instead of sticking around until the interaction
   ends.
-- **A `show` during a fade interrupts it.** The in-flight animation is stopped outright and the
-  panel snaps back to full opacity, then the timer restarts.
+- **A `show` during a fade interrupts it.** The in-flight animation is stopped outright (`stop()`)
+  and the panel snaps back to full opacity (`alphaValue` reset to 1), then the timer restarts.
 
 The panel is left ordered in at zero opacity rather than ordered out — it ignores mouse events, so
 an invisible panel costs nothing. There is no public `dismiss()`. A HUD is a fire-and-forget

@@ -48,7 +48,8 @@ final class GroupedOutlineView: NSOutlineView {
 2. **切换开关不会挪动屏幕上已有的行。** AppKit 只是丢弃算好的行几何（下次用到时重算），既不 `reloadData`、
    也不重新摆放已有的行视图，所以按估算摆好的行会一直留在原位，直到表格重载。实测：在列表靠后位置、估算摆好的
    行已经显示时关掉估算，27 行错位；之后布局一次、`noteHeightOfRows(withIndexesChanged:)` 都不恢复，`tile()`
-   反而开始叠行，只有 `reloadData()` 能摆正（逆向报告 4.5 节）。所以要么在表格显示行之前切换 —— 在设置
+   反而开始叠行，只有 `reloadData()` 能摆正（逆向报告 4.5 节）。`-_setEstimatesRowHeights:` 里其实有一处
+   `reloadData` 调用，但它检查的标志刚被 `-invalidate` 清掉，所以永远走不到（实测调用次数为 0）。所以要么在表格显示行之前切换 —— 在设置
    delegate 的同一次调用里切换就满足这一点 —— 要么切换后自己调一次 `reloadData()`。
 3. **关掉之后每次重载要算一遍全部行高。** 1.4 万行、行高由 `rowHeight` 与分组行决定的列表，`reloadData` 加布局
    实测多 3–6 ms；几千行以内测不出差别。开了 `usesAutomaticRowHeights` 的大表格没有测过 —— 那种表格的行高要靠
@@ -65,3 +66,8 @@ final class GroupedOutlineView: NSOutlineView {
   收起一个条目后，下方的分组行没有跟着上移；之后在相同条件下重跑 50 余次都没有再出现，不带动画的收起从未出现。
   详见逆向报告 4.3 节。若在宿主里遇到，给 `expandItem` / `collapseItem` 包一层零时长的 `NSAnimationContext`
   可以避开。
+
+## 测试说明
+
+- **测试用的列表必须带一个可展开条目。** 没有可展开条目时，AppKit 即使在估算模式下也会把每一行摆对（实测），
+  这样的 fixture 无论开关开没开都通过，测不出任何东西。

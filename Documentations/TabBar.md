@@ -4,7 +4,9 @@
 > and rebuilt around `SystemStyle` — a replication of the macOS 26 (Liquid Glass) window tab bar,
 > matched against a live `NSTabBar` rather than eyeballed.
 >
-> Ships behind the opt-in SPM trait `TabBar`. macOS only.
+> Ships behind the opt-in SPM trait `TabBar` (default: off); every source file is wrapped in
+> `#if TabBar && os(macOS)`, so the trait compiles to nothing on UIKit, Mac Catalyst, tvOS and
+> visionOS even if enabled there. macOS only.
 
 ---
 
@@ -195,6 +197,17 @@ A style renders in one of two ways, and the fork is `Style.controlDecoration`:
 | `allowsStacking` | `true` | Fold the overflow instead of shrinking past `minimumTabWidth`. |
 | `minimumTabWidth` | 120 | Width a tab locks to once stacking begins. |
 
+**There is no pull-down affordance, and a custom style should not make room for one.**
+`tabBar(_:menuForItem:)` supplies a *right-click* menu and nothing more. The tab draws no chevron,
+reserves no room for one, and does not open the menu on a left click. Upstream KPCTabsControl did all
+three, because Numbers' sheet tabs have a real pull-down button; the system bar has no such element,
+so the whole path was removed: `PullDownTemplate.pdf` (the last of the upstream `Templates/*.pdf`
+glyphs — none remain), `TabButtonCell.popupImage()`, `drawPopupButtonWithFrame`, the `trackMouse`
+override that hit-tested the chevron, `Style.popupRectWithFrame`, the `showingMenu:` parameter on
+`Style.titleRect` / `Style.iconFrames`, and `NSImage.imageWithTint`. Don't reintroduce a
+`showingMenu` argument so that a custom style can "leave space for the menu" — there is nothing to
+leave space for.
+
 ## 5. `SystemStyle` in depth
 
 ### 5.1 Geometry
@@ -283,10 +296,14 @@ Two rules follow for anyone extending the control:
   two things TN3212 says the gesture path no longer promises. What the tab does without the override
   has not been measured; keep it until selection moves to control events.
 
+For "a control ignores clicks" in general, see the `appkit-mouse-event-routing` skill.
+
 ## 6. Namespace convention
 
 To keep generic names out of the umbrella module, the entire public API is nested inside the
-`TabBar` class. Only `TabBar` and `TabButton` are top level.
+`TabBar` class. Only `TabBar` and `TabButton` are top level. The protocols are nested too, which
+[SE-0404](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0404-nested-protocols.md)
+permits inside a non-generic type from Swift 5.10 on, in either language mode.
 
 | Upstream | Here |
 | --- | --- |
@@ -294,11 +311,20 @@ To keep generic names out of the umbrella module, the entire public API is neste
 | `Style` / `ThemedStyle` / `Theme` | `TabBar.Style` / `.ThemedStyle` / `.Theme` |
 | `TabButtonTheme` / `TabBarTheme` | `TabBar.ButtonTheme` / `.ControlTheme` |
 | `TabPosition` / `ClosePosition` / `TabWidth` / `TabSelectionState` | `TabBar.TabPosition` / `.ClosePosition` / `.TabWidth` / `.SelectionState` |
-| `SystemStyle` | nested |
+| `SystemStyle` (and its theme) | nested |
+| `Offset` / `IconFrames` / `TitleEditorSettings` / `BorderMask` / `TitleDefaults` | nested |
 | `TabBarSelectionDidChangeNotification` (string) | `TabBar.selectionDidChangeNotification` (`Notification.Name`) |
 
-Files whose content is a protocol default-implementation extension (`extension TabBar.ThemedStyle`)
-are not lexically inside `TabBar`, so sibling nested types there need qualifying.
+Files whose content is a protocol default-implementation extension (`extension TabBar.ThemedStyle`,
+`extension TabBar.Theme`) are not lexically inside `TabBar`, so sibling nested types there must be
+fully qualified as `TabBar.X`. Declaration files written as `extension TabBar { … }` resolve the short
+names.
+
+Source files follow the package's unique-basename rule (SwiftPM keys object files by basename, so
+two same-named files in one target fail the build): feature-scoped files carry a `TabBar+…` prefix —
+the ported `Helpers.swift` became `TabBar+Geometry.swift`, `Style.swift` became
+`TabBar+Style.swift` — while distinctive names such as `TabButton.swift` and `TabButtonCell.swift`
+keep theirs, and per-class extensions are named `NSClassName+TabBar.swift`.
 
 ## 7. How this is verified
 
@@ -329,7 +355,7 @@ void unless the window is key and a control click on a tab lands, and compare SD
 from one build by stamping a copy with `vtool -set-build-version macos <minos> 26.0 -replace`
 (re-sign it ad hoc).
 
-The demo (`UIFoundationExample-macOS` → Tab Bar) is wired the host-owned way described in
+The demo (`UIFoundationExample-macOS` → Tab Bar, `TabBarDemoViewController`) is wired the host-owned way described in
 [3.2](#32-who-owns-the-selection): it keeps its own active index, opens tabs next to it, activates the
 right neighbour on close, takes ⌘T / ⌘W off the responder chain, and logs a warning whenever the bar
 and the model name different tabs.

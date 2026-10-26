@@ -7,7 +7,11 @@
 > **It does not search anything.** The host supplies results; this is the shell.
 >
 > Ships behind the opt-in SPM trait `SpotlightPanel`, which enables `AppleInternal` and
-> `Navigation` with it. macOS only.
+> `Navigation` with it. macOS only. The sources live in
+> `Sources/UIFoundationAppleInternal/SpotlightPanel/`, every file wrapped in
+> `#if SpotlightPanel && os(macOS)`.
+>
+> It is unrelated to `QuickActionBar`, which it leaves untouched; the two share no code.
 
 ---
 
@@ -60,7 +64,12 @@ panel owns it.
 
 The trait pulls in `AppleInternal` because the dismissal blur is private API, and `Navigation`
 because later phases host sub-pages in this library's navigation stack. Enabling
-`SpotlightPanel` alone is enough; the other two come with it.
+`SpotlightPanel` alone is enough; the other two come with it — the trait is declared as
+`.trait(name: "SpotlightPanel", enabledTraits: ["AppleInternal", "Navigation"])`. The blur's private
+setter is the only reason the component sits in `AppleInternal` at all.
+
+A working demo is the **Spotlight Panel** entry in the example app
+(`UIFoundationExample-macOS`, `Demos/SpotlightPanelDemoViewController.swift`).
 
 ---
 
@@ -136,6 +145,9 @@ All five fail quietly rather than loudly.
 4. **The content blur degrades silently.** `NSWindow._setContentBlurRadius:` is private. If a
    future AppKit drops it, `SpotlightPanel.isContentBlurSupported` goes false and the
    dismissal animates scale and opacity only. Nothing throws and nothing logs at error level.
+   The animation reaches the setter through key-value coding: `-_setContentBlurRadius:` matches
+   KVC's `_set<Key>:` search form for the key `contentBlurRadius`, so an entry under that key in
+   `NSWindow.animations` animates it.
 
 5. **Reduce Motion skips both animations entirely**, writing the end state directly. A host that
    times anything off the presentation should use the completion, not a duration.
@@ -199,7 +211,7 @@ the window server strokes its own rounded frame at the window rect and shapes th
 rather than to the content. It is a tempting flag — it does give a heavier drop shadow, which is
 why it shipped for one round — and it is measurable: with `.titled` the panel's
 `contentLayoutRect` came back 32 points shorter than its content rect, because the window also
-reserves a titlebar. Borderless gets the shadow the right way instead, derived from the
+reserves a titlebar, and its frame view carried an `NSTitlebarContainerView`. Borderless gets the shadow the right way instead, derived from the
 composited alpha, so it hugs the platter and follows the present / dismiss scale.
 
 One consequence to keep in mind before touching `Panel`: a borderless `NSWindow` returns `false`
@@ -239,7 +251,10 @@ always `false`.
 
 Resize requests are debounced separately from the search itself
 (`Configuration.sizingDebounceDelay`, default 0.05 s, against `searchDebounceDelay`'s 0.2 s).
-Spotlight keeps the same two timers apart for the same reason.
+Spotlight keeps the same two timers apart for the same reason: with one timer, a response arriving
+in several passes resizes the window once per pass, which reads as a shudder.
+`PlatterBehavior.resolvedContentHeight(…)` is a pure function precisely so these rules can be
+asserted without a window.
 
 **The resize follows Spotlight's own spring.** On macOS 27.2 the default resize animation of
 Spotlight's results platter is `Spring(duration: 0.3, bounce: 0.2)`, the same for expanding and for
@@ -247,7 +262,9 @@ collapsing. `Configuration.resizeAnimationDuration` is that spring's duration (d
 bounce stays Spotlight's 0.2, so the bottom edge overshoots by about 1.5 % before it settles. The
 spring is evaluated in closed form, as SwiftUI evaluates it, and a resize ends once it has come to
 rest — a little after `resizeAnimationDuration`, which is when `expansionState` leaves `expanding`.
-A duration of `0` resizes without animating.
+A duration of `0` resizes without animating. The value was read from `SpotlightUIShared`'s
+`WindowSizingAnimation.AxisAnimation.default`, and `SpotlightPanelWindowFrameAnimatorTests` checks
+the curve against SwiftUI's own `Spring`.
 
 `expansionState` reports `uninitialized` / `collapsed` / `expanding` / `expanded`. The two
 transitional cases exist because a second resize arriving mid-animation has to be coalesced rather
@@ -309,14 +326,17 @@ an Escape that starts anywhere else — the results list, reached with Tab or, b
 a click — arrives through the panel's `cancelOperation(_:)` and also puts the focus back in the
 query field. That second layer sits on the panel rather than on the content view controller
 because `NSTableView` hands `cancelOperation:` to every responder above it that implements it,
-without stopping at the first; on the controller, the window's own implementation would run next.
+without stopping at the first; on the controller, the window's own implementation would run next —
+and that one, which looks for an Escape key equivalent and then sends `cancel:`, is why the panel
+used to stay up.
 
 ---
 
 ## 8. Known divergences from Spotlight
 
 - **Quick Look is ⌘Y, not Space.** Spotlight has a results pane that can take focus away from its
-  query field; this panel does not, so Space has to stay a space.
+  query field; this panel does not — its query field keeps first responder while the list is
+  driven — so Space has to stay a space.
 - **No filter bar, no search history, no navigation stack yet.** Phases two and three of the
   decision record.
 - **No preview pane, ever.** An explicit non-goal.

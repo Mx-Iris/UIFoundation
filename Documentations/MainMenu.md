@@ -1,9 +1,9 @@
 # MainMenu
 
 > The standard macOS main menu built in code — the exact menu bar Xcode's application template
-> ships as `MainMenu.xib`, with every layer open for customization. Pure public AppKit, no trait,
-> macOS only. Decision record: Evolution
-> [`0009`](Evolutions/0009-standard-main-menu.md).
+> ships as `MainMenu.xib`, with every layer open for customization. Pure public AppKit like the rest
+> of the Menu DSL, no trait, macOS only. Sources: `Sources/UIFoundationAppKit/Menu/MainMenu*.swift`.
+> Decision record: Evolution [`0009`](Evolutions/0009-standard-main-menu.md).
 
 ---
 
@@ -18,6 +18,7 @@
 - [Open Recent](#open-recent)
 - [Titles, Names, and Localization](#titles-names-and-localization)
 - [Fidelity Notes](#fidelity-notes)
+- [Implementation Notes](#implementation-notes)
 
 ---
 
@@ -62,6 +63,10 @@ and a fresh autorelease pool per event), so a hand-rolled entry point is equival
 including why `NSDelegateClass` is consumed only on the storyboard path, and that
 `NSApplicationMain` keeps the delegate alive by never releasing it — is in
 [`Researchs/AppKit-NSApplicationMain-Internals.md`](../Researchs/AppKit-NSApplicationMain-Internals.md).
+
+The example app is the reference consumer: its hand-written `@main enum App` entry point sets
+`MainMenu.standard()` before `app.run()`. Its menu-only storyboard was deleted with Evolution
+[`0009`](Evolutions/0009-standard-main-menu.md).
 
 `standard()` produces the seven template menus — the application menu, File, Edit, Format, View,
 Window, Help — item for item, and performs all the system wiring the xib would (see
@@ -165,7 +170,9 @@ Every item `standard()` produces is addressable — the seven top-level menus, e
 items, and the nested groups' leaves, down to the Writing Direction section headers. The constants
 mirror the factory namespaces: top-level menus sit on the identifier itself (`.file`), a menu's
 content sits in a nested namespace named after it (`.File.new`, `.Application.settings`), and a
-group's own items nest one level further (`.Edit.Find.next`, `.Format.Font.Kern.tighten`).
+group's own items nest one level further (`.Edit.Find.next`, `.Format.Font.Kern.tighten`). The
+deeper spellings work through implicit member chains that walk the nested types, so the leading-dot
+form is available at every level.
 Inserting and replacing methods all have `@MenuBuilder` trailing-closure overloads. The contracts:
 
 - **Mutations apply immediately** — later queries see the transformed tree, like `UIMenuBuilder`.
@@ -369,3 +376,17 @@ asserts the assembled menus against it. Details that are easy to get wrong by me
   (Paragraph / Selection) and the **tab-prefixed** direction titles (`"\tDefault"`, …).
 - Items that carry a submenu report `submenuAction:` as their action — that is AppKit's
   `setSubmenu(_:)` doing it, on the xib path too.
+
+## Implementation Notes
+
+For maintainers changing the factories.
+
+- **A `customizing:` overload beside a `@MenuBuilder` content overload is safe, but not obviously
+  so.** A single-expression content closure such as `MainMenu.window { MainMenu.Window.minimize() }`
+  is *also* a valid `(Builder) -> Void`, so the two overloads could in principle steal each other's
+  call sites. Measured on Swift 6.2, they do not: overload resolution splits on whether the closure
+  takes a parameter. `MainMenuBuilderTests` keeps a canary on it — re-check it before adding an
+  overload of either shape.
+- **Standard selectors are built with `FoundationToolbox`'s `#Selector("…")` macro**, which
+  validates the literal at compile time. Never use `Selector("…")` (it warns) or
+  `NSSelectorFromString` (it is unchecked).

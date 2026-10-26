@@ -4,7 +4,8 @@
 > list on the left, a recent-project list on the right. Three styles imitate three Xcode generations.
 >
 > Ported from [Mx-Iris/WelcomeKit](https://github.com/Mx-Iris/WelcomeKit).
-> Ships behind the opt-in SPM trait `WelcomePanel`. macOS 11+ only.
+> Ships behind the opt-in SPM trait `WelcomePanel` (default: off); every source file is wrapped in
+> `#if WelcomePanel && os(macOS)`. macOS 11+ only. Pure AppKit, no private API.
 
 ---
 
@@ -108,7 +109,16 @@ captures of Xcode 26's own welcome window, one dark and one light (Evolution
 [`0012`](Evolutions/0012-xcode26-faithful-style.md), evidence in
 [`Researchs/Xcode26-WelcomeWindow-Internals.md`](../Researchs/Xcode26-WelcomeWindow-Internals.md)).
 Geometry is identical across appearances; only colours change, plus the icon glow, which exists in
-dark only.
+dark only — the light capture shows no glow at all. The existing `isDark ? shadow : nil` gate already
+covers that, so the style's default glow needs no branch of its own.
+
+Xcode's own window is a single `NSHostingView<IDEKit.WelcomeView>` in a borderless window, so there
+is nothing to copy structurally — but every surface it uses is reproducible with public AppKit. The
+blur in particular is `NSVisualEffectView.material = .fullScreenUI`, not private API: its backdrop
+chain (`colorSaturate` 1.8, tint 0.1569 @ 0.5, lighten layer 0.095, chameleon 0.05) matches the
+capture value for value, and no other material comes close. The capture's `gaussianBlur` radius of
+60 against the live 30 is a **unit difference**, not a mismatch — the capture reads the presentation
+layer in device pixels at 2× backing.
 
 ---
 
@@ -188,7 +198,8 @@ Smaller oddities kept as they were, listed so nobody "fixes" them by accident:
   that mode, so this works — it just reads as a mistake.
 
 One environment-dependent gap that is **not** a bug in the panel: the `.xcode14` close button's two
-images come from the package's asset catalog, and command-line `swift build` / `swift test` do not
+images (`WelcomePanelCloseButton` / `WelcomePanelCloseButtonHovered`) come from the package's asset
+catalog, `Sources/UIFoundationAppKit/Resources/Assets.xcassets`, and command-line `swift build` / `swift test` do not
 run `actool`. In a pure CLI build the images resolve to `nil` and the button draws empty. Apps built
 through Xcode are unaffected. This is the same trade-off the Filter resources already carry.
 
@@ -201,13 +212,14 @@ The port is behaviour-for-behaviour identical. What changed is shape and plumbin
 - **Namespace.** The six top-level names became one: `WelcomeConfiguration` →
   `WelcomePanelController.Configuration`, `WelcomeStyle` → `.Style`, `WelcomeAction` → `.Action`,
   `WelcomePanelDataSource` / `WelcomePanelDelegate` → `.DataSource` / `.Delegate`. Internal helpers
-  (`HoverButton`, the two side view controllers, the two cell views, the scroll view, the window)
-  are nested too, so they do not crowd `UIFoundationAppKit`'s module scope. No `typealias` is
+  (`Window`, `WelcomeViewController`, `ProjectsViewController`, `ActionCellView`,
+  `ProjectCellView`, `HoverButton`, `BackgroundScrollView`) are nested too, so they do not crowd `UIFoundationAppKit`'s module scope. No `typealias` is
   provided for the old names — they never existed in this library.
 - **Base classes.** The library's own `LayerBackedView`, `LayerBackedTableCellView`,
-  `XiblessViewController`, `ScrollView`, `Then`, `makeConstraints`, `.box.addSubview(_:fill:)`,
-  `.box.makeView(ofClass:)` and `.box.isDark` replaced the duplicates the original shipped —
-  about 500 of its 1444 lines, four of which collided outright with this library's top-level names.
+  `XiblessViewController`, `ScrollView`, `Then`, `makeConstraints` (`ConstraintMaker`),
+  `ArrayBuilder`, `.box.addSubview(_:fill:)`, `.box.makeView(ofClass:)` and `.box.isDark` replaced
+  the duplicates the original shipped — about 500 of its 1444 lines, four of which collided outright
+  with this library's top-level names. Deduping was therefore the price of entry, not a cleanup.
 - **Corner clipping is now explicit.** The original clipped whenever `cornerRadius != 0`; this
   library's `LayerBackgroundRenderer` clips on `clipsToBounds`, whose default is `false` for
   anything linked against macOS 14 or later. The rounded container and the pill cells therefore set

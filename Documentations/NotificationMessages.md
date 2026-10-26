@@ -5,6 +5,7 @@
 `NSWindow.DidBecomeKeyMessage`，窗口就在 `message.window` 上。`UIFoundationToolbox` 把这批消息搬到了本库支持的全部系统上：
 AppKit 137 个、UIKit 71 个，放在各自类型的 `Backport` 里，例如 `NSWindow.Backport.DidBecomeKeyMessage`。
 每个消息怎么从通知取值、怎么写回通知，都照苹果二进制的实现逐个复刻，并与苹果的实现逐个对照测试过。
+它不挂在任何 trait 后面，随 `UIFoundationToolbox` 一起编译。
 
 收发消息的通用机制（`addObserver(of:for:)`、`post`、观察 token、异步序列）来自 FrameworkToolbox 的
 `NotificationCenter.Backport`，它的契约见 FrameworkToolbox 的指南
@@ -159,7 +160,7 @@ watchOS（依赖的 AssociatedObject 在 watchOS 上编不过，与这批消息�
      - 键盘消息用 `makeNotification` 做出来、再 `post` 出去的通知，观察者收不到：写回去的是 Swift 值
        （`CGRect`、`UIView.AnimationCurve`），读的时候却要 `NSValue` / `NSNumber`。
 
-3. **经子类找不到父类的消息，要写声明它的那个类。** 子类自己也有 `Backport` 时，会遮住父类的：`NSComboBox.Backport.TextDidChangeMessage`
+3. **经子类找不到父类的消息，要写声明它的那个类。** 子类自己也有 `Backport` 时，会遮住父类的（编译探针实测）：`NSComboBox.Backport.TextDidChangeMessage`
    不存在，要写 `NSControl.Backport.TextDidChangeMessage`；苹果的 `NSComboBox.TextDidChangeMessage` 却能用。受影响的有四组：
    - `NSView` 的两个：经 `NSControl`、`NSScrollView`、`NSSplitView`、`NSTextView` 以及它们的子类都找不到。
    - `NSControl` 的三个：经 `NSComboBox`、`NSTableView`、`NSOutlineView`、`NSBrowser`、`NSPopUpButton`、`NSRuleEditor`、`NSScroller` 找不到。
@@ -168,7 +169,8 @@ watchOS（依赖的 AssociatedObject 在 watchOS 上编不过，与这批消息�
 
    自己没有 `Backport` 的子类照常能找到，例如 `NSStackView.Backport.FrameDidChangeMessage`。用标识符的写法（`.textDidChange`）不受影响。
    迁回原生时，`NSControl.Backport.TextDidChangeMessage` 删掉 `Backport.` 就是合法的原生写法，不必改回子类。
-   没有补 typealias 把它们接上，理由见提案的决策日志。
+   没有补 typealias 把它们接上（要补得写大约 110 个），这里选择写进文档而不是桥接，理由见提案的决策日志；
+   想补任何一个之前，先在提案里重新讨论这个决定。
 
 4. **要自己 `import FoundationToolbox`。** `addObserver(of:for:)`、`messages(of:for:)`、`post(_:subject:)` 和
    `NotificationCenter.Backport` 都声明在 FrameworkToolbox 的 `FoundationToolbox` 模块里，本库不重新导出它。
@@ -212,3 +214,42 @@ watchOS（依赖的 AssociatedObject 在 watchOS 上编不过，与这批消息�
    部署目标一到，它们自己就解析到苹果的版本。
 3. 为绕开契约 3 写成父类的地方（`NSControl.Backport.TextDidChangeMessage`），删掉 `Backport.` 后照样合法。
 4. 其余步骤（迭代器的 `next()` 补 `try` 之类）见 FrameworkToolbox 指南的「迁回原生 API」。
+
+## 实现说明 —— 看起来能简化、其实不能动的地方
+
+- **文件布局。** 每个主题类型一个文件：
+  `Sources/UIFoundationToolbox/{AppKit,UIKit}/NotificationMessages/<Subject>+NotificationMessages.swift`；
+  所有文件共用的约定写在 `Sources/UIFoundationToolbox/Shared/NotificationMessages.swift` 里。
+- **`Backport` 是直接加在 AppKit / UIKit 类上的嵌套类型，不是 `.box` 的成员。** 这是对本库「框架类型的扩展一律走 `.box`」
+  规则的刻意例外：迁移契约是「删掉 `Backport.` 就是苹果的写法」，与 FrameworkToolbox 的 Foundation 那批一致，放进 `.box` 就做不到。
+- **每个标识符上的 `@_disfavoredOverload` 是承重的（契约 6）。** 去掉它，客户端一 import 本库，苹果原生的简写
+  （macOS 27 上下文里的 `.didBecomeKey`）就报歧义。测试目标里的 `AppKitNotificationMessageShorthandGuard.swift` 和
+  `UIKitNotificationMessageShorthandGuard.swift` 在 `#available` 块里把每个标识符写一遍、丢弃结果；去掉这个属性，构建就在那里失败
+  （两个文件都验证过）。**结果必须保持丢弃**：赋给有类型的变量或数组时，参数类型会替编译器选好重载，守卫就悄悄失效了。
+- **行为照苹果的二进制复刻，不照 `.swiftinterface`。** AppKit 有 88 个消息的 `makeMessage` / `makeNotification` 来自 AppKit 内部协议的扩展，
+  `.swiftinterface` 里看不到；只看接口会以为它们用的是协议的默认实现，而那个默认实现返回 `nil`，什么都送不到。苹果通过这类协议共享
+  一份实现的地方，本库也共享一份，苹果有名字的就沿用它的名字（`StandardNSWindowMessage`、`KeyboardNotificationMessageProviding` 等）。
+  `makeNotification` 写回的运行时类型也照苹果：有的地方是 Swift 的 `Int` / `Bool` / `CGRect`，有的地方是 `NSNumber` / `NSValue`。
+  要改任何一处转换，先对照逆向报告。
+- **FrameworkToolbox 的最低版本是 0.15.0**，它是第一个带 `NotificationCenter.Backport`（以及 Foundation 那 32 个消息）的版本。
+  把下限调低，使用方就可能解析到 0.13.0 / 0.14.0，这批代码在那上面一个都编译不过。
+
+## 测试
+
+测试在 `Tests/UIFoundationTests/NotificationMessages/` 下。
+
+- **与苹果原生消息逐个对照，全部 208 个**：`name`；`makeMessage` 跑过每个 fixture 的各种变体（完整的、没有 object 的、object 是无关类的、
+  没有 `userInfo` 的、每个键缺失或类型不对的）；`makeNotification` 写出的内容，连值的类型一起比。`NSWorkspace` 以外的 AppKit 用例只在
+  macOS 27 SDK 下编译（`#if canImport(AppKit, _version: 2700)`），所以 Xcode 26 仍然能构建这个包。初始化要求 app 在运行的主题
+  （`UIScene`、`UIScreen`、`UIFocusSystem`）取自 `IdentityOnlyObjects`：不调 `init` 直接分配，整个测试运行期间一直持有。
+- **UIKit 的对照测试在 Mac Catalyst 上跑，不用模拟器**：
+
+  ```bash
+  xcodebuild test -scheme UIFoundation-Package -destination 'platform=macOS,variant=Mac Catalyst' \
+      -only-testing:UIFoundationTests/UIKitNotificationMessageParityTests
+  ```
+
+  跑之前和 `FilterResourcesTests` 一样，先把 `UIFoundation.xcworkspace` 暂时挪开（那个 workspace 只暴露示例 App 的 scheme）。
+- **端到端测试写出消息类型**（`for: NSWindow.Backport.DidResizeMessage.self`），不用简写：测试目标的部署目标一旦到了 27，
+  简写会悄悄去测苹果的实现（契约 6）。在测试进程里驱动 AppKit 对象有两处实测的坑：`NSToolbar` 插入条目后，要等有代码读一次 `items`
+  才发 `WillAddItem`（移除则立即发）；对从未显示过的窗口调 `setFrame(_:display:)`，只发 resize 不发 move —— 要 move 用 `setFrameOrigin(_:)`。
