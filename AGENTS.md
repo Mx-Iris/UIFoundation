@@ -1,1453 +1,512 @@
 # AGENTS.md
 
-This file provides guidance to coding agents when working with code in this repository.
+UIFoundation is a Swift package of foundational UI components and utilities on top of AppKit and
+UIKit: macOS (AppKit) first, with iOS, tvOS, visionOS and Mac Catalyst support. APIs are unstable
+and under active development. Every view and controller is built in code — no xib, no storyboard.
 
-## Overview
+- Swift tools 6.2, Swift 5 language mode (`swiftLanguageModes: [.v5]`). No linter or formatter;
+  style is convention only.
+- Platforms: macOS 12+, iOS 13+, Mac Catalyst 13+, tvOS 13+, visionOS 1+. The macOS floor is
+  AppKitPlus's and holds trait or no trait — [AppKitPlus.md](Documentations/AppKitPlus.md). No
+  watchOS: `AssociatedObject` does not build there.
 
-UIFoundation is a Swift package providing foundational UI components and utilities on top of AppKit/UIKit. It primarily targets macOS (AppKit) with cross-platform support for iOS, tvOS, visionOS, and Mac Catalyst. APIs are unstable and under active development.
+## Project map
 
-## Build & Test
+```
+UIFoundation                     umbrella product — @_exported imports the modules below
+├── UIFoundationAppKit           macOS only; most components live here
+├── UIFoundationUIKit            iOS / tvOS / visionOS / Catalyst
+├── UIFoundationShared           cross-platform views & controllers
+├── UIFoundationUtilities        property wrappers, DSLs, helpers
+├── UIFoundationToolbox          also a product of its own; extensions behind `.box`
+│   └── UIFoundationTypealias    NSUIView, NSUIColor, NSUIFont, …
+└── UIFoundationAppleInternal    `AppleInternal` trait — private API
+    ├── UIFoundationAppleInternalObjC   private AppKit / Core Animation headers
+    └── UIFoundationCarbonInternal      private HIToolbox / NSMenu headers
+
+UIFoundationSettings             `Settings` trait, macOS 14+; model layer
+UIFoundationSettingsUI           `Settings` trait, macOS 14+; window layer
+UIFoundationComponent            frame-computing layout system ported from lkzhao/UIComponent
+AppKitPlus (binary)              linked into UIFoundationAppKit and UIFoundationToolbox under the `AppKitPlus` trait
+```
+
+- `UIFoundationAppleInternal` **must not** reach an App Store target (`CABackdropLayer`, `CAFilter`,
+  `@_silgen_name` for private CoreGraphics symbols). It is not a product: consumers get it through
+  `import UIFoundation` with the trait on.
+- The Settings products and `UIFoundationComponent` stay outside the umbrella — the first to keep
+  macOS 14 off every consumer, the second because `Component` / `Spacer` collide with umbrella names
+  (Evolution [`0024`](Documentations/Evolutions/0024-component-layout-system.md)).
+- `Tests/UIFoundationTests/` — the one test target; coverage is sparse.
+- `UIFoundationExample-macOS/` — the demo browser app, plus the `ComponentLayoutExample` package.
+- `Documentations/` — one guide per component, indexed in `Documentations/README.md` (Chinese);
+  decision records in `Documentations/Evolutions/`.
+- `Researchs/` — reverse-engineering reports.
+- `AgentPlugins/uifoundation/` — the skills downstream agents install as the `uifoundation` plugin.
+
+| Dependency | Used for |
+|---|---|
+| `FrameworkToolbox` (Mx-Iris) | the `.box` namespace; `NotificationCenter.Backport` (module `FoundationToolbox`); `Mutex` (module `OSToolbox`) |
+| `AssociatedObject` (p-x9) | the `@AssociatedObject` macro |
+| `AppKitPlus` (AppKitSupportProgram, **binary**) | UIKit APIs ported to AppKit, behind the `AppKitPlus` trait (default off) |
+
+`Package.swift` declares dependencies through a custom `.package(local:remote:)` helper. Consumed as
+a dependency (`#filePath` containing `/checkouts/`, `/SourcePackages/` or `/.build/`) it always uses
+the remote; for local development set `isEnabled: true` on a local path entry and keep the sibling
+repo on disk.
+
+<important if="you need to build, test, or run this package or the example app">
 
 ```bash
 swift package update && swift build 2>&1 | xcsift
 swift package update && swift test 2>&1 | xcsift
 swift build 2>&1 | xcsift --print-warnings
+swift test --filter UIFoundationTests.testName 2>&1 | xcsift      # one test
+swift build --traits FilterUI 2>&1 | xcsift                       # one opt-in trait; same for swift test
 
-# Every opt-in trait at once. Collisions between trait-gated sources only appear here --
-# see the AppKitPlus section for why a single-trait build is not enough.
+# Every opt-in trait at once. Collisions between trait-gated sources only show up here.
 swift build --traits AppKitPlus,AppleInternal,FilterUI,IDEIcons,Navigation,NSAttributedStringBuilder,QuickActionBar,Settings,SpotlightPanel,StatusItemController,SystemHUD,TabBar,WelcomePanel 2>&1 | xcsift
+
+# Example app
+xcodebuild -project UIFoundationExample-macOS/UIFoundationExample-macOS.xcodeproj -scheme UIFoundationExample-macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build 2>&1 | xcsift
+
+# The next two run through Xcode. Move UIFoundation.xcworkspace aside first — it only exposes the example schemes.
+# Asset catalogs: swift build / swift test never run actool, so catalog lookups return nil there.
+xcodebuild -scheme UIFoundation-Package -destination "platform=macOS" test -only-testing:UIFoundationTests/FilterResourcesTests
+# UIKit notification-message parity: Mac Catalyst, never a simulator.
+xcodebuild test -scheme UIFoundation-Package -destination 'platform=macOS,variant=Mac Catalyst' -only-testing:UIFoundationTests/UIKitNotificationMessageParityTests
 ```
 
-- Always run `swift package update` before building to avoid stale dependency checkouts — **then check `git status`, because a plain update deletes the `AppKitPlus-Release` pin from the tracked `Package.resolved`** (it prints `Removing …/AppKitPlus-Release`): that dependency exists only under the `AppKitPlus` trait, and the update resolves without traits.
-  - If that pin is the only change, `git checkout -- Package.resolved` before building; the full-trait build then uses the pin as committed.
-  - Passing traits is no way around it: `swift package --traits … update` and `swift package --enable-all-traits update` both fail with `exhausted attempts to resolve the dependencies graph … 'appkitplus-release'` and change nothing (measured).
-  - Don't rebuild with the trait to put the pin back. Without a pin, resolution takes the newest AppKitPlus in range — a silent bump the moment a newer release exists, and a bump needs the collision re-check described in the **AppKitPlus** section.
-- Swift tools version: 6.2, language mode: Swift 5 (`swiftLanguageModes: [.v5]`)
-- Platforms: macOS 12+, iOS 13+, macCatalyst 13+, tvOS 13+, visionOS 1+ (the macOS floor is AppKitPlus's — see the **AppKitPlus** section)
-- Test target: `UIFoundationTests` (minimal coverage — test suite is sparse)
-- Run a single test: `swift test --filter UIFoundationTests.testName 2>&1 | xcsift`
+- **`swift package update` deletes the `AppKitPlus-Release` pin from the tracked `Package.resolved`**
+  (it prints `Removing …/AppKitPlus-Release`): the dependency exists only under the `AppKitPlus`
+  trait, and the update resolves without traits. Check `git status` after every update; if the pin is
+  the only change, `git checkout -- Package.resolved` before building.
+  - Passing traits is no way around it: `swift package --traits … update` and
+    `swift package --enable-all-traits update` both fail with `exhausted attempts to resolve the
+    dependencies graph … 'appkitplus-release'` and change nothing (measured).
+  - Don't rebuild with the trait to put the pin back. Without a pin, resolution takes the newest
+    AppKitPlus in range — a silent bump, and a bump needs the collision re-check in
+    [AppKitPlus.md](Documentations/AppKitPlus.md).
+- `xcodebuild` has no trait flag: under Xcode the consuming project or scheme picks the traits.
+</important>
 
-### Swift Testing: never compare a `CGFloat` against a `Double` inside `#expect`
+<important if="you are writing or modifying tests">
 
-Measured on this toolchain (macOS 26, swift-testing bundled with Swift 6.2): inside `#expect`, a
-`CGFloat` compared against a **`Double` variable** reports **false even when the two hold the same
-value**, and the failure message prints both sides identically (`(cornerRadius → 8.0) == (plainDouble
-→ 8.0)`). The identical comparison outside the macro is `true` — SE-0307's implicit CGFloat↔Double
-conversion does not survive the macro's operand capture.
+- **Never compare a `CGFloat` against a `Double` inside `#expect`.** Measured on macOS 26 with the
+  swift-testing bundled with Swift 6.2: with `expected: Double`, `#expect(cornerRadius == expected)`
+  fails even when both hold 8.0, and the message prints both sides identically. The same `==` outside
+  the macro is `true` — SE-0307's implicit conversion does not survive the macro's operand capture.
+  Type both sides the same (`[(Style, CGFloat)]` tables, `CGFloat(...)`); bare literals are fine.
+  Most of the suite asserts geometry, so this comes up.
+- **Anything Liquid-Glass-shaped needs a real app bundle to verify.** A `swift build` / `swift test`
+  binary carries its deployment target as the `LC_BUILD_VERSION` `sdk` (measured: `sdk 15.0` against
+  the example app's `27.0`), and AppKit gates the macOS 26+ look on it — toolbar platters do not
+  exist in a command-line run. Assert on AppKit state instead. To see it, `vtool -set-build-version
+  macos <minos> 27.0 -replace` the binary into a hand-built `.app`, re-sign ad hoc, and copy the
+  SwiftPM resource bundles into `Contents/Resources/`.
+- Testing traps specific to one component are in that component's guide.
+</important>
 
-```swift
-let cornerRadius: CGFloat = 8
-let expected: Double = 8
-cornerRadius == expected            // true
-#expect(cornerRadius == expected)   // FAILS
-#expect(cornerRadius == 8.0)        // passes — an untyped literal infers as CGFloat
+## Components
+
+<important if="you are using, changing, reviewing or testing one of the components below">
+
+A component's guide is the single home for its contracts and for the implementation details that
+look simplifiable but are not. **Read it before changing the component, and update it in the same
+commit.** Folders are under `Sources/`; the sentence after each link is the trap that fails silently.
+
+No trait:
+
+- **Layer background** — `UIFoundationAppKit/Base/` — [LayerBackground.md](Documentations/LayerBackground.md).
+  On macOS 27.2 setting `cornerRadius` turns `clipsToBounds` on, so a rounded host trims its subviews
+  and any `.center` / `.outside` border.
+- **MainMenu** — `UIFoundationAppKit/Menu/` — [MainMenu.md](Documentations/MainMenu.md). A
+  storyboard-free app loses `@main` on its delegate: no delegate is created and no window appears
+  unless the entry point is written by hand.
+- **Toolbar DSL and `NSToolbar.Navigation`** — `UIFoundationAppKit/Toolbar/` —
+  [ToolbarNavigation.md](Documentations/ToolbarNavigation.md). An action on the navigation
+  segmented control makes a click open the menu and single-step back / forward disappears; a typed
+  `actionBlock` must stay computed, since `didSet` never fires from an initializer.
+- **AsyncDocument** — `UIFoundationAppKit/Document/`, `UIFoundationToolbox/AppKit/NSDocument+.swift`
+  — [AsyncDocument.md](Documentations/AsyncDocument.md). `write` / `readSnapshot` must never hop to
+  the main thread: NSDocument is often blocking it, waiting for them.
+- **Typed notification messages** — `UIFoundationToolbox/{AppKit,UIKit}/NotificationMessages/` —
+  [NotificationMessages.md](Documentations/NotificationMessages.md). Every identifier is
+  `@_disfavoredOverload`; dropping it makes Apple's own shorthand ambiguous for every client, and the
+  shorthand guards' results must stay discarded or they stop guarding.
+- **TextFinder** — `UIFoundationAppKit/TextFinder/` — [TextFinder.md](Documentations/TextFinder.md).
+  Never call `textFinder.performAction(_:)` directly; through anything but
+  `textFinderClient.performTextFinderAction(_:)` it searches an index that was never built.
+- **Self-sizing row views**, **view DSLs** — blocks below.
+
+Opt-in traits (wiring in the trait block below):
+
+- **AppKitPlus** (`AppKitPlus`) — [AppKitPlus.md](Documentations/AppKitPlus.md). See the
+  view-class and AppKitPlus blocks below.
+- **Navigation** (`Navigation`) — `UIFoundationAppKit/Navigation/` —
+  [Navigation.md](Documentations/Navigation.md). The container owns page frames; a page constrained
+  from outside slides back mid-transition. Transitions assign final values in an implicit-animation
+  group — never `CABasicAnimation` — which is what keeps the interactive pop steppable.
+- **TabBar** (`TabBar`) — `UIFoundationAppKit/TabBar/` — [TabBar.md](Documentations/TabBar.md). A
+  host that owns the selection must call `selectItemAtIndex(_:)` inside `tabBar(_:didCloseItem:)`;
+  decoration views must return `nil` from `hitTest(_:)` or the close button dies under the macOS 27 SDK.
+- **QuickActionBar** (`QuickActionBar`) — `UIFoundationAppKit/QuickActionBar/` —
+  [QuickActionBar.md](Documentations/QuickActionBar.md). In a test process the window never becomes
+  key, so send `cancelOperation:` instead of an Escape key-down, and keep the content source alive or
+  `ResultsView.buildShortcuts()` traps.
+- **FilterUI** (`FilterUI`) — `UIFoundationAppKit/Filter/`, `UIFoundationAppleInternal/Filter/` —
+  [FilterUI.md](Documentations/FilterUI.md). Its asset lookups return `nil` under `swift build` /
+  `swift test` (no `actool`); test the resource path through `xcodebuild`.
+- **SystemHUD** (`SystemHUD`) — `UIFoundationAppKit/SystemHUD/` — [SystemHUD.md](Documentations/SystemHUD.md).
+  The fade stays an `NSAnimation` on a `.common`-mode timer; `NSAnimationContext` changes the feel.
+- **WelcomePanel** (`WelcomePanel`) — `UIFoundationAppKit/WelcomePanel/` —
+  [WelcomePanel.md](Documentations/WelcomePanel.md). Rounded corners rest on explicit
+  `clipsToBounds = true` and the list insets on `.sourceList`; remove either and they vanish.
+- **Settings window** (`Settings`) — `UIFoundationSettings/`, `UIFoundationSettingsUI/` —
+  [SettingsWindow.md](Documentations/SettingsWindow.md). `accessPersistedValues()` must read every
+  encoded property; a change to one it skips never schedules an auto-save.
+- **SpotlightPanel** (`SpotlightPanel`, enables `AppleInternal` + `Navigation`) —
+  `UIFoundationAppleInternal/SpotlightPanel/` — [SpotlightPanel.md](Documentations/SpotlightPanel.md).
+  The window stays borderless: `.titled` draws a second platter 40 pt outside the real one.
+- **StatusItemController** (`StatusItemController`), **NSAttributedStringBuilder**
+  (`NSAttributedStringBuilder`) — blocks below. **IDEIcons** (`IDEIcons`) —
+  `UIFoundationShared/IDEIcons/`, no guide.
+
+`AppleInternal` (private API):
+
+- **Glass effect replica** — `UIFoundationAppleInternal/GlassEffect/` —
+  [GlassEffectReplica.md](Documentations/GlassEffectReplica.md). SwiftUI rewrites the backdrop group
+  name when the window becomes key; the `GroupPinnedBackdropLayer` class swap is what holds it.
+- **Row height estimation** — `UIFoundationAppleInternal/TableView/` —
+  [TableViewRowHeightEstimation.md](Documentations/TableViewRowHeightEstimation.md). Every
+  `setDelegate:` — Rx delegate proxies included — turns estimation back on; turn it off in the
+  `delegate` setter.
+- **Scroll pockets** — `UIFoundationAppleInternal/ScrollView/` — [ScrollPockets.md](Documentations/ScrollPockets.md).
+  Insetting content only through the clip view leaves the bottom pocket 0 pt tall.
+- **Custom tooltips** — `UIFoundationAppleInternal/Tooltip/` — [CustomToolTip.md](Documentations/CustomToolTip.md).
+  `install()` is reference-counted, so every `install()` needs its `uninstall()`; hook methods cannot
+  be `@MainActor` and reach the manager through `MainActor.assumeIsolated`.
+- **Semantic context** — `view._semanticContext = NSViewSemanticContextForm` (`NSView_Private.h`)
+  gives a subtree the System Settings grouped-form look. It inherits, so set it once on the container;
+  it is read at draw time; only `Form` (macOS 13+) is a stable name and number. Report:
+  [AppKit-NSView-SemanticContext.md](Researchs/AppKit-NSView-SemanticContext.md).
+</important>
+
+<important if="you are adding, enabling or editing an opt-in trait, or code gated on one">
+
+- Traits, all default off: `AppKitPlus`, `AppleInternal`, `FilterUI`, `IDEIcons`, `Navigation`,
+  `NSAttributedStringBuilder`, `QuickActionBar`, `Settings`, `SpotlightPanel` (enables `AppleInternal`
+  and `Navigation`), `StatusItemController`, `SystemHUD`, `TabBar`, `WelcomePanel`. Consumers opt in
+  with `.package(url: "…/UIFoundation", traits: ["TabBar"])`.
+- SwiftPM 6.2 exposes each trait as a compilation condition — `#if TabBar` needs no `.define`. Every
+  source file of a gated feature is wrapped whole; macOS-only features add a platform condition
+  (`#if TabBar && os(macOS)`) so an accidental enable elsewhere compiles to nothing.
+- Resources cannot be trait-gated: a gated feature's catalogs and `.lproj`s ship with the trait off
+  too, which is harmless.
+- A collision between two gated sources appears only with every trait on: use the full-trait build,
+  and build the example app.
+</important>
+
+<important if="you are adding a view or view controller, or subclassing an AppKit class">
+
 ```
-
-It fails loudly rather than passing wrongly, so it cannot hide a bug — but it will send you hunting
-for one that isn't there. **Type both sides the same**: annotate expectation tables as
-`[(Style, CGFloat)]`, or wrap with `CGFloat(...)`. Bare literals are fine. This matters here because
-most of the suite asserts geometry.
-
-## Architecture
-
-### Products
-
-- **UIFoundation** — Umbrella library re-exporting all public sub-modules via `@_exported import`
-- **UIFoundationToolbox** — Standalone extensions and utilities (usable independently)
-- **UIFoundationAppleInternal** — Private API wrappers (**must not** be linked in App Store targets; uses `CABackdropLayer`, `CAFilter`, `@_silgen_name` for private CoreGraphics symbols). **Not a product of its own** — it is a conditional dependency of the `UIFoundation` umbrella gated on the `AppleInternal` trait, so consumers reach it through `import UIFoundation` rather than by linking anything extra.
-
-### Module Dependency Graph
-
-```
-UIFoundation (umbrella: @_exported imports)
-├── UIFoundationAppKit       (macOS only)
-│   └── AppKitPlus           (binary, only with the `AppKitPlus` trait)
-├── UIFoundationUIKit        (iOS/tvOS/visionOS/Catalyst)
-├── UIFoundationShared       (cross-platform views & controllers)
-├── UIFoundationUtilities    (property wrappers, DSLs, helpers)
-└── UIFoundationToolbox      (extensions via .box namespace)
-    ├── UIFoundationTypealias
-    └── AppKitPlus           (binary, only with the `AppKitPlus` trait)
-
-UIFoundationAppleInternal    (separate product)
-└── UIFoundationAppleInternalObjC  (private ObjC headers)
-```
-
-### External Dependencies
-
-| Package | Usage |
-|---------|-------|
-| `FrameworkToolbox` (Mx-Iris) | Provides the `.box` namespace pattern for conflict-free extensions, (module `FoundationToolbox`) the `NotificationCenter.Backport` machinery the typed notification messages are built on, and (module `OSToolbox`) `Mutex`, the one lock this package uses — see **Code Style Notes** |
-| `AssociatedObject` (p-x9) | `@AssociatedObject` macro for runtime-associated properties |
-| `AppKitPlus` (AppKitSupportProgram, **binary**) | UIKit APIs ported to AppKit. Behind the `AppKitPlus` trait (default: off); supplies `NSLayerBackedView`, the base class `LayerBackedView` adopts when the trait is on |
-
-### Local/Remote Dependency Switching
-
-`Package.swift` has a custom `.package(local:remote:)` helper. When the package is consumed as a dependency (detected via `#filePath` containing `/checkouts/`, `/SourcePackages/`, or `/.build/`), it always uses remote. For local development, set `isEnabled: true` on a local path entry and ensure the sibling repo exists on disk.
-
-## Key Patterns & Conventions
-
-### Cross-Platform Typealias
-
-`UIFoundationTypealias` defines `NSUIView`, `NSUIColor`, `NSUIFont`, etc. All cross-platform code uses these aliases instead of `#if canImport` branching. Platform guard: `#if canImport(AppKit) && !targetEnvironment(macCatalyst)`.
-
-**Caveat**: Stack-view alignment intentionally does **not** use a `NSUI*` typealias — the two platforms' native types (`NSLayoutConstraint.Attribute` vs `UIStackView.Alignment`) have mismatched semantics (most notably, AppKit has no `.fill`). Instead, `UIFoundationShared` ships a unified `StackViewAlignment` enum which both `HStackView` / `VStackView` consume; it maps internally to each platform's native value, and emulates `.fill` on AppKit by setting `NSStackView.alignment = .notAnAttribute` and pinning each arranged subview's cross-axis edges (respecting `edgeInsets`). Defaults (`hStackDefaultValue` / `vStackDefaultValue`) are kept platform-specific to preserve historical behavior: `.center` on AppKit, `.fill` on UIKit.
-
-### View Base Class Hierarchy
-
-All views and controllers are created in code (no Xib/Storyboard):
-
-```
-NSView  ·or·  NSLayerBackedView   (the latter with the `AppKitPlus` trait on)
- └── LayerBackedView      (wantsLayer=true, updateLayer path, setup(), firstLayout())
-      └── XiblessView     (init?(coder:) marked @available(*, unavailable))
-
-NSViewController ·or· NSLayerBackedViewController   (the latter with the trait on)
+NSView ·or· NSLayerBackedView                    (the latter with the AppKitPlus trait on)
+ └── LayerBackedView       renders in updateLayer(); override setup() and firstLayout()
+      └── XiblessView      init?(coder:) unavailable
+NSViewController ·or· NSLayerBackedViewController
  └── LayerBackedViewController<View: LayerBackedView>
+XiblessViewController<View: NSUIView>            contentView from an @autoclosure factory, set in loadView()
 ```
 
-The base class is a `LayerBackedViewBase` typealias resolved by the `AppKitPlus` trait; see the
-**AppKitPlus** section for what changes and what deliberately does not. The guard is spelled
-`#if AppKitPlus && canImport(AppKitPlus)` — the trait being on does not by itself guarantee the
-module is linked (an Xcode consumer can enable the trait without the product reaching this target),
-and without the `canImport` half that combination fails on the `import` rather than falling back to
-`NSView`.
-
-- `LayerBackedView` uses `wantsUpdateLayer = true` + `updateLayer()` for rendering (not `draw(_:)`). It conforms to `LayerBackgroundProviding` and inherits `cornerRadius` / `backgroundColor` / `border*` / `shadow*` / `shadowPath` from there.
-- `setup()` — subclass override point for initialization, called from both `init(frame:)` and `init?(coder:)`.
-- `firstLayout()` — called exactly once on first `layout()`, using a `lazy var _firstLayout: Void` trick. Use for size-dependent setup.
-- Controllers: `XiblessViewController<View: NSUIView>` takes a generic `contentView` via `@autoclosure` factory, assigned in `loadView()`.
-- `LayerBackedViewController<View: LayerBackedView>` (`Controller/LayerBackedViewController.swift`) is
-  the controller-side counterpart, same `contentView` shape, base class resolved by the same trait
-  guard (`LayerBackedViewControllerBase`). Decision record is Evolution
-  [`0018`](Documentations/Evolutions/0018-layer-backed-view-controller.md). Three things to know:
-  - **Overriding `loadView()` is safe.** `NSLayerBackedViewController` does its wiring in
-    `-setView:` — the view's back reference, the layout guides, the additional safe-area insets,
-    the safe-area KVO — not in `-loadView`, so assigning `view` keeps all six of its hooks
-    attached. `LayerBackedViewControllerTests` keeps a canary on it through `layerBackedView`,
-    which goes `nil` exactly when that path stopped recognising the root view.
-  - **Only two of the six hooks survive the trait being off.** `viewWillFirstAppear` /
-    `viewDidFirstAppear` are polyfilled here (driven from `viewWillAppear()` / `viewDidAppear()`,
-    `super` first then the flag then the hook, matching AppKitPlus). `viewWillFirstLayout` /
-    `viewDidFirstLayout` / `viewUpdateLayer` / `viewSafeAreaInsetsDidChange` are driven by the view
-    and are **not** polyfilled — a subclass overriding one of those must wrap the override in
-    `#if AppKitPlus && canImport(AppKitPlus)` or it will not compile with the trait off.
-  - The overridden `loadView()` reproduces the one thing AppKitPlus's own does besides installing
-    the view: `autoresizingMask = [.width, .height]`. `XiblessViewController` does not do this and
-    was deliberately left alone.
-
-### `LayerBackgroundRenderer` & `LayerBackgroundProviding`
-
-`LayerBackedView` is implemented as a thin shell over a reusable rendering helper so the same `cornerRadius` / `backgroundColor` / `border*` / `shadow*` pipeline can be dropped onto any `NSView` subclass that cannot inherit from `LayerBackedView` (typically `NSTableCellView`, `NSCollectionViewItem.view`, etc.).
-
-Three pieces live under `Sources/UIFoundationAppKit/Base/`:
-
-1. **`LayerBackgroundRenderer`** (`LayerBackgroundRenderer.swift`) — opaque rendering object. Holds all configuration properties + `BorderPositions` / `BorderLocation` types + the `CAShapeLayer` border sublayer. Drives the layer in `updateLayer()` / `layout()`, and triggers `owner.needsDisplay = true` on every property change. Internally weak-references its host via `attach(to:)`, which also flips `wantsLayer = true` and `layerContentsRedrawPolicy = .onSetNeedsDisplay`.
-2. **`LayerBackgroundProviding`** (`LayerBackgroundProviding.swift`) — `@MainActor` protocol constrained to `NSView`. Its sole requirement is `isLayerBackingEnabled` (`Bool`), which the extension defaults to `true` — override it to opt a conformer out of the pipeline. The protocol extension provides:
-   - `backgroundRenderer` as a `@AssociatedObject(.retain(.nonatomic))`-backed property (from the `AssociatedObject` macro package) — lazily initialised on first access, completely hidden from conformers.
-   - All forwarding properties (`cornerRadius`, `cornerCurve`, `backgroundColor`, `border*`, `shadow*`, `shadowPath`) plumbing into the renderer.
-   - `attachToSelfIfNeeded()` — bind the renderer to the conforming view (call once after `super.init`); gated on `isLayerBackingEnabled`.
-   - `updateLayerBackgroundIfNeeded()` / `layoutLayerBackgroundIfNeeded()` — hooks to call from the conformer's `updateLayer()` / `layout()` overrides (no-ops when `isLayerBackingEnabled` is `false`).
-3. **`LayerBackedView`** — conforms to `LayerBackgroundProviding` and wires `attachToSelfIfNeeded()` / `updateLayerBackgroundIfNeeded()` / `layoutLayerBackgroundIfNeeded()` automatically. Subclasses still override `setup()` / `firstLayout()` only.
-
-**Composition example (`NSTableCellView`):**
-
-```swift
-final class MyCell: NSTableCellView, LayerBackgroundProviding {
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        attachToSelfIfNeeded()        // enables layer backing, installs renderer
-        cornerRadius = 10             // protocol forwarding properties
-        backgroundColor = .controlBackgroundColor
-        borderPositions = .all
-        borderColor = .separatorColor
-        borderWidth = 1
-    }
-    required init?(coder: NSCoder) { super.init(coder: coder); attachToSelfIfNeeded() }
-
-    override var wantsUpdateLayer: Bool { true }
-    override func updateLayer() { super.updateLayer(); updateLayerBackgroundIfNeeded() }
-    override func layout()      { super.layout();      layoutLayerBackgroundIfNeeded() }
-}
-```
-
-A working demo lives at `UIFoundationExample-macOS/UIFoundationExample-macOS/Demos/LayerBackgroundDemoViewController.swift` (`LayerBackgroundDemoViewController` / `LayerBackgroundCell`); it is one entry in the demo browser (see the **Example App** section).
-
-**Caveats / trade-offs:**
-
-- Because protocol extensions cannot use `@IBInspectable`, the forwarding properties are **not editable in Interface Builder**. `@IBDesignable` still works on `LayerBackedView` itself, but the panel won't show `cornerRadius`, `borderColor`, etc. (Project policy is code-only views, so this is intentional.)
-- `NSView.shadow` is a stored property on `NSView`; protocol-extension dispatch is shadowed by the class-hierarchy lookup. If you want `view.shadow = nsShadow` to fan out to `shadowColor` / `shadowOffset` / `shadowRadius`, override `shadow` explicitly on the conformer (mirroring `LayerBackgroundRenderer.shadow`).
-- Conformers that already define their own `backgroundColor` (e.g. `NSTextField`, `NSTableView`) will collide with the protocol default. Don't conform those classes — they were never the target of this pipeline.
-- **A continuous full border is the border layer's own border, not a stroked path.** `cornerCurve` (`.circular` by default) goes onto the backing layer, so the fill, the mask and a pathless shadow follow it. A border stroked along a path cannot: Core Animation has no API that hands out the continuous corner as a path, and `NSBezierPath` only knows circular arcs. So when `cornerCurve == .continuous`, `cornerRadius > 0` and `borderPositions == .all`, the `CAShapeLayer` gets no path and draws its own `borderWidth` / `borderColor`, which follow its `cornerCurve`. Its frame is the host's bounds inset by `borderInsets` and grown by 0, half a border width or a whole one for `.inside` / `.center` / `.outside`, and its radius grows by the same amount. Circular corners and partial borders still stroke a path, unchanged. Evolution [`0031`](Documentations/Evolutions/0031-layer-background-corner-curve.md).
-- **On macOS 27.2 a rounded host clips, whatever `clipsToBounds` was** (measured). AppKit turns `clipsToBounds` on whenever a backing layer's `cornerRadius` changes — assigning the same value again leaves it alone, and turning it back off afterwards sticks — and `updateLayer()` copies `clipsToBounds` into `masksToBounds` right after assigning the radius. So the host's rounded mask trims its subviews and its border sublayer: a `.center` or `.outside` border loses the part outside the bounds unless the conformer turns `clipsToBounds` off once the radius has reached the layer. Not compensated for here; noted as a follow-up in the Evolution above.
-- **Test the pipeline on rendered pixels, against clipped references.** `CALayer.render(in:)` draws the rounded background of a layer that does not mask to its bounds up to 1.5 pt outside the curve (circular radius 20: the top row starts at column 31 at 2×, where the geometry and a clipped layer both give 34), so a fill used as a reference must be clipped. `LayerBackgroundCornerCurveTests` shows the setup, including how to turn clipping off for good when a test needs the outer half of a border.
-
-### AppKitPlus (`AppKitPlus` trait)
-
-[AppKitPlus](https://github.com/AppKitSupportProgram/AppKitPlus-Release) ports UIKit's APIs onto
-AppKit. It ships as a **binary** `.xcframework` (dynamic framework, library evolution on) behind the
-opt-in trait `AppKitPlus` (default: off). Two uses here: `NSLayerBackedView`, which
-`LayerBackedView` inherits from when the trait is on — see **View Base Class Hierarchy**; decision
-record is Evolution [`0017`](Documentations/Evolutions/0017-appkitplus-layer-backed-view.md). And
-`UIFoundationToolbox` stepping aside for AppKitPlus's own `NSEdgeInsets: Equatable` (see below).
-
-**`NSEdgeInsets`'s `Equatable` and `==` are compiled only with the trait off**
-(`UIFoundationToolbox/AppKit/NSEdgeInsets+.swift`). AppKitPlus declares the same conformance, as UIKit
-does for `UIEdgeInsets`; two copies make `==` ambiguous in every module importing both. `Hashable`
-stays here and uses AppKitPlus's `==` — which is why `UIFoundationToolbox` depends on the product
-under the trait. The README tells consumers who link AppKitPlus to turn the trait on; with AppKitPlus
-linked and the trait off, the ambiguity is theirs.
-**That conformance first ships in AppKitPlus 0.6.0** (0.5.0's `.swiftinterface` has none), which is
-why the version floor below is 0.6.0. Lower it again and a trait-on build that resolves an older
-AppKitPlus fails on `Hashable` for want of `Equatable`.
-
-**The package's macOS floor is 12 because of this dependency, trait or no trait.** A binary target's
-platform requirement is checked on the package graph, so neither `@available` nor a compilation
-condition can hold the floor at 10.15 while the trait merely *exists* — measured:
-`error: the library 'UIFoundation' requires macos 10.15, but depends on the product 'AppKitPlus'
-which requires macos 12.0`. The "keep the floor down, annotate each declaration" trick that
-`UIFoundationSettings` (macOS 14) uses works only for
-source targets.
-
-**With the trait off, SPM does not fetch it at all** — no `Package.resolved` entry, no clone, no
-download. Measured. Default consumers pay nothing beyond the floor.
-
-**The version floor is 0.6.0, for the `NSEdgeInsets` conformance above; the two releases the earlier
-raises excluded both failed silently.** Through 0.1.6 an
-`NSView (Appearance)` category declared `backgroundColor`, which shadows
-`LayerBackgroundProviding`'s property of the same name — the renderer simply stops receiving the
-value, in this module *and* in every downstream one, and `LayerBackedTableCellView` was hit too
-despite not inheriting the new base class. 0.1.6 also lowered content compression resistance to 500.
-Through 0.2.0 `NSCollectionViewItem` / `NSTableCellView` carried an extension property named
-`contentView`; 0.2.1 renamed it `configurationContentView`. `LayerBackedViewBaseClassTests` keeps a
-canary on the first two.
-
-**The contract that bites, and it bites downstream too: a subclass may not declare a property whose
-name AppKitPlus already added to that class.** Swift treats it as an illegal override —
-`overriding non-open property outside of its defining module` — not as shadowing, and this is *not*
-an ObjC-bridging artefact: `@nonobjc` on the extension property does not help (measured on a
-pure-Swift probe). Worse, it **travels with the module**: a target that only `import UIFoundation`
-and never imports AppKitPlus still inherits the collision, so every consumer that turns this trait on
-lives under the same restriction. Three names were already hit and renamed here:
-
-| Where | Was | Now | Collides with |
-|-------|-----|-----|---------------|
-| `QuickActionBar.ResultsTableView` | `parent` | `resultsView` | `NSFocusItem.parent`, via `NSView (Focus)` |
-| Example app's `NavigationDemoViewController` | `navigationController` | `navigationStackController` | `NSViewController.navigationController` |
-| `XiblessCollectionViewItem` | `contentView` | *(unchanged)* | fixed upstream in 0.2.1 instead |
-
-The third row is the one to imitate: `contentView` is a name any `NSCollectionViewItem` /
-`NSTableCellView` subclass wants, so it was fixed in AppKitPlus rather than worked around here.
-When a collision is on a name this library owns and downstreams also want, prefer the upstream fix.
-
-**When bumping AppKitPlus, re-check the collision surface before anything else.** The hosts that
-matter are `NSView`, `NSViewController`, `NSTableCellView`, `NSTableRowView`, `NSCollectionViewItem`,
-`NSControl`, `NSButton`, `NSMenuItem`, `NSToolbarItem`, `NSWindow`, `NSTableView`, `NSOutlineView`,
-`NSCollectionView`, `NSEvent`, `NSCell`. `from:` is up-to-next-major even for `0.x`, so a 0.3.0 will
-be picked up automatically — the constraint does not make the bump safe.
-
-**Verify with every trait on, not just this one.** `swift build --traits AppKitPlus` compiles a
-subset that misses these collisions entirely: the `parent` one lives in `QuickActionBar` sources and
-only surfaces when both traits are on. Use the full list, and build the example app — that is what
-caught the `navigationController` collision.
-
-**Do not survey that surface through `AppKitPlus.swiftinterface` — it cannot show you most of it.**
-Most of AppKitPlus's AppKit surface ships as **Objective-C categories**, and a category never appears
-in a `.swiftinterface`. Measured: the 0.4.4 interface (2432 lines) contains no `extension AppKit.NSView`
-whatsoever, while the sources carry **17** `NSView` categories (`Geometry`, `ViewHierarchy`,
-`Appearance`, `Interactions`, `Animation`, `Focus`, `UpdateProperties`, `TraitEnvironment`,
-`Accessories`, `NavigationSupport`, …) and 8 on `NSViewController`. Evolution 0024 drew the opposite
-conclusion from that same interface file and was wrong — the correction is recorded in its research
-section. **Grep the public headers instead**:
-`grep -rn "^@interface NSView (" <AppKitPlus checkout>/AppKitPlus/**/*.h`.
-
-Three of those members are live collision hazards on any `NSView` subclass: `center`, `transform`
-and `contentMode`, all on `NSView (Geometry)`. This library is immune only because its own spellings
-live behind `.box` — `FrameworkToolbox<NSUIView>.center` is a different declaration site, which is
-exactly what that namespace is for. Verified: no `NSView` subclass in `UIFoundationComponent` or
-`UIFoundationToolbox` declares any of the three.
-
-**0.6.0 added five more, on `NSLayerBackedView` itself**: `layoutMargins`, `directionalLayoutMargins`,
-`preservesSuperviewLayoutMargins`, `insetsLayoutMarginsFromSafeArea` and `layoutMarginsDidChange()`.
-With the trait on every `LayerBackedView` subclass inherits them, so a subclass that declares one
-compiles with the trait off and fails with it on (`cannot override with a stored property
-'layoutMargins'`, measured on a probe). None in this repo or the example app declares one (checked at
-the bump). 0.6.0 also brought Swift extensions with UIKit spellings — `NSEdgeInsets.zero`,
-`NSDirectionalEdgeInsets.zero`, `Codable` on both inset types, and `NSBezierPath`'s
-`init(roundedRect:cornerRadius:)` / `addLine(to:)` / `addArc(withCenter:…)` — which repeat names in
-`LayerBackgroundRenderer.swift` (`package` `NSEdgeInsets.zero`) and `NVActivityIndicatorShape.swift`
-(internal `NSBezierPath` helpers). Both still compile without ambiguity in the full-trait build, tests
-included, and neither is public, so neither reaches a consumer.
-
-One category removes work rather than adding it. `NSView (UpdateProperties)` ships
-`setNeedsUpdateProperties` / `updateProperties` / `updatePropertiesIfNeeded` with **automatic
-Observation tracking** on macOS 14+ (`withObservationTracking`, re-armed through a main-queue hop
-because `onChange` fires on `willSet`), driven by a per-instance dynamic subclass rather than a
-process-wide swizzle. AppKit has no equivalent of UIKit's `updateProperties()` of its own — measured,
-zero hits across the macOS 27 SDK's AppKit headers. Before hand-rolling an observation-driven rebuild,
-check whether this trait is already on.
-
-### Semantic Context (`AppleInternal` trait)
-
-`NSView_Private.h` declares `NSViewSemanticContext` — the private hint that tells AppKit controls
-what surface they sit on. Its most useful value is `NSViewSemanticContextForm`, which produces the
-System Settings grouped-form look: a pop-up button drops its bezel and shrinks to a label plus a
-chevron. There is no public equivalent; SwiftUI's `Form` reaches for this same property.
-
-```objc
-view._semanticContext = NSViewSemanticContextForm;   // whole subtree follows
-```
-
-Three things to know before using it:
-
-- **Inheritance is built in.** `_semanticContext` is a view's own value (`0` = unset);
-  `_effectiveSemanticContext` is what is actually in force after walking up superviews, then the
-  window. Set it once on the container holding a group of controls, not on each control.
-- **It is read at draw time.** Changing it on a live hierarchy needs a redraw. Setting it during
-  view setup needs nothing extra.
-- **Only `Form` is a stable name and number.** It comes from WebKit's SPI header, is macOS 13+, and
-  WebKit still hardcodes it. Every other member name in our enum is ours, recovered from the binary;
-  the numbering has demonstrably shifted across OS releases, so re-verify before relying on one.
-
-Full write-up — the whole enum, the AppKit call site that pins each value, the inheritance
-algorithm, the `NSCell` fallback used when drawing without a view, and how WebKit consumes it:
-[`Researchs/AppKit-NSView-SemanticContext.md`](Researchs/AppKit-NSView-SemanticContext.md).
-
-### Glass effect replica (`AppleInternal` trait)
-
-From macOS 26 `NSSplitViewController` wraps a sidebar / inspector item in an `NSGlassEffectView`
-(private `_variant` 17 / 18) whose colour the window server composes live, so nothing placed inside
-it matches it — not a colour, not a material, and not a second glass, which samples the outer
-glass's output and tints it again. `GlassEffectReplicaView` is the one thing that does match: it
-copies the enclosing glass's configuration (`NSGlassEffectView.matchGlassConfiguration(of:)`) and
-joins its Core Animation backdrop group (`glassBackdropGroupName`), which makes it pixel-identical
-and opaque. Three things to know before reaching for it:
-
-- **It only works inside a glass's content, and only after a run loop turn.** SwiftUI builds the
-  glass's layers asynchronously — and builds them *again* whenever the view re-enters a window —
-  so the replica polls at frame rate for two seconds after entering a window or a key-state
-  change, pinning whatever layer is current, and re-checks in `layout()`. The first frame is one
-  tint step off, so install it in a page that is off screen or covered when it appears, never at
-  the moment a transition starts.
-- **Copy the variant off a live view; never hardcode 17.** The numbering is not contractual.
-  `NSGlassEffectView_Private.h` types all seven private settings. Their constant names are ours,
-  since C enum names never reach a binary — except `_NSGlassEffectViewAdaptiveAppearance`'s, which
-  AppKit prints itself. The tables were read identically off 26.6 and 27.0; see
-  `Researchs/AppKit-NSGlassEffectView-PrivateConfiguration.md`. Two traps: the split view's sidebar
-  is 17, `.abuttedSidebar` — not 16, `.sidebar`. And an out-of-range `_interactionState` or
-  `_adaptiveAppearance` terminates the process inside the setter. The subvariant string constants
-  (`_NSGlassEffectViewSubvariant…`, the 31 names both 26.6 and 27.0 accept) are this library's,
-  defined in `NSGlassEffectView_Private.m`; AppKit has none, so a new one needs a definition there,
-  not just an `extern`.
-- **`_backdropGroupName` and `_groupIdentifier` do not name the group.** Both store an ivar and
-  SwiftUI keeps its own `SwiftUI:<identity>` name; the group has to be written on the
-  `CABackdropLayer` itself, after it exists. Measured, so do not retry it.
-- **And writing it once is not enough either.** SwiftUI writes its own name back onto the same
-  layer when the window becomes key (measured: shared `485` → own `773`). The replica swaps the
-  layer's class for `GroupPinnedBackdropLayer`, which answers every later write with the pinned
-  name — the KVO trick. Do not "simplify" that back to a plain assignment.
-- **macOS 27's `effectIsInteractive` is copied through key-value coding, and the direct spelling is
-  not an option.** Its declaration exists only in the macOS 27 SDK, so naming the property — inside
-  an `if #available(macOS 27.0, *)` included — fails to compile under Xcode 26.x, which is still the
-  shipping Xcode; `#available` gates the runtime, it does not conjure a declaration. The copy goes
-  through `NSGlassEffectView.isEffectInteractive` (`Bool?`, `nil` where AppKit lacks it), and the
-  `isInteractiveEffectSupported` probe guarding it is load-bearing rather than defensive: KVC against
-  an absent key raises `NSUnknownKeyException`, which Swift cannot catch — measured, it terminates
-  the process on macOS 26.5.
-
-Guide: [`Documentations/GlassEffectReplica.md`](Documentations/GlassEffectReplica.md). Evidence:
-[`Researchs/AppKit-NSGlassEffectView-SplitViewItem-Internals.md`](Researchs/AppKit-NSGlassEffectView-SplitViewItem-Internals.md).
-
-### Row height estimation (`AppleInternal` trait)
-
-`NSTableView.box.estimatesRowHeights` reads and writes AppKit's private `_estimatesRowHeights`. A
-table whose rows differ in height — in a source list, group rows alone do it, since every group row
-after the first gets 13 pt above it — places the rows it has not measured at an estimated height and
-corrects the estimate as it goes. In an outline that also has expandable items, a reload or a
-disclosure far down leaves part of the visible rows at the old estimate, and the next scroll draws
-rows over them; measured identically on 15.5, 26.6.2 and 27.0. Three things to know:
-
-- **Setting the delegate turns estimation back on.** `-[NSOutlineView setDelegate:]` ends with
-  `_setEstimatesRowHeights:YES` on every change of delegate, and delegate proxies (RxCocoa,
-  RxAppKit) re-assign the delegate on their own. Turn it off in the `delegate` setter of a subclass,
-  not once after binding.
-- **Switching it does not move the rows on screen.** AppKit discards its row geometry but neither
-  reloads nor re-places the row views it has, so rows placed from an estimate stay put until the
-  next `reloadData()`. Switch before the table shows rows — the `delegate` setter above qualifies —
-  or reload after switching. `-_setEstimatesRowHeights:` does contain a `reloadData` call, but it
-  tests flags that `-invalidate` has just cleared, so it never runs (measured: zero calls).
-- **Not the `NSTableViewCanEstimateRowHeights` default.** It works too, but for every table in the
-  process, and it is cached after its first read.
-
-A test fixture for it needs an expandable item: without one, AppKit places every row correctly even
-while estimating (measured). Guide:
-[`Documentations/TableViewRowHeightEstimation.md`](Documentations/TableViewRowHeightEstimation.md).
-Evidence: [`Researchs/AppKit-NSTableView-RowHeightEstimation-Internals.md`](Researchs/AppKit-NSTableView-RowHeightEstimation-Internals.md).
-
-### Scroll pockets (`AppleInternal` trait)
-
-From macOS 26 AppKit fades content out where it scrolls under a bar — the scroll edge effect, drawn by an
-`NSScrollPocket` view the scroll view adds along an edge. AppKit arranges it for the title bar and for split view item
-accessories only; a bar of your own floating over a list gets it through `NSScrollView.box`:
-`registerScrollPocketContainer(_:on:)` / `unregisterScrollPocketContainer(_:on:)`, `alwaysShownScrollPocketEdges`,
-`scrollPocketStyle(on:)` / `setScrollPocketStyle(_:on:)` and the read-only `scrollPocket(on:)`. A registered bar answers
-`NSView.barScrollPocketElementStyle` (2) from an override of `_scrollPocketElementStyle`, as Xcode's bars do. Three
-things to know, all measured on macOS 27.2:
-
-- **The bottom pocket is as tall as the scroll view's own bottom content inset, not its clip view's.** A scroll view
-  whose content is inset through its clip view alone gets a bottom pocket 0 points tall, while its rows still clear
-  the bar — nothing looks wrong but the effect is gone. Keep the scroll view's own automatic insets on and let the bar
-  reach it as safe area. The top pocket follows the top safe area inset, not a content inset.
-- **The bottom pocket exists only while a container is registered on that edge or the edge is always shown.** Unregister
-  a container that stops floating over the edge; 27.2 has no way to list the containers back.
-- **Private methods disappear between point releases.** macOS 27.0's `_registeredPocketContainersOnEdge:` is gone from
-  27.2 and raises `unrecognized selector`, so every call checks `instancesRespond(to:)` first — keep it that way, and
-  re-read the `_scrollPocketElementStyle` values (`ScrollPocketTests` pins them) on a new OS.
-
-Guide: [`Documentations/ScrollPockets.md`](Documentations/ScrollPockets.md). Evidence:
-[`Researchs/AppKit-NSScrollView-ScrollPocket-Internals.md`](Researchs/AppKit-NSScrollView-ScrollPocket-Internals.md).
-
-### `.box` Namespace Extensions
-
-All extensions on framework types go through the `.box` namespace (from FrameworkToolbox) to avoid naming collisions:
-
-```swift
-tableView.box.makeView(ofClass: MyCell.self)
-button.box.setAction { sender in ... }
-```
-
-`UIFoundationToolbox.swift` uses `@_exported import FrameworkToolbox` to propagate the `.box` accessor to all downstream modules.
-
-**Two "first launch only" restorers live here**, both shaped the same way — register an autosave
-name, and apply a fallback only when there is nothing stored:
-`NSWindow.box.restoreFrame(autosaveName:defaultSize:centerInScreen:)` and
-`NSSplitView.box.restoreDividerPositions(autosaveName:initialPositions:)` (decision record is
-Evolution [`0020`](Documentations/Evolutions/0020-splitview-autosave-initial-positions.md)).
-Three things about the split-view one, all measured on macOS 26.5.2 AppKit:
-
-- **"The key exists" is not the same question as "the layout will be restored", and asking the
-  first one is the bug.** `_walkLayoutDescriptionArray:withFrameHandler:` silently declines unless
-  the stored entry count still equals `arrangedSubviews.count`, so shipping a version that adds a
-  pane leaves a key behind that will never be restored — a `array(forKey:) != nil` check reads that
-  as "not the first launch" and skips the initial positions too, landing on AppKit's even split.
-  `hasRestorableDividerPositions(autosaveName:)` replicates AppKit's whole check and is public for
-  hosts that need the answer for something else.
-- **Re-assigning the same `autosaveName` restores nothing.** `-[NSSplitView setAutosaveName:]`
-  hangs the restore off an `isEqualToString:` guard, so the implementation clears the name before
-  setting it. Don't "simplify" that pair away.
-- **There is no `@resultBuilder` spelling, and it is not an oversight.** Measured on Swift 6.2: a
-  bare implicit member chain inside a result-builder closure cannot resolve its contextual type
-  (generic builder, non-generic builder, `buildPartialBlock` and variadic `buildBlock` all fail
-  alike), so a builder would force `NSSplitView.InitialDividerPosition.distanceFromStart(…)` in
-  full at every line. An array literal keeps the leading-dot form.
-
-### Typed notification messages (`<Subject>.Backport`)
-
-Apple's macOS 27 AppKit and iOS 26 UIKit SDKs declare typed notification messages —
-`NSWindow.DidBecomeKeyMessage` with the identifier `.didBecomeKey`, and so on. `UIFoundationToolbox`
-backports 137 AppKit and 71 UIKit ones to every OS this package supports, as
-`<Subject>.Backport.<AppleName>Message`, on top of FrameworkToolbox's `NotificationCenter.Backport`
-(module `FoundationToolbox`, which also carries Foundation's own 32). One file per subject type:
-`Sources/UIFoundationToolbox/{AppKit,UIKit}/NotificationMessages/<Subject>+NotificationMessages.swift`;
-the shared conventions are spelled out in `Shared/NotificationMessages.swift`. No trait. Decision record
-is Evolution [`0027`](Documentations/Evolutions/0027-appkit-uikit-notification-messages.md);
-the binary evidence for every message is
-[`Researchs/AppKit-UIKit-NotificationMessages-Internals.md`](Researchs/AppKit-UIKit-NotificationMessages-Internals.md).
-
-- **`Backport` is a nested type added straight onto AppKit / UIKit classes, not a `.box` member** — a
-  deliberate exception to the rule above. The migration contract is "delete `Backport.` and you have
-  Apple's spelling", the same as FrameworkToolbox's Foundation batch.
-- **Every identifier is `@_disfavoredOverload`, and it is load-bearing.** Without it, Apple's own
-  shorthand (`.didBecomeKey` in a macOS 27 context) turns ambiguous as soon as a client imports this
-  package. `AppKitNotificationMessageShorthandGuard.swift` and `UIKitNotificationMessageShorthandGuard.swift`
-  write every identifier once inside `#available`, result discarded; dropping the attribute fails the
-  build there (checked on both). Keep the results discarded: assigned to a typed variable or array, the
-  parameter type picks the overload and the guard silently stops guarding.
-- **Behaviour is copied from Apple's binaries, not from the `.swiftinterface`.** 88 AppKit messages get
-  `makeMessage` / `makeNotification` from extensions of AppKit-internal protocols the interface does not
-  show, so read naively they seem to use the protocol default — which returns `nil` and would deliver
-  nothing. Where Apple shares one implementation through such a protocol, so does this package, under
-  Apple's name where it has one (`StandardNSWindowMessage`, `KeyboardNotificationMessageProviding`, …). A
-  message with properties returns `nil` when any required value is missing or mistyped, unlike most of
-  the Foundation batch, and `makeNotification` writes the runtime types Apple writes (a Swift `Int` /
-  `Bool` / `CGRect` in one place, an `NSNumber` / `NSValue` in another). Change a conversion only against
-  the research report.
-- **Availability follows the notification constant, not Apple's 26 / 27**; Apple's per-platform
-  unavailability and deprecations are copied. Not ported: `UIDocument.DidMoveToWritableLocationMessage`
-  and `UIApplication.SystemPrefersReducedResourceUsageDidChangeMessage`, whose constants are themselves
-  iOS 26 / 27. Nothing on watchOS — this package does not build for it (AssociatedObject fails there).
-- **A subclass's own `Backport` hides its superclass's** (measured on a probe):
-  `NSComboBox.Backport.TextDidChangeMessage` does not exist, `NSControl.Backport.TextDidChangeMessage`
-  does. Four groups are affected — `NSView`, `NSControl`, `NSWindow`, `UIResponder` — listed in the
-  guide. It is documented rather than bridged with ~110 typealiases; reopen that decision in the proposal
-  before adding any.
-- **`FoundationToolbox` is not re-exported.** Clients with `MemberImportVisibility` need
-  `import FoundationToolbox` for `addObserver(of:for:)`; re-exporting would push its whole API into
-  `import UIFoundation`.
-- **The FrameworkToolbox floor is 0.15.0**, the first release carrying `NotificationCenter.Backport`
-  (and Foundation's 32 messages). Lowering it lets a consumer resolve 0.13.0 / 0.14.0, where none of
-  this compiles.
-
-Tests live in `Tests/UIFoundationTests/NotificationMessages/`:
-
-- **Parity with Apple's own messages, all 208**: `name`; `makeMessage` over each fixture's variants
-  (complete, no object, an object of an unrelated class, no user info, each key missing or mistyped);
-  `makeNotification`'s contents, value types included. The AppKit cases outside `NSWorkspace` compile
-  only against the macOS 27 SDK (`#if canImport(AppKit, _version: 2700)`), so Xcode 26 still builds the
-  package. Subjects whose initializers need a running app (`UIScene`, `UIScreen`, `UIFocusSystem`) come
-  from `IdentityOnlyObjects` — allocated without `init`, kept alive for the whole run.
-- **UIKit parity runs on Mac Catalyst, never a simulator**:
-  `xcodebuild test -scheme UIFoundation-Package -destination 'platform=macOS,variant=Mac Catalyst'
-  -only-testing:UIFoundationTests/UIKitNotificationMessageParityTests`, with `UIFoundation.xcworkspace`
-  moved aside as for `FilterResourcesTests`.
-- **End-to-end tests spell the message type** (`for: NSWindow.Backport.DidResizeMessage.self`), never the
-  shorthand: once the test target's deployment target reaches 27, a shorthand would quietly test Apple's
-  implementation. Two measured traps when driving AppKit objects in the test process: `NSToolbar` posts
-  `WillAddItem` only once something reads `items` after the insertion (a removal posts at once), and
-  `setFrame(_:display:)` on a window that was never ordered in posts the resize but not the move —
-  `setFrameOrigin(_:)` posts the move.
-
-Guide: [`Documentations/NotificationMessages.md`](Documentations/NotificationMessages.md).
-
-### `@ViewInvalidating` Property Wrapper
-
-Auto-triggers view invalidation on property changes. Uses Swift's `_enclosingInstance` subscript (not standard `wrappedValue`) to access the owning view. Supports combining multiple invalidation types:
-
-```swift
-@ViewInvalidating(.display)
-open dynamic var cornerRadius: CGFloat = 0
-
-@ViewInvalidating(.display, .layout)
-open dynamic var someProperty: CGFloat = 0
-```
-
-Multi-invalidation is implemented via nested `Invalidations.Tuple<I1, I2>` types with up to 10 parameter overloads. AppKit-only extras: `.restorableState`, `.reloadData` (requires view to conform to `ViewReloading`).
-
-### `@resultBuilder` DSLs
-
-- **`@ViewHierarchyBuilder`** — Declarative view hierarchy construction. Core types: `ViewItem<View>` (supports `@dynamicMemberLookup` for property config), `ControllerItem<VC>` (handles `addChild`), `LayoutGuideItem`.
-- **`HStackView` / `VStackView`** — Use `@ArrayBuilder<StackViewComponent>` (from FrameworkToolbox), not a custom builder. `Spacer(spacing:)` and `MaxSpacer()` are special views recognized internally. Alignment uses the cross-platform `StackViewAlignment` enum (see typealias caveat above). Stack-specific per-view modifiers live behind the `.stackView` namespace (a plain wrapper struct, not the FrameworkToolbox `.box` machinery): `view.stackView.fill()` pins cross-axis edges (AppKit + UIKit), `.stackView.customSpacing(_:)` (cross-platform), `.stackView.gravity(_:)` / `.stackView.visibilityPriority(_:)` (macOS-only). They store values via `@AssociatedObject` (read back during stack assembly). General-purpose layout helpers (`size` / `minSize` / `maxSize` / `contentHugging` / `contentCompressionResistance`) moved to `.box` in **UIFoundationToolbox** (`NSUIView+SizeConstraints.swift`); `NSUIStackView` configuration (`distribution` / `alignment` / `spacing` / `stackPadding` / `hugging` / `clippingResistance` / `edgeInsets` / `detachesHiddenViews`) moved to `.box` in `StackView+Box.swift`. The old direct-on-view methods are retained but `@available(*, deprecated)` pointing at the new namespaces.
-- **`GridView` / `GridRow` (NSGridView DSL, macOS-only)** — Declarative `NSGridView` construction: `GridView(rowSpacing:columnSpacing:xPlacement:yPlacement:rowAlignment:) { GridRow { … } }`. The convenience init lives on `NSGridView`, so the existing `GridView` subclass inherits it (and its `setup()` still fires). Three result builders: `GridContentBuilder` → `[GridRow]`, `GridRowContentBuilder` → `[GridCell]` (a bare `NSView` expression is folded into a `GridCell`), `GridColumnBuilder` → `[GridColumn]` (consumed by the chained `.columns { … }`). `GridCell` / `GridColumn` are value types with chained modifiers; `GridCell.empty` is a blank cell. Per-view cell modifiers live behind the `.gridView` namespace: `view.gridView.columns(_:)` / `.gridView.rows(_:)` for spanning, plus `.gridView.xPlacement` / `.yPlacement` / `.rowAlignment` / `.placementConstraints` — stored on the view via `@AssociatedObject` and read back during assembly. `GridCell` carries the identical modifier set (`columns` / `rows` / `xPlacement` / …). The old direct `gridCell*` methods on `NSView` are retained but `@available(*, deprecated)` pointing at `.gridView`. Row props are inline on `GridRow` (`.height` / `.topPadding` / `.bottomPadding` / `.padding` / `.yPlacement` / `.rowAlignment` / `.hidden`); column props are positional via `.columns { GridColumn().width(…) … }`. Spanning is resolved by a 2-D occupancy grid that pads with `NSGridCell.emptyContentView` and runs `mergeCells(inHorizontalRange:verticalRange:)` once after all rows are added (merge ranges are clamped to the grid's dimensions and never overlap, so the auto-expansion trap can't fire). Files: `Sources/UIFoundationAppKit/Base/Grid{Cell,Row,Column}.swift` + `GridView+Builder.swift` + `GridViewNamespace.swift` + `NSView+GridCell.swift`. **Caveats** (see the `nsgridview-layout` skill): `gridCellPlacementConstraints` is mutually exclusive with `xPlacement`/`yPlacement`; a grid- or row-level `rowAlignment` other than `.none` suppresses per-cell `yPlacement`; don't `.hidden()` a row that participates in a merge.
-
-### `Then` Protocol
-
-Internal protocol duplicated in each module (`UIFoundationAppKit`, `UIFoundationShared`, `UIFoundationUtilities`, `UIFoundationUIKit`) — not publicly exported. All `NSObject` subclasses get `.then { }`, `.with { }`, `.do { }`, `.as { }` via `extension NSObject: Then {}`.
-
-### Target-Action as Closures
-
-`TargetActionProvider` + `ActionTrampoline<T>` (an NSObject holding a `(T) -> Void` closure as `@objc func invoke(_:)`). Stored on the provider via `@AssociatedObject`. Conformers: `NSControl`, `NSCell`, `NSToolbarItem`, `NSMenuItem`, `NSGestureRecognizer`, `NSColorPanel`.
-
-**Note**: `NSControl` has two coexisting action APIs with separate associated keys — legacy `.box.setAction { sender in ... }` (untyped `ActionHandler`) and type-safe `.box.actionBlock` (via `TargetActionProvider`).
-
-### `@MagicViewLoading` / `@MagicWindowLoading`
-
-Property wrappers using `_enclosingInstance` subscript: on **get**, calls `loadViewIfNeeded()` / `loadWindowIfNeeded()` then returns the stored value. The stored value is force-unwrapped — subclasses must assign these properties in `setup()` or `loadView()` before any external access.
-
-### `ConstraintMaker`
-
-`makeConstraints { make in ... }` returns activated `[NSLayoutConstraint]` where `make` is the view itself (no proxy object needed).
-
-### Factory Methods
-
-`TableViewProtocol` / `OutlineViewProtocol` provide `scrollableTableView()` / `scrollableSingleColumnOutlineView()` static factories returning `(NSScrollView, Self)` tuples.
-
-### Main Menu — `MainMenu`
-
-`Sources/UIFoundationAppKit/Menu/MainMenu*.swift` builds the standard macOS main menu in code — the
-menu bar Xcode's template ships as `MainMenu.xib`, item for item. No trait (pure public AppKit,
-like the rest of the Menu DSL). Decision record is Evolution
-[`0009`](Documentations/Evolutions/0009-standard-main-menu.md).
-
-Four levels: `MainMenu.standard()` is the whole template bar; `MainMenu.standard { builder in … }`
-amends single items in place — every standard item down to the nested groups' leaves carries a
-`MainMenu.ItemIdentifier` (a `RawRepresentable` struct, same shape as `UIMenu.Identifier`; the
-constants mirror the factory namespaces — `.file` for the top-level menu, `.File.new` for its
-content, `.Edit.Find.next` / `.Format.Font.Kern.tighten` for group leaves, relying on implicit
-member chains through nested types), and
-`MainMenu.Builder` is `UIMenuBuilder` translated to AppKit (`item(for:)`, four-way `insertItems`,
-`replace(_:with:)`, `replaceItems(of:from:)`, `remove(_:)`; UIKit's menu/action/command kinds all
-collapse to `NSMenuItem`, so its three addressing schemes collapse to one — Evolution
-[`0010`](Documentations/Evolutions/0010-main-menu-builder.md)). Builder contracts: mutations apply
-immediately, absent identifiers are silent no-ops, the transformation runs **before** the wiring
-(removing `.window` leaves no stale `windowsMenu`), and touched menus get orphaned separators
-normalized afterwards.
-
-**`customizing:` is not `standard()`'s alone — every factory producing a submenu with more than one
-row takes it** (`menu(_:customizing:)` as a second trailing closure, the seven top-level menus, and
-the seven group factories `Edit.find` / `spellingAndGrammar` / `substitutions` / `transformations` /
-`speech` / `Format.font` / `text` — Evolution
-[`0013`](Documentations/Evolutions/0013-main-menu-factory-customizing.md)).
-The transformation is scoped to what that call produces, which is the point: an amendment written on
-`MainMenu.file` cannot reach the Edit menu. Two things follow. **A factory-level builder also
-addresses the item the factory returns** — the only way to retitle a group, since group factories
-take no `title` parameter — but nothing within its reach *contains* that item, so
-`insertItems(_:before:)` / `insertItems(_:after:)` / `replace(_:with:)` / `remove(_:)` aimed at it
-are silent no-ops. And **the layers do not leak**: `standard()` builds from the plain factories, so
-a customization written on `MainMenu.file { … }` elsewhere describes a different File menu object.
-Three factories deliberately have no such overload — `Application.services()` (empty submenu, AppKit
-fills it), `File.openRecent()` (one row), and the single-item factories. Adding a `customizing:`
-overload beside a `@MenuBuilder` content overload is safe **but not obviously so**: a
-single-expression content closure such as `MainMenu.window { MainMenu.Window.minimize() }` is *also*
-a valid `(Builder) -> Void`, so the two overloads could steal each other's call sites. Measured on
-Swift 6.2: they do not — resolution splits on whether the closure takes a parameter, and
-`MainMenuBuilderTests` keeps a canary on it. `MainMenu.menu { … }` composes top-level menus (`MainMenu.application()` /
-`.file()` / `.edit()` / `.format()` / `.view()` / `.window()` / `.help()`, each with a builder
-overload that replaces its content) mixed with fully custom `NSMenuItem`s; nested namespaces
-(`MainMenu.File.close()`, `MainMenu.Edit.find()`, …) carry every standard single item so rewrites
-never re-type a selector or tag. Standard selectors are built with `FoundationToolbox`'s
-`#Selector("…")` macro — never `Selector("…")` (warns) or `NSSelectorFromString` (unchecked); the
-macro validates the literal at compile time.
-
-**Wiring happens at assembly, not in factories.** The xib's `systemMenu` markers have no public
-equivalent, so `standard()` / `menu {}` scan the finished menu for `MainMenu.ItemIdentifier` tags
-and wire Services → `NSApp.servicesMenu`, Font → `NSFontManager.setFontMenu(_:)`, Window →
-`NSApp.windowsMenu`, Help → `NSApp.helpMenu`. Item factories touch no global state; a hand-built
-menu opts in by attaching the identifier. Open Recent is the one unwireable piece (no public
-counterpart to `recentDocuments`, which is a private menu *name* NSDocumentController adopts
-by lookup — decompile walkthrough in `Researchs/AppKit-OpenRecentMenu-Internals.md`) — it is
-**not** part of the standard File menu: document-based apps get the system's own inserted next to
-`openDocument:` (shipping ours too showed two), non-document apps get none; the
-`File.openRecent()` factory remains for hosts that fill it themselves. Standard content
-deliberately omits everything AppKit inserts on its own (Edit's dictation/emoji items, Window's
-tab items, Help's search field, the document-app File-menu injections) — adding them manually
-duplicates them. Content is asserted verbatim against a template-xib
-dump by `MainMenuTests`; fidelity traps (`print:` not `printDocument:`, `performFindPanelAction:`
-tags, five Font items targeting `NSFontManager` directly) are listed in the guide.
-
-**Going storyboard-free forfeits `@main` on the app delegate.** `@main` on an
-`NSApplicationDelegate` synthesizes a call to `NSApplicationMain`, which instantiates and connects
-the delegate only through the principal storyboard/nib (unlike UIKit, it takes no delegate class
-name). With the storyboard gone the delegate is never created — the process runs but no window
-appears (measured in the example app). A storyboard-free app must hand-write its entry point:
-create the delegate, assign it (hold it strongly — `NSApplication.delegate` is weak), set the
-activation policy and `MainMenu.standard()`, then `run()`, with the pre-`run()` setup wrapped in
-`autoreleasepool` the way `NSApplicationMain` drains one over loading. Nothing else needs
-replicating — `-[NSApplication run]` does the rest of the launch initialization on its own;
-the decompile walkthrough is
-[`Researchs/AppKit-NSApplicationMain-Internals.md`](Researchs/AppKit-NSApplicationMain-Internals.md).
-
-**Full guide:** `Documentations/MainMenu.md`. The example app is the reference consumer: its
-`@main enum App` entry point sets `MainMenu.standard()` before `app.run()` (the menu-only
-storyboard was deleted with Evolution 0009).
-
-### Toolbar DSL — `NSToolbar.Navigation`
-
-`Sources/UIFoundationAppKit/Toolbar/` holds a builder-style `NSToolbar` API: an `ToolbarItem` base
-class plus chained modifiers, with subclasses `NSToolbar.Button` / `.Item` / `.Group` / `.Menu` /
-`.PopUpButton` / `.Search` / `.SegmentedControl` / `.View` / `.TrackingSeparator` / **`.Navigation`**.
-No trait — it ships unconditionally on macOS.
-
-**The base is two classes, and which one an item derives from is the whole design.** `ToolbarItem`
-carries what every item has (the `NSToolbarItem` forwarding properties, `isBordered` and
-`isNavigational` among them); `ActionableToolbarItem` adds `target` / `action`, their three chained
-modifiers (`target(_:)` / `action(_:)` / `target(_:action:)`) and the trampoline backing each
-subclass's typed `actionBlock`, all resolved against one overridable `actionHost` — the item itself
-by default, the hosted control for `Button` / `PopUpButton` / `SegmentedControl`. Decision record is
-Evolution [`0019`](Documentations/Evolutions/0019-toolbar-item-action-and-bordered.md).
-
-`Search`, `TrackingSeparator` and **`Navigation` deliberately derive from `ToolbarItem` directly**,
-which is the only reason the middle class exists rather than these members living on the common
-base. Measured on macOS 26: `NSToolbarItem` forwards `target`, `action` *and* `isBordered` to its
-custom view (AppKit's header scopes `isBordered` to items *without* one — the setter forwards
-anyway). `Navigation`'s custom view **is** the segmented control whose target/action is wired once
-in `init` and must stay unreachable, so putting the pair on `ToolbarItem` would hand out exactly the
-door that item's design closes — see the `NSToolbar.Navigation` notes below. `ToolbarItemActionTests`
-keeps a canary on both the forwarding and the three classes staying outside the hierarchy.
-
-**Do not turn a typed `actionBlock` back into a stored property with a `didSet`.** A property
-observer does not fire for an assignment made inside an initializer (measured), so that shape made
-every `init(…, action:)` store the closure and wire nothing — `Item` and `Button` shipped broken
-that way, and `SegmentedControl` only escaped because its `commonInit()` called the installer a
-second time. The computed-property-over-private-storage shape is what makes the initializer
-parameter work at all.
-
-Two chained modifiers are deprecated in favour of the base-class spelling: `NSToolbar.Item`'s and
-`NSToolbar.Button`'s `bordered(_:)` both point at `isBordered(_:)` (which matches the existing
-`isDefault(_:)` / `isSelectable(_:)` / `isEnabled(_:)` naming). They reach the same place — the
-button one wrote `NSButton.isBordered`, and the item property forwards there.
-
-`NSToolbar.Navigation` is a Safari-style back / forward pair in one item, because AppKit has none.
-Decision record is Evolution
-[`0004`](Documentations/Evolutions/0004-appkit-navigation-toolbar-item.md).
-
-**Data is pulled, never pushed.** There is no `reloadHistory()` and its absence is the design:
-`NSToolbarItem` already validates on the toolbar's validation cycle, so `validate()` re-asks the
-data source whether each direction is live and how deep its history is. A host that changes its own
-history has nothing to remember to call. Row *contents* are pulled later, in `menuNeedsUpdate(_:)`,
-only while a menu is opening — per-row icon resolution must not land on the event loop, while
-whether a menu exists at all has to be settled *before* the press.
-
-Two AppKit behaviours are held structurally rather than by comment:
-
-- **A segment menu opens on an ordinary click when the control's `action` is `nil`**, instead of on
-  a long press — single-step navigation silently disappears. The `NSSegmentedControl` is
-  **internal**, so `target` / `action` are wired once in `init` and there is no typed door to reach
-  them through afterwards. (It is internal rather than `private` because the tests need it;
-  `private` would buy nothing anyway, since AppKit needs the view on the item and `item.view` leads
-  there for anyone who casts it — a hole no design can close.) To cause a click, call
-  `performNavigation(in:)` — which is also where a host's ⌘[ / ⌘] main-menu items should land, since
-  `NSToolbarItem` has no key equivalents.
-- **An empty `NSMenu` still pops, as a blank box.** An empty direction gets
-  `setMenu(nil, forSegment:)`, never a menu with no rows.
-
-**The appearance is the library's, not the host's.** No styling API and no forwarding properties:
-two segments, `.momentary`, `.separated`, direction-aware chevrons, no menu indicator,
-`isNavigational` on macOS 11+. Don't add a `segmentStyle` / `controlSize` passthrough "for
-flexibility" — the control they'd forward to is the same one carrying the action, and a navigation
-pair has one correct look. The only host-facing text is `backwardTitle` / `forwardTitle`, which
-exist for localization (they become the tooltips and the chevrons' accessibility descriptions).
-
-Two measurements worth not re-deriving:
-
-- **Attaching a menu does not raise a pull-down indicator.** Measured on macOS 26:
-  `showsMenuIndicator(forSegment:)` is `false` on a fresh control and stays `false` across
-  `setMenu(_:forSegment:)`. The often-repeated third "gotcha" does not reproduce. The item sets it
-  off once as a statement of intent, and the test suite keeps a canary in case a future release
-  changes it.
-- **`selectedSegment` cannot be faked on a `.momentary` control** — assigning it reads back `-1`,
-  AppKit's "nothing is being tracked". A click is therefore untestable headlessly, which is why the
-  dispatch is split out into `performNavigation(in:)`.
-
-Host contracts (all three fail silently rather than loudly): history index `0` is the **nearest**
-entry in that direction, not the oldest; `canNavigateIn` / `numberOfHistoryEntriesIn` run on the
-event loop and must be cheap; refresh waits for the window to become key (call `validate()`
-directly if an exact moment is needed).
-
-**Full guide:** `Documentations/ToolbarNavigation.md`. Demo: **Toolbar Navigation** in the example
-app — it opens its own window, since the demo browser's detail pane has no toolbar, and lists the
-four checks that only a human can perform (long press being the main one).
-
-### Self-Sizing Row Views
-
-Three classes under `Base/` let a table or a tree size itself to its rows instead of scrolling inside a fixed frame — drop one into a stack view and it reports the height it needs:
-
-- **`SelfSizingScrollView`** (`ScrollView.swift`) — mirrors its document view's intrinsic size, clamped by `minimumContentSize` / `maximumContentSize`. Past the cap the built-in scrollers take over. Useless on its own: the document view has to report an intrinsic size, which is what the other two do.
-- **`SelfSizingTableView`** (`TableView.swift`) — a `SingleColumnTableView` whose intrinsic height is the sum of its rows.
-- **`SelfSizingOutlineView`** (`OutlineView.swift`) — the same for a tree, so it grows and shrinks with every disclosure.
-
-Both row views measure through the same internal `NSTableView.selfSizingRowsContentSize`: an outline view *is* a table view, but the two inherit from different UIFoundation bases, so a shared extension is the only way for them to agree. It reads `rect(ofRow:)` rather than multiplying `rowHeight`, because the first row's `minY` already carries the top inset a `.inset` / `.sourceList` style reserves and the last row's `maxY` already folds in the intercell spacing; the bottom inset is symmetric, so mirroring the top one completes the height. Both also override `invalidateIntrinsicContentSize()` to invalidate the enclosing scroll view — nothing else tells it to ask again.
-
-**A disclosure does not animate, by default and on purpose.** A self-sizing outline view has two things to move at once and AppKit drives only one of them: `expandItem(_:expandChildren:)` slides the new rows in over `NSAnimationContext`'s default 0.25s duration, while the height the view reports travels through Auto Layout on its own schedule. The two timelines never line up, and it reads as a jitter. `SelfSizingOutlineView` wraps the whole disclosure in a zero-duration grouping, which also covers whatever a delegate does from `outlineViewItemDidExpand` — that notification is posted from *inside* the call. `animatesExpansionAndCollapse = true` hands the animation back, which only makes sense when the host's height does not follow the row count.
-
-Two findings behind that implementation, both measured rather than assumed:
-
-- **Overriding `expandItem(_:expandChildren:)` catches every path.** The programmatic `expandItem(_:)` forwards to it, and so does the user clicking the disclosure triangle — that triangle is a real `NSButton` targeting the outline view, and its `_outlineControlClicked:` action routes through the overridable method (verified by clicking it and watching the override run).
-- **`insertRows(at:withAnimation:)` is not an option.** `NSOutlineView` marks it unavailable (`cannot override 'insertRows' which has been marked unavailable`), so the animation options cannot be changed at the row-insertion level.
-
-> **Testing note.** The animation itself is not observable in a test process — with no display, rows land at their final position either way and the row views are not even layer-backed. `SelfSizingRowViewsTests` therefore asserts on the *animation context* the disclosure runs in (`NSAnimationContext.current.duration`, read from the delegate callback), and pairs it with a plain `OutlineView` control that reads 0.25. Without that control the assertion would pass against an implementation that does nothing.
-
-### AsyncDocument (`UIFoundationAppKit/Document/`)
-
-`AsyncDocument<Snapshot: Sendable>` is an `NSDocument` whose reading and writing are `async`
-methods running off the main thread. The main actor only takes a snapshot when saving
-(`snapshot(ofType:for:)`) and applies one when opening or reverting (`apply(_:ofType:)`); the disk
-work is `write(_:to:context:)` and `readSnapshot(from:ofType:)`. `NSDocument.box` (in
-`UIFoundationToolbox/AppKit/NSDocument+.swift`) adds `async` spellings of the
-delegate / selector / contextInfo operations: `canClose()`, `save()`, `runModalSavePanel(for:)` and
-six more. No trait. Decision record is Evolution
-[`0030`](Documentations/Evolutions/0030-async-document.md); evidence is
-[`Researchs/AppKit-NSDocument-AsyncReadingAndWriting-Internals.md`](Researchs/AppKit-NSDocument-AsyncReadingAndWriting-Internals.md).
-
-Each of these looks simplifiable and is not (all measured on macOS 27.2 or read off the 27.0 binary):
-
-- **The snapshot is taken inside `canAsynchronouslyWrite(to:ofType:for:)`, not in the writer.** It
-  is the one moment after NSDocument's change-count token and before NSDocument blocks the main
-  thread in an `NSConditionLock`, where no main-queue block and no `@MainActor` job runs. SwiftUI's
-  `URLPlatformDocument` takes its snapshot from the writer instead, and deadlocks when the main
-  thread is waiting for file access at that moment.
-- **`canAsynchronouslyWrite` answers `true` only when `autosavesInPlace` is.** Without autosaving
-  in place NSDocument takes no token and clears the change count when the save completes, marking
-  every edit made during an asynchronous write as saved. Do not make it unconditional.
-- **The main thread is reached through `continueAsynchronousWorkOnMainThread(_:)`, never
-  `DispatchQueue.main` or `MainActor`**, and without a time limit. It is the only channel NSDocument
-  services inside its own synchronous waits. The prototype's 5-second limit was a measuring aid;
-  in production it would turn a busy main thread into a failed open.
-- **`init()` is `nonisolated`, and the warning on its `super.init()` is deliberate.** Concurrent
-  opening runs `-init` on a background queue. NSDocument's `init()` is imported as main-actor
-  isolated, so a Swift 6 subclass initializer that inherits that isolation asserts the main thread
-  in its `@objc` entry and traps. Every subclass initializer shape inherits `nonisolated` from the
-  base instead (checked in SILGen output). Nothing silences the warning: `@preconcurrency` and
-  SE-0522's `@diagnose` were both tried. Remove `nonisolated` and `AsyncDocumentTests` stops
-  compiling.
-- **`final` covers two groups.** The three bridge overrides are `canAsynchronouslyWrite`,
-  `write(to:ofType:for:originalContentsURL:)` and the URL `read(from:ofType:)`. The other five are
-  NSDocument hooks the class never calls: `data(ofType:)`, `fileWrapper(ofType:)`,
-  `read(from:ofType:)` for `Data` and `FileWrapper`, and `write(to:ofType:)`. Sealing them makes an
-  override carried over from a plain `NSDocument` a compile error instead of dead code.
-  `canConcurrentlyReadDocuments(ofType:)` deliberately stays `open`: reading works on either thread,
-  and turning it off is the workaround for the Versions-browser risk in the guide.
-- **Do not call `performSynchronousFileAccess(_:)` from Swift.** When it has to wait it keeps its
-  `NS_NOESCAPE` block, and Swift traps. Send it with `perform(_:with:)` and a `@convention(block)`
-  closure, as `AsyncDocumentTests` does.
-
-Guide: [`Documentations/AsyncDocument.md`](Documentations/AsyncDocument.md).
-
-### NSAttributedStringBuilder (ported from `ethanhuang13/NSAttributedStringBuilder`)
-
-SwiftUI-style `@resultBuilder` for composing `NSAttributedString`. Ships as part of `UIFoundationShared` behind an **opt-in SPM trait** called `NSAttributedStringBuilder` (default: disabled), mirroring the `FilterUI` / `IDEIcons` pattern:
-
-```swift
-.package(url: "…/UIFoundation", traits: ["NSAttributedStringBuilder"])   // SPM dependency
-swift build --traits NSAttributedStringBuilder                          // CLI
-swift test  --traits NSAttributedStringBuilder                          // CLI
-```
-
-```swift
-let attributed = NSAttributedString {
-    AText("Hello world")
-        .font(.systemFont(ofSize: 24))
-        .foregroundColor(.red)
-    LineBreak()
-    AText("with Swift")
-        .font(.systemFont(ofSize: 20))
-        .foregroundColor(.orange)
-}
-```
-
-Wiring:
-- `traits: [.trait(name: "AppleInternal"), .trait(name: "FilterUI"), .trait(name: "IDEIcons"), .trait(name: "NSAttributedStringBuilder")]` in `Package.swift`
-- Every source file under `Sources/UIFoundationShared/NSAttributedStringBuilder/**/*.swift` is wrapped in `#if NSAttributedStringBuilder … #endif`
-- Tests under `Tests/UIFoundationTests/NSAttributedStringBuilder/**/*.swift` use **Swift Testing** (`@Suite` / `@Test` / `#expect`) and are gated on the same trait
-
-Components: `AText`, `ATextGroup` (nested-grouping with `@AttrTextGroupBuilder`), `Link`, `ImageAttachment` (non-watchOS), `Empty`, `Space`, `LineBreak`. The original `Font` / `Color` / `Image` / `Size` / `Rect` typealiases were dropped in favor of `NSUIFont` / `NSUIColor` / `NSUIImage` (from `UIFoundationTypealias`) and plain `CGSize` / `CGRect`, so the API doesn't collide with SwiftUI's `Font` / `Color` / `Image`. `Attributes` (`= [NSAttributedString.Key: Any]`) is preserved. The `Ligature.all` case and `vertical()` / `textBlocks(_:)` / `textLists(_:)` / `tighteningFactorForTruncation(_:)` / `headerLevel(_:)` modifiers are gated on `#if canImport(AppKit) && !targetEnvironment(macCatalyst)`. `ImageAttachment` is wrapped in `#if !os(watchOS)`.
-
-### Filter UI (ported from `filter-ui`)
-
-Filter UI ships as an **opt-in SPM trait** called `FilterUI` (default: disabled). When the trait is off the Filter sources are excluded via `#if FilterUI` and no Filter symbols are exported. To enable it:
-
-```swift
-.package(url: "…/UIFoundation", traits: ["FilterUI"])         // SPM dependency
-swift build --traits FilterUI                                 // CLI
-```
-
-Wiring in `Package.swift`:
-- `traits: [.trait(name: "AppleInternal"), .trait(name: "FilterUI")]`
-- SPM 6.2 automatically exposes each trait name as a Swift compilation condition, so `#if FilterUI` works without any `swiftSettings` `.define` plumbing.
-- Every Filter source file (`Sources/UIFoundationAppKit/Filter/**/*.swift`, `Sources/UIFoundationAppleInternal/Filter/**/*.swift`) is wrapped in `#if FilterUI … #endif`.
-- xcassets / Localization stay in the resource list (SPM has no per-resource trait condition); they just get bundled even when the trait is off, which is harmless.
-
-`xcodebuild` has no trait CLI flag — when running tests through Xcode tooling the active traits come from the consuming Xcode project / scheme. From the command line use `swift build --traits FilterUI` to compile the Filter code.
-
-`UIFoundationAppKit/Filter/` hosts the AppKit filter controls migrated from [`filter-ui`](https://github.com/freysie/filter-ui):
-- `FilterSearchField` / `FilterSearchFieldCell` — search field with progress, filter buttons, vibrancy-aware rendering
-- `FilterTokenField` / `FilterTokenFieldCell` — token-based filter field with comparison types
-- `FilteringMenu_WithoutPrivateAPIUsage` — public-API variant of the filterable menu (under `FilteringMenu+Public/`)
-- `FuzzySearch.swift` — in-tree fuzzy string matcher (`FuzzySearchable` / `FuzzySearchResult` / `Collection.fuzzyMatch`) used by both `FilteringMenu` variants; ported and trimmed from the `fuzzy-search` package (MIT), so there is no external fuzzy-search dependency
-- SwiftUI bridges: `FilterField`, `FilterToggle`, `filterFieldStyle(_:)`
-- Resources (xcassets / Localization / Documentation.docc) live in `UIFoundationAppKit/Filter/Resources/`; `Package.swift` adds a `.process("Filter/Resources")` entry on top of the existing `Resources/`
-
-The private-API variant `FilteringMenu` ships in `UIFoundationAppleInternal/Filter/` (uses `-[NSMenu highlightItem:]`, `_handleCarbonEvents:count:handler:`, and `HIMenuGetContentView` exposed via `UIFoundationAppleInternalObjC/include/NSMenu_FilteringPrivate.h` + `HIToolbox_Private.h`). Because the private menu reuses `FilterSearchField` from the public side, `UIFoundationAppleInternal` depends on `UIFoundationAppKit`.
-
-The package now declares `defaultLocalization: "en"` because Filter ships en/da `.lproj` resources. SF Symbol / `SymbolConfiguration` call sites are wrapped in `if #available(macOS 11.0, *)` / `if #available(macOS 12.0, *)` to keep the umbrella platform at macOS 10.15+ (only a handful of declarative previews and `addFilterButton(systemSymbolName:)` are gated with `@available(macOS 12.0, *)`).
-
-Note: SwiftUI `Button` is shadowed by `UIFoundationAppKit.Button` (an `NSButton` subclass), so SwiftUI views inside this module must use `SwiftUI.Button` / `SwiftUI.Image` explicitly (see `FilterToggle`).
-
-**xcassets caveat:** the Filter resources rely on `Bundle.module.image(forResource:)` and `NSColor(named:bundle:)`, which require `actool`-compiled `Assets.car`. `swift build` / `swift test` from the command line do **not** invoke `actool` and copy the `.xcassets` folders verbatim, so resource lookups return `nil` in that mode. To exercise the Filter resource path (or run `FilterResourcesTests`), use the Xcode toolchain: `xcodebuild -scheme UIFoundation-Package -destination "platform=macOS" test -only-testing:UIFoundationTests/FilterResourcesTests` (temporarily move `UIFoundation.xcworkspace` aside first because that workspace only exposes the Example schemes). Consuming this package from an Xcode app target works as expected because Xcode handles `actool` itself.
-
-### Quick Action Bar (ported from `dagronf/DSFQuickActionBar`)
-
-Spotlight-style floating action bar for macOS. Ships as an **opt-in SPM trait** called `QuickActionBar` (default: disabled), mirroring the `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder` pattern:
-
-```swift
-.package(url: "…/UIFoundation", traits: ["QuickActionBar"])     // SPM dependency
-swift build --traits QuickActionBar                             // CLI
-swift test  --traits QuickActionBar                             // CLI
-```
-
-```swift
-let bar = QuickActionBar()
-bar.contentSource = self
-bar.present(placeholderText: "Search…")
-```
-
-Wiring:
-- `traits: [.trait(name: "AppleInternal"), .trait(name: "FilterUI"), .trait(name: "IDEIcons"), .trait(name: "NSAttributedStringBuilder"), .trait(name: "QuickActionBar")]` in `Package.swift`
-- Every source file under `Sources/UIFoundationAppKit/QuickActionBar/**/*.swift` is wrapped in `#if QuickActionBar … #endif`
-- macOS-only; the file-level `#if` block additionally requires `import AppKit`, so the trait compiles to nothing on UIKit / Catalyst / tvOS / visionOS / watchOS even if accidentally enabled there
-
-Public API surface:
-- `QuickActionBar` — the controller (was `DSFQuickActionBar`)
-- `QuickActionBar.resumePresentation()` — 仅在当前 panel 正处于 dismiss animation 时恢复同一个 window；返回值用于区分是否真正打断了关闭。实现必须从 presentation layer 的当前 transform 和 `NSWindow.alphaValue` 接续，且旧 animation completion 不得再关闭已恢复的 window。
-- `QuickActionBarContentSource` — delegate protocol (was `DSFQuickActionBarContentSource`); `canSelectItem` / `didSelectItem` / `quickActionBarDidCancel` have default no-op implementations
-- `QuickActionBar.SearchTask` — async-capable search task with `complete(with:)` / `cancel()`
-- `QuickActionBar.RequiredClickCount` — `.single` / `.double`
-
-The SwiftUI `NSViewRepresentable` bridge from upstream was intentionally **not ported** — only the AppKit controller is provided.
-
-Differences from upstream `DSFQuickActionBar`:
-- `DSF` prefix stripped from every type and filename. All internal helper types are nested under the `QuickActionBar` namespace (`QuickActionBar.TextField`, `QuickActionBar.EphemeralWindow`, `QuickActionBar.Debounce`, `QuickActionBar.SingleShotTimer`, `QuickActionBar.FlippedClipView`, `QuickActionBar.FlippedContainerView`, `QuickActionBar.PrimaryRoundedView`, `QuickActionBar.DelayedIndeterminiteRadialProgressIndicator`, `QuickActionBar.TransparentBackgroundScroller`) so they do not pollute `UIFoundationAppKit`'s module-internal scope.
-- `CreateARGB32` / `scaleImageProportionally` / `usingEffectiveAppearance(ofWindow:)` are exposed as static methods on `QuickActionBar` (`QuickActionBar.createARGB32Image(width:height:drawBlock:)`, `QuickActionBar.scaleImageProportionally(_:to:)`, `QuickActionBar.usingEffectiveAppearance(of:_:)`).
-- `DSFAppearanceManager` dependency removed; reads accent / dark / increase-contrast / reduce-transparency directly from `NSColor.controlAccentColor`, `effectiveAppearance.bestMatch(from:)`, and `NSWorkspace.shared.accessibilityDisplay*`. `UsingEffectiveAppearance(ofWindow:)` is replaced by an in-tree `usingEffectiveAppearance(of:_:)` that uses `NSAppearance.performAsCurrentDrawingAppearance(_:)` on macOS 11+ with an `NSAppearance.current` fallback for 10.15.
-- `PrivacyInfo.xcprivacy` is not bundled (UIFoundation has no privacy manifest of its own).
-- Original MIT license and per-file copyright are preserved, plus a top-level entry in `THIRD_PARTY_LICENSES.md` at the repo root.
-- show/dismiss animation 支持在原 window 上反向打断；通过 animation identifier 淘汰过期 completion，避免快速重复触发时出现短暂无窗口或旧 completion 误关新状态。
-- **Escape clears a non-empty query before it closes the bar**, as Spotlight does on macOS 27.2 — the clear searches again for the empty term at once (the pending debounce is cancelled), and the results collapse unless the content source returns some for it. It lives in the window's `cancelOperation(_:)` override and nowhere else, which is enough: from the search field, nothing between the field editor and the window implements `cancelOperation:`; from the results table, `NSTableView` hands the command to every responder above it that implements it (both read off 27.2 AppKit). Decision record and evidence: Evolution [`0032`](Documentations/Evolutions/0032-escape-clears-query-before-dismissing.md).
-- **The expand / collapse resize is Spotlight's spring, in closed form** — `QuickActionBar.ResizeSpring`, `Spring(duration: 0.3, bounce: 0.2)`, the default resize animation of Spotlight's results platter on 27.2. Upstream stepped a numerical spring with hand-tuned constants (300 / 28) that ran about a fifth slow. Don't go back to tuning constants: `QuickActionBarResizeSpringTests` compares the curve with SwiftUI's own `Spring`.
-- **Testing the bar from a test process:** the window never becomes key there, so a key-down Escape sent to a non-text first responder does nothing (the window derives `cancelOperation:` only in its keyboard-UI step) — send the command instead, as `QuickActionBarEscapeTests` does. And keep a content source alive past the end of its test: results arrive on a later main-queue turn, and `ResultsView.buildShortcuts()` traps when the content source is gone by then (a known, unfixed trap).
-
-Demo: **Quick Action Bar** in the example app — every option `present(…)` takes, headings the list cannot select, the ↩ / ⌘1–⌘9 shortcuts, a search slowed down to show stale answers being dropped, and the checks only a human can make. Its open button reverses a dismissal still in flight with `resumePresentation()` before presenting a new bar, which is the shape a host's own shortcut should take.
-
-### Tab Bar (ported from `onekiloparsec/KPCTabsControl`)
-
-Multi-tab control for macOS (editable / reorderable / closable tabs), styled after the macOS 26 window tab bar. Ships as an **opt-in SPM trait** called `TabBar` (default: disabled), mirroring the `FilterUI` / `QuickActionBar` pattern:
-
-```swift
-.package(url: "…/UIFoundation", traits: ["TabBar"])     // SPM dependency
-swift build --traits TabBar                              // CLI
-swift test  --traits TabBar                              // CLI
-```
-
-```swift
-let tabs = TabBar()
-tabs.dataSource = self          // TabBar.DataSource
-tabs.delegate = self            // TabBar.Delegate
-tabs.reloadTabs()
-```
-
-`SystemStyle` is the only style shipped, and the default — `TabBar()` already wears it. It
-replicates the macOS 26 Liquid-Glass window-tab bar, and is driven by control-level decoration
-(`Style.controlDecoration`) rather than per-button bezel drawing: the control floats an
-`NSGlassEffectView` behind every tab, draws the hairline separators, divides the bar evenly down to a
-120 pt minimum and then *stacks* the overflow into piles at the ends. The upstream Numbers, Chrome and
-Safari styles were removed — macOS 26 gave Safari the system tab bar, and Chrome's never had a dark
-appearance — but the `ThemedStyle` / `Theme` machinery they used is still there for a custom style. Its behaviour is
-matched against a real `NSTabBar` rather than eyeballed — see `Researchs/AppKit-NSTabBar-Insertion-Internals.md`
-for the reverse-engineered insertion / reveal path and the measurement method.
-
-**Who owns the selection.** By default the control does: closing a tab moves the selection to the tab
-on its left. A host that keeps the active tab in its own model instead — so that commands like ⌘W act
-on the model rather than on whatever the bar highlights — takes over by calling `selectItemAtIndex(_:)`
-from inside `tabBar(_:didCloseItem:)`, and the control then stands down instead of overruling it.
-Without that hand-off the two disagree after every close, silently: the bar lights up one tab while the
-host's shortcut closes another, and on a *stacked* bar the disagreement is loud, because the selection
-anchors the fold and re-selecting into a pile blows that sliver up to full width. The demo
-(`TabBarDemoViewController`) is wired the host-owned way and logs any disagreement.
-
-**No pull-down affordance.** `tabBar(_:menuForItem:)` supplies a *right-click* menu and nothing more —
-it lands on the tab's `NSView.menu` and AppKit presents it. The tab draws no chevron, reserves no room
-for one, and does not open the menu on a left click. Upstream KPCTabsControl did all three, because
-Numbers' sheet tabs have a real pull-down button; the system bar has no such element, so the whole path
-(`PullDownTemplate.pdf`, `TabButtonCell.popupImage()`, `drawPopupButtonWithFrame`, the `trackMouse`
-override that hit-tested the chevron, `Style.popupRectWithFrame`, the `showingMenu:` parameter on
-`Style.titleRect` / `Style.iconFrames`, and `NSImage.imageWithTint`) was removed. Don't reintroduce a
-`showingMenu` argument to make a custom style "leave space for the menu" — there is nothing to leave
-space for.
-
-**Decoration never takes a click, and on the macOS 27 SDK that is load-bearing.** The tab glass, the
-separators and the bar track all return `nil` from `hitTest(_:)`. The decorator adds them *after* the
-buttons, and `NSView` hit-tests in subview order (`zPosition` only orders drawing), so without it the
-glass wins every click on its tab. That was harmless while an unhandled `mouseDown(with:)` fell
-through to the view underneath; built against the macOS 27 SDK, stock `NSControl`s track through
-gesture recognizers, which AppKit gathers only along the hit-tested view's superview chain
-([TN3212](https://developer.apple.com/documentation/technotes/tn3212-adopting-gesture-recognizers-for-sidecar-touch-support)).
-The close button went dead while the tab still worked, so clicking it selected the tab — and only in
-Xcode 27 builds, because `-[NSControl mouseDown:]` gates the switch on `dyld_program_sdk_at_least`.
-`TabBarHitTestingTests` asserts on the window's hit-test, which fails without the override under any
-SDK. The converse trap: `TabButton`'s `mouseDown(with:)` override looks like it only beeps, but it is
-what keeps the tab on the tracking-loop fallback that `selectTab(_:)` relies on (`NSApp.currentEvent`
-as the mouse-down) — don't delete it. For "a control ignores clicks" in general, see the
-`appkit-mouse-event-routing` skill.
-
-**Full guide:** `Documentations/TabBar.md` — API, the three host-facing contracts (item identity,
-selection ownership, what a reload animates), the measured `SystemStyle` geometry, the stacking and
-scrolling models, why clicks must go through the decoration, and the known divergences from the
-system bar.
-
-Wiring:
-- `traits: [..., .trait(name: "TabBar")]` in `Package.swift`
-- Every source file under `Sources/UIFoundationAppKit/TabBar/**/*.swift` is wrapped in `#if TabBar && os(macOS) … #endif`
-- macOS-only; the file-level `#if` additionally requires `os(macOS)`, so the trait compiles to nothing on UIKit / Catalyst / tvOS / visionOS / watchOS
-- No bundled resources, ObjC headers, or external dependencies — pure AppKit. The upstream `Templates/*.pdf` glyphs are all gone; the last survivor (`PullDownTemplate.pdf`) is covered under **No pull-down affordance** below
-- Per the unique-basename rule (see Code Style Notes), feature-scoped files are prefixed `TabBar+…` (e.g. the ported `Helpers.swift` became `TabBar+Geometry.swift`, `Style.swift` → `TabBar+Style.swift`); distinctive names such as `TabButton.swift` / `TabButtonCell.swift` keep their name, and per-class extensions stay `NSClassName+TabBar.swift`
-
-**Namespace convention (key difference from upstream):** to avoid polluting the umbrella module's top-level namespace with generic names, the entire public API is **nested under the `TabBar` class** — Swift ≥ 6.3 (Swift 5 language mode included) permits nesting protocols inside types, which this relies on. Only `TabBar` and `TabButton` stay top-level. Map: `Style`/`ThemedStyle`/`Theme` → `TabBar.Style`/`.ThemedStyle`/`.Theme`; `TabButtonTheme`/`TabBarTheme` → `TabBar.ButtonTheme`/`.ControlTheme`; `TabBarDataSource`/`TabBarDelegate` → `TabBar.DataSource`/`.Delegate`; `TabPosition`/`ClosePosition`/`TabWidth`/`TabSelectionState` → `TabBar.TabPosition`/`.ClosePosition`/`.TabWidth`/`.SelectionState`; `SystemStyle` (+ its theme) → nested; `Offset`/`IconFrames`/`TitleEditorSettings`/`BorderMask`/`TitleDefaults` → nested; the old global `TabBarSelectionDidChangeNotification` string is now `TabBar.selectionDidChangeNotification` (`Notification.Name`). Files whose content is a protocol default-impl extension (`extension TabBar.ThemedStyle`, `extension TabBar.Theme`) are **not** lexically inside `TabBar`, so sibling nested types there must be fully qualified as `TabBar.X`; declaration files using `extension TabBar { … }` resolve short names.
-
-### Status Item Controller (ported from `hexedbits/StatusItemController`)
-
-A subclassable "view controller" for `NSStatusItem`-based menu bar apps on macOS. Ships as an **opt-in SPM trait** called `StatusItemController` (default: disabled), mirroring the `FilterUI` / `QuickActionBar` / `TabBar` pattern:
-
-```swift
-.package(url: "…/UIFoundation", traits: ["StatusItemController"])   // SPM dependency
-swift build --traits StatusItemController                           // CLI
-swift test  --traits StatusItemController                           // CLI
-```
-
-```swift
-final class MyStatusItem: StatusItemController {
-    override func buildMenu() -> NSMenu {
-        NSMenu {
-            NSMenuItem("Preferences…", action: #selector(openPrefs))
-            NSMenuItem.separator()
-            NSMenuItem("Quit", action: #selector(quit))
-        }
-    }
-    override func leftClickAction()  { openMenu() }
-    override func rightClickAction() { openMenu() }
-}
-
-// In NSApplicationDelegate:
-let controller = MyStatusItem(image: NSImage(named: "StatusBarIcon")!)
-```
-
-Wiring:
-- `traits: [..., .trait(name: "StatusItemController")]` in `Package.swift`
-- Every source file under `Sources/UIFoundationAppKit/StatusItemController/**/*.swift` is wrapped in `#if StatusItemController && os(macOS) … #endif`
-- macOS-only; the file-level `#if` additionally requires `os(macOS)`, so the trait compiles to nothing on UIKit / Catalyst / tvOS / visionOS / watchOS even if accidentally enabled there
-- No new resources, ObjC headers, or external dependencies — pure AppKit
-
-Public API surface (intentionally minimal — only one top-level symbol):
-- `StatusItemController` — `@MainActor open class … : NSObject, NSMenuDelegate`. Owns `statusItem: NSStatusItem`. Construct with `init(image: NSImage, length: CGFloat = NSStatusItem.squareLength)`. Subclasses override:
-  - `buildMenu() -> NSMenu` — return the menu shown on a click
-  - `leftClickAction()` / `rightClickAction()` — left vs. right click dispatch (control-click counts as right)
-  - The provided actions are `openMenu()`, `hideMenu()`, and `@objc public func quit()` (calls `NSApp.terminate(self)`)
-
-Differences from upstream `hexedbits/StatusItemController`:
-- The upstream public properties `NSEvent.isRightClickUp` and `NSApplication.isCurrentEventRightClickUp` are demoted to **`internal`** and renamed (`isRightClickUpForStatusItem` / `isCurrentEventRightClickUpForStatusItem`), since they are only used by `StatusItemController` itself and would otherwise pollute UIFoundation's top-level AppKit namespace and bypass the `.box` convention.
-- The upstream `NSMenuItem` `convenience init(title:image:target:action:keyEquivalent:isEnabled:)` is **not** ported — `Sources/UIFoundationAppKit/Menu/NSMenuItem+Convenience.swift` already provides a richer set of convenience initializers, chained modifiers, and an `@MenuBuilder` DSL that fully supersede it.
-- `popUpMenu(_:)` is still used inside `openMenu()` for the same reason the upstream cites: bypassing it causes the menu to fail to pop up on the first click.
-
-Files: `Sources/UIFoundationAppKit/StatusItemController/StatusItemController.swift` + `StatusItemController+Helpers.swift`. Licensed under MIT; see `THIRD_PARTY_LICENSES.md` for the full attribution.
-
-### System HUD (ported from `Mx-Iris/SystemHUD`)
-
-The volume-HUD-shaped floating panel for macOS: a vibrancy backdrop hosting an optional glyph above a single line of text, shown below the centre of the active screen and faded out after a delay. Ships as an **opt-in SPM trait** called `SystemHUD` (default: disabled), mirroring the `TabBar` / `QuickActionBar` / `StatusItemController` pattern:
-
-```swift
-.package(url: "…/UIFoundation", traits: ["SystemHUD"])   // SPM dependency
-swift build --traits SystemHUD                           // CLI
-```
-
-```swift
-SystemHUD.default.configuration.image = NSImage(named: "Build")
-SystemHUD.default.configuration.title = "Build Succeeded"
-SystemHUD.default.show(delay: 1.0)
-```
-
-Wiring:
-- `traits: [..., .trait(name: "SystemHUD")]` in `Package.swift`
-- Every source file under `Sources/UIFoundationAppKit/SystemHUD/**/*.swift` is wrapped in `#if SystemHUD && os(macOS) … #endif`
-- No resources, ObjC headers, or external dependencies — pure AppKit
-
-Public API surface (one top-level symbol): `SystemHUD` (`@MainActor public final class`) with `default`, `init(configuration:)`, `configuration`, and `show(delay:)`. `SystemHUD.Configuration` carries `image` / `imageSpacing` / `title` / `titleFontSize` / `titleFontWeight` / `titleColor` / `titleAlignment` / `offset` / `minimumSize` / `contentInsets` / `cornerRadius` / `dismissAnimationDuration`. The internal `ContentView` (an `NSVisualEffectView` subclass), `Window`, and `AlphaAnimation` are nested under `SystemHUD`.
-
-**Sizing contract.** The panel measures its content and clamps: never below `minimumSize` (default 200 × 200), never wider than the visible screen width less a 20 pt margin per side — an over-long title truncates at the tail instead of running the panel off the display. Both size and origin are recomputed on **every** `show(delay:)` and on every `configuration` assignment, against `NSScreen.main`, so a long-lived HUD follows the user between displays. `offset` moves the content inside the panel (positive `y` = up), not the panel itself.
-
-**Fade contract.** `show(delay:)` schedules a one-shot `Timer` in `.common` run loop mode (so a HUD raised during menu tracking still dismisses). The fade itself is the upstream implementation, kept deliberately: `SystemHUD.AlphaAnimation`, an `NSAnimation` subclass that maps `currentProgress` onto `window.alphaValue`, started `.nonblocking` on an ease-in curve. A `show` during a fade calls `stop()` on the in-flight animation and resets `alphaValue` to 1. The panel is left ordered in at zero opacity rather than ordered out (it ignores mouse events, so it costs nothing). There is no public `dismiss()`. **Do not replace this with `NSAnimationContext`** — the timing was matched to the original and a swap changes the feel.
-
-Differences from the original `Mx-Iris/SystemHUD` package: internal types nested under `SystemHUD` (`ContentView` / `Window` / `AlphaAnimation`); `dismissAnimateDuration` renamed to `dismissAnimationDuration`; `minimumSize` / `contentInsets` / `cornerRadius` added (the corner radius was hard-coded to 15); the fixed 200 × 200 window and init-time-only positioning replaced by the sizing contract above; corners rounded with `NSVisualEffectView.maskImage` instead of `layer.cornerRadius` (the mask also clips the backdrop material); `ignoresMouseEvents = true` and `collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]` added; the dismiss timer moved to `.common` run loop mode; the content layout guide is now sized explicitly (the original had no width constraint and a reversed pair of `lessThanOrEqualTo` title constraints).
-
-**Full guide:** `Documentations/SystemHUD.md`.
-
-### Welcome Panel (ported from `Mx-Iris/WelcomeKit`)
-
-The Xcode-style welcome window: app icon, name and version above up to three actions on the left, a
-recent-project list on the right, in three styles imitating three Xcode generations. Ships as the
-opt-in SPM trait `WelcomePanel` (default: disabled); every file under
-`Sources/UIFoundationAppKit/WelcomePanel/**` is wrapped in `#if WelcomePanel && os(macOS)`. Pure
-AppKit, no private API, no external dependencies. macOS 11+ (`NSTableView.style`,
-`NSAppearance.currentDrawing()`, SF Symbols); the decision record is Evolution
-[`0011`](Documentations/Evolutions/0011-welcome-panel.md).
-
-```swift
-let panel = WelcomePanelController(configuration: .init(style: .xcode26))
-panel.dataSource = self
-panel.delegate = self
-panel.showWindow(nil)
-```
-
-**One top-level symbol.** `WelcomePanelController` carries everything else as nested types —
-`.Configuration` / `.Style` / `.Action` / `.DataSource` / `.Delegate`, plus every internal helper
-(`Window`, `WelcomeViewController`, `ProjectsViewController`, `ActionCellView`, `ProjectCellView`,
-`HoverButton`, `BackgroundScrollView`). The original's six top-level names are gone and no
-`typealias` is provided — they never existed in this library.
-
-**The port reuses this library's base classes rather than the ones WelcomeKit shipped.** About 500
-of its 1444 lines duplicated `LayerBackedView`, `LayerBackedTableCellView`, `XiblessViewController`,
-`ScrollView`, `Then`, `ConstraintMaker`, `ArrayBuilder`, `.box.addSubview(_:fill:)` and
-`.box.isDark` — four of them colliding outright with this module's top-level names, so deduping was
-the price of entry, not a cleanup. Two consequences worth not re-deriving:
-
-- **Corner clipping is now explicit.** The original clipped whenever `cornerRadius != 0`;
-  `LayerBackgroundRenderer` clips on `clipsToBounds`, whose default is `false` for anything linked
-  against macOS 14+. The rounded container and the pill cells set `clipsToBounds = true` themselves.
-  Delete those lines and the borderless styles show square corners.
-- **`BackgroundScrollView` overrides `NSScrollView.backgroundColor` instead of conforming to
-  `LayerBackgroundProviding`.** `NSScrollView` already owns that property name, so the protocol
-  extension's would be shadowed at every call site (the collision the `LayerBackgroundProviding`
-  section warns about). Painting through the layer, as upstream did, is the working shape here.
-
-**Data is pulled, never pushed** — the data source is re-asked when it is assigned, on every
-`showWindow(_:)`, and whenever the window's occlusion state turns visible. `reloadData()` exists for
-the case those three moments miss.
-
-**`.xcode26` is a measured replica of Xcode 26's own welcome window** (Evolution
-[`0012`](Documentations/Evolutions/0012-xcode26-faithful-style.md); evidence in
-[`Researchs/Xcode26-WelcomeWindow-Internals.md`](Researchs/Xcode26-WelcomeWindow-Internals.md)).
-Xcode's window is a single `NSHostingView<IDEKit.WelcomeView>` in a borderless window — nothing to
-copy structurally — but every surface it uses is reproducible with public AppKit. Three findings
-worth not re-deriving:
-
-- **The blur is `NSVisualEffectView.material = .fullScreenUI`, not private API.** Its backdrop chain
-  (`colorSaturate` 1.8, tint 0.1569 @ 0.5, lighten layer 0.095, chameleon 0.05) matches the capture
-  value for value; no other material comes close. The capture's `gaussianBlur` radius of 60 against
-  the live 30 is a **unit difference** — the capture reads the presentation layer in device pixels at
-  2× backing.
-- **The list's 10 pt first-row inset and 16 pt cell insets come from `.sourceList`, not from
-  configuration.** Measured: AppKit applies both, and `intercellSpacing.width` is ignored entirely in
-  view-based mode. Change the table style and both silently vanish — `WelcomePanelTests` guards it.
-- **Geometry is appearance-independent; only colours change**, plus the app-icon glow, which the
-  light capture shows does not exist at all. The existing `isDark ? shadow : nil` gate already covers
-  that, so the style's default glow needs no branch of its own.
-
-The two `.xcode26` gaps that 0011 carried over verbatim (iconless close button, no pressed state)
-were fixed by 0012, which rewrote that branch anyway. `.xcode14` and `.xcode15` were left untouched.
-
-Host contracts (all fail quietly): the window object is unreachable — `window` and
-`contentViewController` are `@available(*, unavailable)`, so `showWindow(_:)` / `close()` are the
-only doors; a negative `numberOfProjects` is clamped to zero; returning `true` from
-`welcomePanelUsesRecentDocumentURLs` skips the other two data-source methods entirely; the "show on
-launch" checkbox exists only under `.xcode14`, and persisting it is the host's job.
-
-The `.xcode14` close button's two images live in `Sources/UIFoundationAppKit/Resources/Assets.xcassets`
-(`WelcomePanelCloseButton` / `WelcomePanelCloseButtonHovered`) and therefore inherit the catalog
-caveat below — a command-line `swift build` does not run `actool`, so those two resolve to `nil` in
-CLI runs. Apps built through Xcode are unaffected.
-
-**Full guide:** `Documentations/WelcomePanel.md`. Demo: **Welcome Panel** in the example app — it
-opens each style in its own window and lists the four checks only a human can perform.
-
-### Navigation (ported from the macOS App Store)
-
-A `UINavigationController`-shaped container for AppKit — a view controller stack, a push / pop parallax transition, and a two-finger swipe back. Ships as the opt-in SPM trait `Navigation` (default: disabled); every file under `Sources/UIFoundationAppKit/Navigation/**` is wrapped in `#if Navigation && os(macOS)`. Pure AppKit, no private API, no resources.
-
-Ported from **the macOS App Store's own implementation, not from UIKit** — deliberately. UIKit's `_UINavigationParallaxTransition` only yields an animator on AppKit (`NSViewControllerPresentationAnimator` has two methods and no transition context), which can carry neither a stack nor an interactive gesture. The App Store's version is a real container, is AppKit-native throughout, and gets its back swipe from the public `NSEvent.trackSwipeEvent`. Full reverse-engineering report with every address: [`Researchs/AppStore-Custom-Navigation-Internals.md`](Researchs/AppStore-Custom-Navigation-Internals.md); the decision record is Evolution [`0001`](Documentations/Evolutions/0001-appstore-style-navigation-controller.md).
-
-Four layers, deliberately decoupled — the bottom two know nothing about navigation, and the transition layer knows nothing about the stack:
-
-```
-NavigationController                  stack, delegates, swipe
-  └── any ViewTransition              PushViewTransition / PopViewTransition
-        ├── ViewPropertyInterpolator  [any Transformation] + TimingCurve
-        │     └── Interpolator<Value: Interpolatable>
-        └── ViewPropertyAnimator      NSAnimationContext wrapper
-```
-
-**The animation mechanism is load-bearing.** Transitions never build a `CABasicAnimation`. They assign *final* values to `frame` / `alphaValue` inside an `NSAnimationContext` group with `allowsImplicitAnimation = true`, which is why `prepare()` forces `wantsLayer` on every participating view. Keep it that way: `apply(fraction)` is only steppable frame-by-frame from a gesture *because* it is plain assignment. Building explicit animations would silently cost the interactive pop.
-
-**Ease exactly once.** Each `Interpolator` carries its own curve and applies it; `ViewPropertyInterpolator.apply(_:)` passes the fraction through un-eased. Easing again at the bundle level makes a released gesture jump.
-
-Two presets, both measured rather than estimated, exposed through `NavigationConfiguration`. **`.uiKit` is the default**: 0.35 s ease-in-ease-out, outgoing page counter-sliding `floor(width × 0.3)`, sRGB black at 10 %, and a **9 pt edge shadow** trailing the incoming page. `.appStore` is the App Store's own: 0.35 s on `cubic-bezier(0.1878, 0.0023, 0.5399, 0.9629)` **for both directions** (AppStoreKit ships a reversed curve and never calls it), `floor(width × 0.2527)`, black at 22 %, and **no edge shadow**.
-
-**Do not flip the default back to `.appStore`.** It was the default for one review round and was rejected on sight: with no shadow to give the arriving page an edge, five points less parallax, and a curve that is ~63 % through the motion at half the time and then crawls, the App Store look reads as content sliding sideways rather than one page moving over another. Fidelity stayed available as a preset; the default is the one that looks like a navigation push. The shadow itself (`NavigationEdgeShadowView`) is a port of UIKit's `_UIVerticalEdgeShadowView` by way of AppKitPlus — its falloff is a **blur spill**, an opaque block filled entirely outside the clip so only its shadow survives, not a linear gradient, which reads noticeably harder.
-
-Divergences from the App Store worth remembering: pages are framed from the container's `bounds` inset by `contentInsets`, not from its `frame` (theirs only works because a root view sits at the origin); only the difference between old and new stacks is re-parented, not the whole stack; a stack change requested mid-transition is deferred rather than applied on top; `Interpolator.value(forInput:)` has one `CGFloat` overload instead of three (three make every literal call site ambiguous). The three `InteractiveViewTransition` members are designed here, not copied — only their slot count was recoverable.
-
-**A see-through page needs a stand-in background, and that is `pageBackdrop`.** The transition assumes the arriving page hides the one it covers; macOS 26 breaks that assumption, because a page must be `.clear` for the window's glass to show through, and two clear pages sliding past each other show both sets of content at once. `.automatic` (the default) gives a `windowBackgroundColor` background to the page running the **full-width slide** — the arriving page on a push, the **leaving** page on a pop — when that page reports `isOpaque == false` with no opaque layer background. The other page only takes the parallax offset and keeps no background, so the container shows through it. **The two directions get there differently and must stay that way:** a push slides a stand-in view in underneath the arriving page, which works because that page starts off screen; a pop writes the colour onto the leaving page's own layer and restores it in `cleanUp`, followed by `needsDisplay = true`, because that page already fills the container and a view slipped beneath it flashes the whole container at the moment Back is pressed. The restore-plus-redraw is what stops a `LayerBackedView` page keeping the transition's colour, since it repaints its background in `updateLayer()`. **Do not "simplify" this to writing `layer.backgroundColor` on the page and restoring it** — this package's own `LayerBackedView` rewrites that property in `updateLayer()`, so a mid-transition redraw clobbers the value and the restore writes back a stale one. A sibling view has no state to restore.
-
-Host contracts (all four are in the guide, and each fails confusingly rather than loudly): the container owns page frames so pages must not be constrained from outside; pages are forced layer-backed; interactive pop consumes horizontal scroll events, so a page with a horizontal `NSScrollView` swallows the swipe; `viewControllers` keeps reporting the old stack until a running transition ends.
-
-**Full guide:** `Documentations/Navigation.md`.
-
-### Settings Window
-
-A System Settings-shaped window plus a settings model that persists itself. Extracted from
-RuntimeViewer's `RuntimeViewerSettings` / `RuntimeViewerSettingsUI` — decision record is Evolution
-[`0002`](Documentations/Evolutions/0002-reusable-settings-window.md). Ships behind the opt-in SPM
-trait `Settings` (default: disabled) as **two** targets, both macOS 14+, both wrapped in
-`#if Settings && os(macOS)`:
-
-- **`UIFoundationSettings`** (model layer, no AppKit, no SwiftUI) — `SettingsStorage` /
-  `FileSystemSettingsStorage`, `SettingsModel`, `SettingsStore`, `PersistentSettings`.
-- **`UIFoundationSettingsUI`** (UI layer) — `SettingsWindowController` / `SettingsWindow`,
-  `SettingsScene`, `SettingsRootView`, `SettingsPage` + `@SettingsPageBuilder`, `SettingsForm`,
-  `SettingsPageIcon`, `SettingsNavigator`, and `AppSettings` — the property wrapper is a SwiftUI
-  `View`-facing type, so it sits with the view layer and keeps the model target free of SwiftUI.
-  Ships `Resources/Localizable.xcstrings`: the module has user-facing text of its own (the back /
-  forward buttons), and `#bundle` only resolves for a target that has a bundle. A literal without
-  `bundle: #bundle` in here searches the *app's* catalog and silently renders the key.
-
-Split in two because reading settings and *showing* the settings window are different jobs: services
-and view models do the former everywhere, the latter happens in one place. Neither target joins the
-`UIFoundation` umbrella — that would push the macOS 14 floor onto every consumer. No new external
-dependencies: no dependency-injection framework, no introspection package, no macro package.
-
-**All host customization goes through the top-level `SettingsConfiguration`** (Evolution
-[`0008`](Documentations/Evolutions/0008-top-level-settings-configuration.md)): window title and size,
-sidebar width and icon size, and navigation-control visibility. Pass the same value to
-`SettingsScene` or an embedded `SettingsRootView`. Keep `SettingsNavigator` separate — it is live
-selection/history state, not appearance — and keep the page builder separate because pages are
-content. RuntimeViewer uses `sidebarIconSize: 15` to preserve its pre-migration glyph size; the
-library default remains 20.
-
-**There are two complete presentation choices** (Evolution
-[`0007`](Documentations/Evolutions/0007-settings-scene.md)). `SettingsWindowController` gives AppKit
-direct ownership of a window on macOS 14+. `SettingsScene` is a native SwiftUI `Settings` scene with
-the same initializer shape, public configuration, and public navigator. SwiftUI apps place it in
-`App.body`; macOS 26+ AppKit apps wrap it in `NSHostingSceneRepresentation`, register that with
-`NSApplication.addSceneRepresentation(_:)` during `applicationWillFinishLaunching(_:)`, and open it
-through `representation.environment.openSettings()`. Do not hide registration inside the scene or a
-process-wide convenience: its timing belongs to the app lifecycle. SwiftUI owns a native Settings
-scene's title, so `SettingsConfiguration.title` remains specific to `SettingsWindowController`.
-`SettingsScene` requests `.windowToolbarStyle(.unified)` and also reconciles the backing
-`NSWindow.toolbarStyle` after attachment. The second step is load-bearing: native `SwiftUI.Settings`
-replaces the scene modifier with AppKit's `.preference` style on macOS 26, putting the page title above
-the navigation control instead of keeping both inline like `SettingsWindowController`. Keep that
-AppKit reconciliation scoped to `SettingsScene`; an embedded `SettingsRootView` must not restyle its
-host window.
-The runnable macOS 26 example is `SettingsSceneRepresentationExample` plus
-`SettingsSceneRepresentationDemoViewController`; `AppDelegate` owns the former and performs the
-launch-time registration.
-
-The host supplies a `Codable` `@Observable` **reference model** and a page list; saving, debouncing,
-loading and property-level change notification come with the box:
-
-```swift
-@Observable
-final class Settings: PersistentSettings {
-    var general = General()
-
-    @MainActor func accessPersistedValues() {
-        _ = general
-    }
-
-    @MainActor static let store = SettingsStore(
-        defaultValue: Settings(),
-        storage: FileSystemSettingsStorage(applicationDirectoryName: "MyApp")
-    )
-}
-typealias Setting<Value> = AppSettings<Settings, Value>   // then: @Setting(\.general)
-```
-
-**The store is reached through the type, not through the environment.** `AppSettings` reads
-`Root.store`, so the same door works outside SwiftUI (`Settings.current.general.x`) — which an
-`@Environment`-injected store cannot do, and which matters because most settings reads in a real app
-happen in services, not views. One store per model type is the deliberate consequence.
-
-Five things measured rather than assumed (the Settings model change is Evolution
-[`0005`](Documentations/Evolutions/0005-observable-settings-model.md)):
-
-- **Redraws come from Observation, not from the property wrapper.** SwiftUI evaluates `body` inside
-  a tracking scope, so reading `Root.store.value` there registers the dependency. `AppSettings`
-  therefore **does not conform to `DynamicProperty`** — a conforming wrapper, a non-conforming one,
-  and a view reading the store directly all redraw identically. Don't add the conformance back; it
-  would read as load-bearing when it is not.
-- **Invalidation follows the model property.** Reading `general` is not invalidated by an in-place
-  change to `appearance`; replacing the whole Store value still updates every reader. Value-type
-  sections give section-level granularity, which is enough to keep RuntimeViewer's Transformer,
-  Theme and MCP listeners independent.
-- **Persistence observation is explicit.** Observation has no wildcard listener, so
-  `accessPersistedValues()` must read every encoded top-level property. Omitting one means a change
-  to that property alone cannot schedule auto-save. Keep the method beside the coding keys.
-- **Encoding is not an observation shortcut.** A probe wrapping `JSONEncoder.encode(settings)` in
-  `withObservationTracking` did not receive property changes; compiler-synthesized Codable also
-  sees `@Observable` backing storage. Hosts must provide explicit coding or use a coding macro that
-  understands Observation.
-- **Disabling sidebar collapsing needs no swizzling.** `canCollapse = false` sticks (verified on
-  macOS 26 across a run-loop pass, a SwiftUI update and a resize). SwiftUI's split view controller is
-  reachable **only as the `NSSplitView`'s delegate** — it is not a child of the hosting controller,
-  so walking `children` finds nothing. Upstream RuntimeViewer swizzled
-  `NSSplitViewItem.canCollapse`'s getter process-wide; that was never necessary and is not ported.
-  `SettingsWindowChromeTests` guards this.
-
-**Page navigation** (Evolution [`0003`](Documentations/Evolutions/0003-settings-navigation-history.md))
-is a `SettingsNavigator`: the single source of truth for the selected page *and* the history behind
-the ⌘[ / ⌘] chevrons in the detail pane's leading toolbar slot. It is the host's handle for driving
-the window from code (`controller.navigator.navigate(to: "updates")`), which is why it exists at
-all — the selection used to be a `private @State`.
-
-`currentPageID` is read-only to hosts. Programmatic page changes go through `navigate(to:)`, which
-records the visit and truncates forward history when necessary; do not make the public setter
-writable again.
-
-- **The sidebar's selection is derived from the navigator, not stored beside it.** Don't reintroduce
-  the usual "selection plus an `isNavigatingThroughHistory` flag": that flag's reset depends on when
-  SwiftUI writes the selection back, and there is no guarantee — reset early and a visit goes
-  unrecorded, late and the user's next click is taken for a programmatic one.
-- **The chevrons are one `ToolbarItem` holding a `ControlGroup` with `.controlGroupStyle(.navigation)`**
-  — the exact spelling Xcode's settings window uses. Don't "simplify" it: dropping `.navigation`
-  resolves to a native toolbar item with no segmented control at all, and two adjacent
-  `ToolbarItem`s (or a `ToolbarItemGroup`, which still yields two `NSToolbarItem`s) draw as separate
-  buttons instead of the joined capsule. Checked against a view-hierarchy capture of Xcode's own
-  window: same class chain down to `SwiftUISegmentedControl`, same `segmentCount` 2 / `.momentary` /
-  `.separated` / `.extraLarge`, same 73 × 36 fitting size. `SettingsNavigationControlsTests` asserts
-  the first three.
-- **Sub-page drill-down needs nothing from the library** — measured: a `NavigationStack` inside a
-  page's own content gets SwiftUI's own `navigationStack.back` toolbar item. Deliberately *not*
-  merged into `SettingsNavigator`, which tracks pages and not positions within one.
-- **SwiftUI *does* build a toolbar for the settings window on macOS 26.** `window.toolbar` is `nil`
-  only when the panel is **embedded** in a host window rather than being its `contentViewController`
-  — which is also why an embedded panel shows no chevrons. `SettingsNavigationControlsTests` guards
-  the toolbar wiring.
-- **The sidebar toggle is *removed*, with `toolbar(removing: .sidebarToggle)` on the sidebar content
-  — not hidden from AppKit afterwards.** Hiding the item's `view` leaves the `NSToolbarItem` visible,
-  and from macOS 26 every visible item gets an `NSToolbarPlatterView` of its own, so the emptied-out
-  toggle draws as a **blank glass capsule beside the traffic lights**. Measured on macOS 27: the
-  platter follows the item being visible — not `isBordered` (SwiftUI already leaves it `false` here),
-  not the state of its view. `NSToolbarItem.isHidden = true` works but is macOS 15+, and this module
-  floors at 14. Xcode gets there through `NavigationSplitView(…).fixedSidebar(true)`, which is
-  SwiftUI SPI and absent from the public swiftinterface; `toolbar(removing:)` is its public
-  counterpart. **Its order against `navigationSplitViewColumnWidth(_:)` is load-bearing**: the
-  toolbar modifier wraps the list in a `ModifiedContent`, and with the width applied first the
-  preference does not survive it — the sidebar silently falls back to 144pt instead of the configured
-  185, taking the detail pane's toolbar items left with it. Apply the width **last**.
-  `SettingsWindowChromeTests` guards both halves.
-- **Verifying anything Liquid-Glass-shaped needs a real app bundle.** A `swift build` /
-  `swift test` binary carries the *deployment target* as its `LC_BUILD_VERSION` `sdk` field (measured:
-  `sdk 15.0` against the example app's `27.0`), and AppKit gates the macOS 26+ look on that, so
-  toolbar platters simply do not exist in a command-line run. That is why the tests above assert on
-  `NSToolbarItem` state rather than on rendering. To reproduce visually, `vtool -set-build-version
-  macos <minos> 27.0 -replace` the binary into a hand-built `.app`, re-sign ad-hoc, and copy the
-  SPM resource bundles into `Contents/Resources/`.
-
-**Full guide:** `Documentations/SettingsWindow.md`.
-
-### Spotlight Panel (`SpotlightPanel` trait)
-
-A replica of macOS 26's Spotlight panel — the floating platter whose query field grows downwards
-into a result list. Lives in `Sources/UIFoundationAppleInternal/SpotlightPanel/**` behind the
-opt-in trait `SpotlightPanel`, declared as
-`.trait(name: "SpotlightPanel", enabledTraits: ["AppleInternal", "Navigation"])` so a consumer
-only names one trait. Every file is wrapped in `#if SpotlightPanel && os(macOS)`. Decision record
-is Evolution [`0021`](Documentations/Evolutions/0021-spotlight-panel-replica.md);
-reverse-engineering evidence is [`Researchs/Spotlight-Panel-Internals.md`](Researchs/Spotlight-Panel-Internals.md).
-
-**It replicates the shell, not the index** — the host supplies results through
-`SpotlightPanelDataSource`. `QuickActionBar` is untouched and the two share no code.
-
-Eight things measured rather than assumed, and each is a thing a later edit would plausibly
-"tidy away":
-
-- **The window is borderless, and `.titled` must stay out of its style mask.** The platter is
-  inset from the window bounds by `animationPadding` (40) so the present animation's 1.12 scale
-  has room, so anything the window draws at its *own* bounds shows up as a second rounded
-  rectangle 40 points outside the platter. A titled window is a real framed window: the window
-  server strokes its frame there and shapes the shadow to it. `.titled` is tempting because it
-  does give a heavier drop shadow — it shipped that way for one round and read as two stacked
-  platters. Measured: with it, `contentLayoutRect` comes back 32 points short of the content
-  rect and the frame view carries an `NSTitlebarContainerView`. Its removal also makes
-  `Panel.canBecomeKey`'s override load-bearing (a borderless window answers `false`), so that
-  override is not redundant. `SpotlightPanelWindowChromeTests` guards both halves.
-- **Placement pins the top edge, not the centre.** `y = screen.minY + (screen.height +
-  standardExpandedHeight) / 2 − windowHeight`, so the top edge sits where a
-  `standardExpandedHeight`-tall window's would if centred, **whatever the current height is**.
-  The panel therefore sits high while collapsed and lands dead centre once expanded. Centring the
-  window, or growing downwards from the collapsed position, both look wrong beside the original.
-- **The dismissal scale is not uniform**: 1.12 wide against 0.95 tall, with different `bounce`
-  values per axis while presenting (0.41 / 0.32). `SpotlightPanelAnimationTests` keeps a canary
-  on it.
-- **The content blur is its own, slower curve.** `NSWindow._setContentBlurRadius:` animates 0 → 25
-  on spring(0.51, 0.05) against the opacity's spring(0.28, 0.41). That ~2× gap is the whole
-  effect — the panel goes soft before it goes away. Matching the durations turns it into an
-  ordinary fade. This private setter is the only reason the component sits in `AppleInternal`; it
-  is reached through a KVC `_set<Key>:` match under the key `contentBlurRadius`, and degrades
-  silently (`NSWindow.supportsSpotlightPanelContentBlur`) rather than crashing.
-- **Sizing and searching are debounced separately** (0.05 s against 0.2 s). One timer is not
-  enough: a response arriving in several passes resizes the window once per pass and reads as a
-  shudder. `PlatterBehavior.resolvedContentHeight(…)` is a pure function precisely so the rules
-  can be asserted without a window.
-- **Two constants are choices, not measurements** — `standardWidth` (680) and
-  `standardExpandedHeight` (430). Spotlight's own resolve through `SpotlightUIShared`, which the
-  original dump did not cover; macOS 27.2's have been read since (640 wide, 520 in its "Campo"
-  mode; a preferred results height of 410) and the defaults deliberately not moved yet.
-  Everything else in `Metrics` is measured; don't "correct" those.
-- **The resize is Spotlight's spring, `Spring(duration: 0.3, bounce: 0.2)`, in closed form.** It is
-  the default resize animation of 27.2's results platter, both ways (`SpotlightUIShared`'s
-  `WindowSizingAnimation.AxisAnimation.default`). `Configuration.resizeAnimationDuration` is the
-  spring's duration and the bounce is fixed; a resize ends when the spring comes to rest, not when
-  the duration runs out. `SpotlightPanelWindowFrameAnimatorTests` checks it against SwiftUI's own
-  `Spring`.
-- **Escape has two layers, and the second is on the panel.** The command table clears a non-empty
-  query and dismisses only on an empty one; an Escape that starts outside the query field (Tab
-  moves the focus to the results list) arrives through `Panel.cancelOperation(_:)`. Not on the
-  content view controller: `NSTableView` hands `cancelOperation:` to every responder above it
-  without stopping, so the window's own implementation would run after it — and that one, which
-  looks for an Escape key equivalent and then sends `cancel:`, is why the panel used to stay up.
-
-Divergences from Spotlight, all deliberate: Quick Look is ⌘Y rather than Space (the query field
-keeps first responder while the list is driven, so Space has to stay a space); the panel closes
-on resigning key by default where Spotlight does not; no filter bar / history / navigation stack
-yet (phases two and three); no preview pane and no ⌘Space takeover, ever.
-
-**Full guide:** `Documentations/SpotlightPanel.md`. Demo: **Spotlight Panel** in the example app.
-
-### Custom Tooltip (`UIFoundationAppleInternal/Tooltip/`)
-
-macOS-only customizable replacement for the `NSToolTipManager` pipeline. Lives in `UIFoundationAppleInternal` (private API; not App-Store-safe). No SPM trait — this ships unconditionally with the `AppleInternal` trait.
-
-```swift
-import UIFoundation
-
-// once, in applicationDidFinishLaunching:
-CustomToolTipManager.install()
-
-// global tweak applied to every NSView.toolTip
-CustomToolTipManager.shared.globalStyle = .default
-
-// per-view override (associated-object backed)
-view.box.customTooltipStyle = .default.with { $0.cornerRadius = 10 }
-```
-
-Pieces (under `Sources/UIFoundationAppleInternal/Tooltip/`):
-- `ToolTipStyle` — value type with `font`, `textColor`, `backgroundColor`, `contentMargin`, `yOffsetFromCursor`, `initialDelay`, plus the layer-backed fields (`cornerRadius`, `borderColor`, `borderWidth`, `shadowColor`, `shadowOffset`, `shadowRadius`). `.system` is the all-`nil` no-op; `.default` is the recommended preset. `with(_:)` mutates a copy.
-- `CustomToolTipManager` — `@MainActor` singleton. `install()` / `uninstall()` are ref-counted; `globalStyle` is the process-wide fallback; `setStyle(_:for:)` (or `view.box.customTooltipStyle`) attaches a per-view override.
-- `CustomToolTipManagerHook` — `@DynamicSubclassHook` container (from `FrameworkToolbox/ObjCRuntimeToolbox`) that isa-swizzles the `NSToolTipManager.shared` singleton and overrides `displayToolTip:` (for the per-view TLS), `toolTipAttributes` / `toolTipTextColor` / `toolTipBackgroundColor` / `toolTipContentMargin` / `toolTipYOffset` (per-field nil-fallback to `callSuper()`), and `_newToolTipWindow` / `installContentView:forToolTip:toolTipWindow:isNew:` (layer-backed contentView swap). The macro forbids `@MainActor` hook methods, so each method wraps manager calls in `MainActor.assumeIsolated { ... }` — `NSToolTipManager` only ever runs on the main thread (verified in the RE report).
-- `NSView+CustomToolTip.swift` — stores `_customTooltipStyle` on `NSView` via `@AssociatedObject(.copy(.nonatomic))` and exposes it through `FrameworkToolbox<NSView>.customTooltipStyle`.
-
-Private ObjC headers (in `UIFoundationAppleInternalObjC/include/`):
-- `NSToolTipManager.h` — fully private class (no public AppKit header declares it, despite Apple's documentation page); declares `+sharedToolTipManager` (bridged as `.shared` via `NS_SWIFT_NAME(shared)`), `initialToolTipDelay`, plus every hook target.
-- `NSToolTip.h` — private model class; we only need `view` / `cell` / `string` / `trackingNum` so the hook can route to per-view styles.
-- `NSColor_Private.h` — adds `+toolTipColor` to the public `NSColor`.
-
-Layer-backing reconciliation: the hook overrides `installContentView:forToolTip:toolTipWindow:isNew:` (called once per tooltip display, before `addDrawingSubviewForToolTip:`). On each call it inspects the resolved style and swaps `panel.contentView` between the system `NSVisualEffectView` (`material = .toolTip`) and a `LayerBackedView`, depending on whether any of `backgroundColor` / `cornerRadius` / `borderColor` / `borderWidth` / `shadowColor` / `shadowOffset` / `shadowRadius` is set. The previously cached `_normalToolTipDrawView` / `_expansionToolTipDrawView` are reset to `nil` via KVC so the system rebuilds them inside the new content view; the panel's pre-customization `backgroundColor` / `isOpaque` / `hasShadow` are saved in an associated object and restored when the resolved style stops needing layer backing. Per-view overrides work in isolation — a single styled view can co-exist with other views that still get the unmodified system tooltip.
-
-Reference: full reverse-engineering report at [`Researchs/AppKit-NSToolTipManager-Internals.md`](Researchs/AppKit-NSToolTipManager-Internals.md).
-
-## Example App (macOS)
-
-`UIFoundationExample-macOS/` is a single-window **demo browser**: a sidebar (source list, grouped by category) on the left, the selected demo's view controller on the right. All code, no storyboard or xib at all — the main menu comes from `MainMenu.standard()` (see the **Main Menu** section; the menu-only storyboard and its `INFOPLIST_KEY_NSMainStoryboardFile` setting were removed with Evolution 0009).
-
-Structure under `UIFoundationExample-macOS/UIFoundationExample-macOS/`:
-- `AppDelegate.swift` — the hand-written `@main enum App` entry point (creates the delegate, sets the activation policy and `MainMenu.standard()`, then `run()`; required because deleting the storyboard breaks `@main` on the delegate — see the **Main Menu** section) plus the `AppDelegate` class, which on macOS 26+ owns and registers the Settings scene representation during `applicationWillFinishLaunching(_:)` and builds a `DemoBrowserWindowController` on launch.
-- `Browser/` — `DemoBrowserWindowController` (code-built `NSWindow`), `DemoBrowserSplitViewController` (sidebar + `DemoDetailViewController`), `DemoSidebarViewController` (source-list `NSOutlineView`; items are a private `SidebarNode` reference type because `NSOutlineView` needs stable item identity).
-- `Catalog/` — `Demo` (a value type: `title` / `category` / `summary` / `minimumMacOS` / `makeViewController`) and `DemoCatalog.all` (the registry) + `DemoCatalog.grouped`.
-- `Demos/` — one self-contained `NSViewController` per demo (`TabBarDemoViewController`, `SystemHUDDemoViewController`, `NavigationDemoViewController`, `LayerBackgroundDemoViewController`, `InsetsLabelDemoViewController`, `TextFinderDemoViewController`, `SettingsDemoViewController`, `SettingsSceneRepresentationDemoViewController`, `ToolbarNavigationDemoViewController`, `CustomTooltipDemoViewController`, `WelcomePanelDemoViewController`, `SpotlightPanelDemoViewController`, `QuickActionBarDemoViewController`).
-
-**To add a demo:** drop a new `NSViewController` file under `Demos/` and append one `Demo` to `DemoCatalog.all`. Nothing else changes.
-
-**Do not let a demo dictate the window's minimum width.** Auto Layout treats an `NSHostingView`'s
-ideal width — and a wrapping `NSTextField`'s single-line width — as a hard floor, so the browser
-window gets pushed wide and cannot be shrunk back. Measured: three SwiftUI panels side by side
-demanded 1006 pt; stacking them vertically brought it to 339 pt. Stack wide content vertically, add
-`.fixedSize(horizontal: false, vertical: true)` to text that should wrap, and call
-`setContentCompressionResistancePriority(.defaultLow, for: .horizontal)` on hosting views and labels.
-The shared summary label at the top of the detail pane is already set up this way.
-
-Two project facts that make this work (and matter when extending it):
-- The Xcode project's app source group is a **file-system-synchronized group** (`PBXFileSystemSynchronizedRootGroup`, Xcode 16+). Any file added under the app folder is auto-included in the target — **no `project.pbxproj` edits needed** to add/move/delete demos.
-- The example links the local package via an `XCLocalSwiftPackageReference` whose `traits` list selects opt-in features. **To demo a trait-gated control, add its trait there** (e.g. `TabBar`, `SystemHUD`, `Navigation`, `SpotlightPanel` and `WelcomePanel` are enabled alongside `AppKitPlus` / `AppleInternal` / `FilterUI` / `IDEIcons` / `NSAttributedStringBuilder` / `QuickActionBar` / `Settings` / `StatusItemController`). **A product outside the umbrella needs more than its trait** — `UIFoundationSettings` / `UIFoundationSettingsUI` also have to be added as an `XCSwiftPackageProductDependency` and linked in the target's Frameworks phase, or the demo will not resolve its import; otherwise the control's symbols won't be compiled into the package and the demo won't link.
-
-Build the example from the command line with `xcodebuild -project UIFoundationExample-macOS/UIFoundationExample-macOS.xcodeproj -scheme UIFoundationExample-macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build 2>&1 | xcsift`.
-
-## Code Style Notes
-
-- **Unique basenames per target**: within a single SPM target, every source file must have a unique file*name* — SwiftPM keys compiled object files by basename, so two same-named files in one target (even in different subdirectories) fail the build with `couldn't build …o because of multiple producers`. Prefix feature-scoped files with the feature name (`QuickActionBar+Helpers.swift`, `TabBar+Style.swift`) instead of relying on subdirectory paths to disambiguate. The `QuickActionBar/` and `TabBar/` feature dirs follow `Feature.swift` (entry) + `Feature+Descriptor.swift` for everything else, keeping only distinctive type-named files (e.g. `TabButton.swift`) unprefixed.
-- **Associated objects go through the `@AssociatedObject` macro — never by hand.** No `objc_getAssociatedObject` / `objc_setAssociatedObject`, no direct calls to the package's `getAssociatedObject` / `setAssociatedObject`, and no pasted copy of the macro's expansion: declare a property and put the attribute on it. When the value has a natural default — a helper object, a collection — declare it non-optional with an initial value, `var property: Type = .init()` (`LayerBackgroundProviding.backgroundRenderer`, `NSView.actionHandlers`): the first read creates and stores it. Keep it optional only when `nil` itself means something (`pinnedGroupName = nil` unpins, a `nil` trampoline means no action block). The macro always associates with `self`, so data kept on *someone else's* object goes in a `private extension` of that object's class (`FilteringMenu` → `NSMenuItem`, `FilterTokenFieldCell` → `NSTextAttachment`, `CustomToolTipManager` → `NSWindow`, `TargetActionProvider` → `NSObject`). Three traps, all measured:
-  - **Never declare the property as `Any` or `AnyObject`, optional or not.** The generated getter casts what is stored with `as? Any` / `as? AnyObject`, and with nothing stored that cast produces `Optional(nil)` for `Any` and `NSNull` for `AnyObject` — never `nil`. An optional then reads "already set" before anything was stored; a non-optional returns that placeholder instead of creating its initial value. Use the concrete type; for a value that can be one of several ObjC classes, `NSObject?` reads back `nil` correctly.
-  - **A macro-backed property only looks stored.** On a class installed with `object_setClass` (`GroupPinnedBackdropLayer`), which must add no storage, deleting the attribute turns the declaration into a real stored property that lives past the end of an instance someone else allocated.
-  - **A protocol extension can be a circular reference.** `LayerBackgroundProviding` carries one fine, but in `extension TargetActionProvider` a property typed `ActionTrampoline<Self>?` fails with `circular reference` on the protocol itself, trailed by dozens of follow-on errors that point everywhere else. Declare the property on the conformers' common superclass instead (`NSObject` there) and restore the type in a computed wrapper (`FrameworkToolbox.actionTrampoline`).
-- **Locks are FrameworkToolbox's `Mutex` (module `OSToolbox`) — never `NSLock`, `os_unfair_lock` or `OSAllocatedUnfairLock` by hand.** Unlike the standard library's `Mutex` it does not need macOS 15. A target that locks names the `OSToolbox` product itself — `UIFoundationToolbox` re-exports `FrameworkToolbox`, which does not contain it — and so does the example's `ComponentLayoutExample` package. Put every field the lock guards into one `Mutex<State>` rather than a lock beside several `var`s: nothing can reach them without holding it, and the class passes `Sendable` checking with no `@unchecked` (`SwiftSyntaxHighlighter` in the example, the storages in `Tests/UIFoundationTests/Settings/`). Two things to know:
-  - **`~Copyable` does not get in the way of a local.** A local `let` captured by an escaping closure — `Task.detached`, a completion block — is borrowed there, and the enclosing function keeps using it; `AsyncDocumentBridge` does exactly this. Only consuming it after the capture fails (measured on a probe, Swift 6.4).
-  - **Keep caller-supplied code out of `withLock`.** The lock is an `os_unfair_lock`, which crashes the process when the thread holding it takes it again, where `NSLock` would deadlock. Produce the value first, then store it inside (`AsyncDocument.canAsynchronouslyWrite`). The one deliberate exception is `QuickActionBar.SearchTask`, which calls its completion with the lock held — that is what stops an invalidated task from delivering — and whose only completion is the bar's own, which just hops to the main queue.
-- **Private ObjC header naming** (`Sources/UIFoundationAppleInternalObjC/include/`): the convention has two shapes, picked by whether AppKit ships a public header for the class.
-  - `<Class>_Private.h` — for **public** AppKit/CoreAnimation classes where we re-open with `@interface ClassName ()` to add private methods. Examples: `NSView_Private.h`, `NSScrollView_Private.h`, `CALayer_Private.h`, `NSColor_Private.h`.
-  - `<Class>.h` — for **fully private** classes that have no public AppKit header (their symbols only appear in the framework's `.tbd`). We declare the entire `@interface ClassName : NSObject` ourselves. Examples: `NSScene.h`, `CABackdropLayer.h`, `NSToolTip.h`, **`NSToolTipManager.h`** (despite the public Apple docs page, `NSToolTipManager` has no entry in any SDK header — verify with `grep "interface NSToolTipManager" $(xcrun --sdk macosx --show-sdk-path)/System/Library/Frameworks/AppKit.framework/Headers/*.h` before assuming a class is public).
-- Extensions on AppKit/UIKit classes follow the naming convention `NSClassName+.swift`
-- One extension file per class in `UIFoundationToolbox/AppKit/`
-- Button style subclasses live in `UIFoundationAppKit/Button/StyleSplittedButton/` (e.g., `PushButton`, `SwitchButton`, `HelpButton`)
-- The `@retroactive` keyword is used for protocol conformances on types from other modules (e.g., `NSControl.StateValue: @retroactive ExpressibleByBooleanLiteral`)
-- No linter or formatter is configured — style is enforced by convention only
+- Override `setup()` (called from both initializers) and `firstLayout()` (once, on the first
+  `layout()`), not the initializers.
+- The bases are `LayerBackedViewBase` / `LayerBackedViewControllerBase`, resolved by
+  `#if AppKitPlus && canImport(AppKitPlus)` — keep both halves of that guard.
+- With the trait off, `LayerBackedViewController` has only `viewWillFirstAppear` /
+  `viewDidFirstAppear` of AppKitPlus's six hooks. An override of `viewWillFirstLayout`,
+  `viewDidFirstLayout`, `viewUpdateLayer` or `viewSafeAreaInsetsDidChange` goes inside
+  `#if AppKitPlus && canImport(AppKitPlus)`.
+- **With the trait on, a subclass may not declare a property whose name AppKitPlus already added to
+  that class** — Swift reports `overriding non-open property outside of its defining module`, and
+  `@nonobjc` does not help. The restriction reaches every module importing UIFoundation with the
+  trait on. Live hazards: `center`, `transform`, `contentMode` on any `NSView`; `layoutMargins`,
+  `directionalLayoutMargins`, `preservesSuperviewLayoutMargins`, `insetsLayoutMarginsFromSafeArea`,
+  `layoutMarginsDidChange()` on any `LayerBackedView`. Code that compiles with the trait off can fail
+  with it on. Details in [AppKitPlus.md](Documentations/AppKitPlus.md).
+</important>
+
+<important if="you are bumping AppKitPlus, or Package.resolved changed its version">
+Re-check the collision surface before anything else: `from:` is up-to-next-major even for `0.x`, so
+the constraint does not make a bump safe. Survey AppKitPlus's public headers, not its
+`.swiftinterface` — Objective-C categories never appear in an interface. The host classes, the grep
+and the version-floor history are in [AppKitPlus.md](Documentations/AppKitPlus.md).
+</important>
+
+<important if="you are giving a view a background colour, corner radius, border or shadow">
+`LayerBackedView` gets `cornerRadius`, `cornerCurve`, `backgroundColor`, `border*` and `shadow*` from
+`LayerBackgroundProviding`. A view that cannot inherit from it (`NSTableCellView`, a collection
+item's view) conforms to the protocol and calls `attachToSelfIfNeeded()`,
+`updateLayerBackgroundIfNeeded()` and `layoutLayerBackgroundIfNeeded()` itself. Don't conform a class
+that already owns `backgroundColor` (`NSTextField`, `NSTableView`, `NSScrollView`): the protocol's
+property is shadowed and silently receives nothing. Example, corner-curve and clipping traps, and
+pixel testing: [LayerBackground.md](Documentations/LayerBackground.md).
+</important>
+
+<important if="you are writing code shared by AppKit and UIKit">
+
+- Use the `UIFoundationTypealias` aliases (`NSUIView`, `NSUIColor`, `NSUIFont`, …) instead of
+  branching. The AppKit guard is `#if canImport(AppKit) && !targetEnvironment(macCatalyst)`.
+- Stack-view alignment is the exception. `NSLayoutConstraint.Attribute` and `UIStackView.Alignment`
+  disagree (AppKit has no `.fill`), so `HStackView` / `VStackView` take the shared
+  `StackViewAlignment`, which emulates `.fill` on AppKit with `alignment = .notAnAttribute` plus
+  pinned cross-axis edges (respecting `edgeInsets`). Defaults stay per platform: `.center` on AppKit,
+  `.fill` on UIKit.
+</important>
+
+<important if="you are adding an extension, helper or convenience on an AppKit, UIKit or Foundation type">
+
+- It goes behind FrameworkToolbox's `.box` namespace (`tableView.box.makeView(ofClass:)`,
+  `button.box.setAction { … }`) so it cannot collide with Apple's or AppKitPlus's names.
+  `UIFoundationToolbox.swift` `@_exported import`s FrameworkToolbox so every module sees `.box`. The
+  one deliberate exception is the notification messages' nested `Backport` type.
+- `NSWindow.box.restoreFrame(autosaveName:defaultSize:centerInScreen:)` and
+  `NSSplitView.box.restoreDividerPositions(autosaveName:initialPositions:)` apply their fallback only
+  when nothing restorable is stored (Evolution
+  [`0020`](Documentations/Evolutions/0020-splitview-autosave-initial-positions.md); measured on
+  macOS 26.5.2):
+  - "The key exists" is not "the layout will be restored". AppKit silently declines when the stored
+    entry count differs from `arrangedSubviews.count`, so a release that adds a pane leaves a dead
+    key; `hasRestorableDividerPositions(autosaveName:)` replicates AppKit's whole check.
+  - Re-assigning the same `autosaveName` restores nothing (an `isEqualToString:` guard), which is why
+    the implementation clears the name before setting it. Keep the pair.
+  - There is no `@resultBuilder` spelling on purpose: in Swift 6.2 a bare implicit member chain inside
+    a builder closure cannot resolve its type, so an array literal keeps the leading-dot form.
+</important>
+
+<important if="you are using or changing the view-building DSLs or property wrappers">
+
+- `@ViewHierarchyBuilder` — declarative hierarchy: `ViewItem` (`@dynamicMemberLookup` for
+  configuration), `ControllerItem` (does `addChild`), `LayoutGuideItem`.
+- `HStackView` / `VStackView` — built with FrameworkToolbox's `@ArrayBuilder<StackViewComponent>`;
+  `Spacer(spacing:)` and `MaxSpacer()` are recognised specially. Per-view stack modifiers live behind
+  `.stackView` (a plain wrapper, not `.box`): `fill()`, `customSpacing(_:)`, and macOS-only
+  `gravity(_:)` / `visibilityPriority(_:)`, stored with `@AssociatedObject` and read at assembly. Size
+  helpers (`size`, `minSize`, `maxSize`, `contentHugging`, `contentCompressionResistance`) are `.box`
+  in `NSUIView+SizeConstraints.swift`; `NSUIStackView` configuration is `.box` in
+  `StackView+Box.swift`. The old direct-on-view methods remain, deprecated.
+- `GridView { GridRow { … } }` (macOS) — `NSGridView` DSL in `UIFoundationAppKit/GridView/`; the
+  `GridView` class itself is `Base/GridView.swift`. The convenience initializer lives on `NSGridView`, so the `GridView`
+  subclass inherits it and its `setup()` still runs. A bare `NSView` in a row becomes a `GridCell`;
+  `GridCell.empty` is a blank cell. Cell modifiers behind `.gridView` (`columns(_:)` / `rows(_:)`
+  spanning, `xPlacement`, `yPlacement`, `rowAlignment`, `placementConstraints`), and the same set on
+  `GridCell`; row properties on `GridRow`; column properties via `.columns { GridColumn()… }`. The old
+  `gridCell*` methods on `NSView` remain, deprecated.
+  Spanning pads with `NSGridCell.emptyContentView` and merges once after all rows, with clamped,
+  non-overlapping ranges. Traps: placement constraints exclude `xPlacement` / `yPlacement`; a grid- or
+  row-level `rowAlignment` other than `.none` suppresses per-cell `yPlacement`; don't `.hidden()` a
+  row that takes part in a merge. NSGridView's own rules are in the `appkit-internals` skill.
+- `@ViewInvalidating(.display, .layout)` — invalidates the owning view on change, through the
+  `_enclosingInstance` subscript; combinations nest `Invalidations.Tuple` (up to 10). AppKit-only
+  extras: `.restorableState`, `.reloadData` (the view must conform to `ViewReloading`).
+- `@MagicViewLoading` / `@MagicWindowLoading` — the getter calls `loadViewIfNeeded()` /
+  `loadWindowIfNeeded()` and force-unwraps, so assign them in `setup()` or `loadView()` before
+  anything outside reads them.
+- `makeConstraints { make in … }` — `make` is the view itself; returns the activated constraints.
+- `Then` (`.then` / `.with` / `.do` / `.as` on every `NSObject`) is an internal protocol duplicated
+  in `UIFoundationAppKit`, `UIFoundationShared`, `UIFoundationUtilities` and `UIFoundationUIKit`; it
+  is not exported.
+- Target-action as closures: `TargetActionProvider` + `ActionTrampoline`, for `NSControl`, `NSCell`,
+  `NSToolbarItem`, `NSMenuItem`, `NSGestureRecognizer`, `NSColorPanel`. `NSControl` has two APIs on
+  separate keys: the untyped `.box.setAction { }` and the typed `.box.actionBlock`.
+- `TableViewProtocol` / `OutlineViewProtocol` factories `scrollableTableView()` /
+  `scrollableSingleColumnOutlineView()` return `(NSScrollView, Self)`.
+</important>
+
+<important if="you are using or changing SelfSizingScrollView, SelfSizingTableView or SelfSizingOutlineView">
+`UIFoundationAppKit/Base/` (`ScrollView.swift`, `TableView.swift`, `OutlineView.swift`): a table or
+tree that reports its rows' height as its intrinsic size, so it can sit in a stack view.
+`SelfSizingScrollView` mirrors its document view's intrinsic size, clamped by `minimumContentSize` /
+`maximumContentSize`, and scrolls past the cap.
+
+- Both row views measure through the internal `NSTableView.selfSizingRowsContentSize` — they inherit
+  from different UIFoundation bases, so a shared extension is how they agree. It reads
+  `rect(ofRow:)` rather than multiplying `rowHeight`: the first row's `minY` already carries a
+  `.inset` / `.sourceList` style's top inset, the last row's `maxY` the intercell spacing, and the
+  bottom inset mirrors the top. Both override `invalidateIntrinsicContentSize()` to invalidate the
+  enclosing scroll view — nothing else makes it ask again.
+- **A disclosure does not animate, on purpose.** AppKit slides rows in over `NSAnimationContext`'s
+  default 0.25 s while the reported height travels through Auto Layout on its own schedule; the two
+  never line up and it reads as a jitter. `SelfSizingOutlineView` wraps the disclosure — including
+  whatever a delegate does from `outlineViewItemDidExpand`, posted from inside the call — in a
+  zero-duration grouping. `animatesExpansionAndCollapse = true` hands the animation back, sensible only
+  when the host's height does not follow the row count.
+- Overriding `expandItem(_:expandChildren:)` catches every path: `expandItem(_:)` forwards to it, and
+  so does the disclosure triangle, an `NSButton` whose `_outlineControlClicked:` routes through it
+  (verified by clicking). `insertRows(at:withAnimation:)` cannot be overridden — `NSOutlineView`
+  marks it unavailable.
+- Tests cannot see the animation (no display; rows are not even layer-backed).
+  `SelfSizingRowViewsTests` asserts on `NSAnimationContext.current.duration` read in the delegate
+  callback, against a plain `OutlineView` control that reads 0.25 — without the control the assertion
+  passes against an implementation that does nothing.
+</important>
+
+<important if="you are using or changing StatusItemController">
+`StatusItemController` trait; `UIFoundationAppKit/StatusItemController/`; ported from
+hexedbits/StatusItemController (MIT, see `THIRD_PARTY_LICENSES.md`). One top-level symbol:
+`@MainActor open class StatusItemController: NSObject, NSMenuDelegate`, owning `statusItem`, built with
+`init(image:length:)` (`length` defaults to `NSStatusItem.squareLength`). Subclasses override
+`buildMenu()`, `leftClickAction()` and `rightClickAction()` (control-click counts as right) and call
+`openMenu()`, `hideMenu()` or `quit()`.
+
+- `openMenu()` goes through `popUpMenu(_:)`, as upstream does: without it the menu fails to pop up on
+  the first click.
+- Upstream's public `NSEvent.isRightClickUp` / `NSApplication.isCurrentEventRightClickUp` are internal
+  here, renamed `isRightClickUpForStatusItem` / `isCurrentEventRightClickUpForStatusItem`, to stay out
+  of the top-level AppKit namespace. Upstream's `NSMenuItem` convenience initializer is not ported —
+  `Menu/NSMenuItem+Convenience.swift` and the `@MenuBuilder` DSL supersede it.
+</important>
+
+<important if="you are using or changing NSAttributedStringBuilder">
+`NSAttributedStringBuilder` trait; `UIFoundationShared/NSAttributedStringBuilder/`; tests in
+`Tests/UIFoundationTests/NSAttributedStringBuilder/` (Swift Testing, gated on the same trait). Ported
+from ethanhuang13/NSAttributedStringBuilder: `NSAttributedString { AText("…").font(…); LineBreak() }`
+with `AText`, `ATextGroup` (`@AttrTextGroupBuilder`), `Link`, `ImageAttachment` (not on watchOS),
+`Empty`, `Space`, `LineBreak`.
+
+- Upstream's `Font` / `Color` / `Image` / `Size` / `Rect` typealiases were dropped for `NSUIFont` /
+  `NSUIColor` / `NSUIImage` and plain `CGSize` / `CGRect`, so nothing collides with SwiftUI's `Font` /
+  `Color` / `Image`. `Attributes` (`[NSAttributedString.Key: Any]`) stays.
+- `Ligature.all` and the `vertical()`, `textBlocks(_:)`, `textLists(_:)`,
+  `tighteningFactorForTruncation(_:)` and `headerLevel(_:)` modifiers are AppKit-only
+  (`#if canImport(AppKit) && !targetEnvironment(macCatalyst)`).
+</important>
+
+## Code style
+
+<important if="you are naming or adding a source file">
+
+- **File basenames are unique within a target.** SwiftPM keys object files by basename, so two
+  same-named files in different subdirectories of one target fail with `couldn't build …o because of
+  multiple producers`. Prefix feature files with the feature — `Feature.swift` for the entry point,
+  `Feature+Descriptor.swift` for the rest (`QuickActionBar+Helpers.swift`, `TabBar+Style.swift`);
+  distinctive type names (`TabButton.swift`) stay as they are.
+- Extensions on AppKit / UIKit classes are named `NSClassName+.swift`, one file per class in
+  `UIFoundationToolbox/AppKit/`. Button style subclasses (`PushButton`, `SwitchButton`, `HelpButton`)
+  live in `UIFoundationAppKit/Button/StyleSplittedButton/`.
+</important>
+
+<important if="you are storing a value on an object at runtime (associated objects)">
+**Go through the `@AssociatedObject` macro, never by hand**: no `objc_getAssociatedObject` /
+`objc_setAssociatedObject`, no direct calls to the package's `getAssociatedObject` /
+`setAssociatedObject`, no pasted expansion — declare a property and put the attribute on it.
+
+- A value with a natural default (a helper object, a collection) is non-optional with an initial
+  value, `var property: Type = .init()` (`LayerBackgroundProviding.backgroundRenderer`,
+  `NSView.actionHandlers`); the first read creates and stores it. Keep it optional only when `nil`
+  means something (`pinnedGroupName = nil` unpins; a `nil` trampoline means no action block).
+- The macro associates with `self`, so data kept on *someone else's* object goes in a
+  `private extension` of that object's class (`FilteringMenu` → `NSMenuItem`, `FilterTokenFieldCell`
+  → `NSTextAttachment`, `CustomToolTipManager` → `NSWindow`, `TargetActionProvider` → `NSObject`).
+
+Three traps, all measured:
+
+- **Never type the property `Any` or `AnyObject`, optional or not.** The generated getter casts with
+  `as? Any` / `as? AnyObject`, and with nothing stored that produces `Optional(nil)` / `NSNull`, never
+  `nil`: an optional reads "already set" before anything was stored, and a non-optional returns the
+  placeholder instead of its initial value. Use the concrete type; for one of several ObjC classes,
+  `NSObject?` reads back `nil` correctly.
+- **A macro-backed property only looks stored.** On a class installed with `object_setClass`
+  (`GroupPinnedBackdropLayer`), which must add no storage, deleting the attribute turns it into a real
+  stored property that outlives an instance someone else allocated.
+- **A protocol extension can be a circular reference.** In `extension TargetActionProvider` a
+  property typed `ActionTrampoline<Self>?` fails with `circular reference` on the protocol, trailed by
+  dozens of misleading follow-on errors. Declare it on the conformers' common superclass (`NSObject`)
+  and restore the type in a computed wrapper (`FrameworkToolbox.actionTrampoline`).
+</important>
+
+<important if="you are adding a lock, or state shared across threads">
+**Locks are FrameworkToolbox's `Mutex` (module `OSToolbox`)** — never `NSLock`, `os_unfair_lock` or
+`OSAllocatedUnfairLock` by hand. Unlike the standard library's it does not need macOS 15. A target
+that locks names the `OSToolbox` product itself (`UIFoundationToolbox` re-exports `FrameworkToolbox`,
+which does not contain it), and so does the example's `ComponentLayoutExample` package. Put every
+guarded field into one `Mutex<State>` rather than a lock beside several `var`s: nothing reaches them
+without the lock, and the class passes `Sendable` checking with no `@unchecked`
+(`SwiftSyntaxHighlighter` in the example, the storages in `Tests/UIFoundationTests/Settings/`).
+
+- **`~Copyable` does not get in the way of a local.** A local `let` captured by an escaping closure
+  (`Task.detached`, a completion block) is borrowed there and the function keeps using it, as
+  `AsyncDocumentBridge` does. Only consuming it after the capture fails (measured on a probe, Swift 6.4).
+- **Keep caller-supplied code out of `withLock`.** The lock is an `os_unfair_lock`, which crashes
+  when its holder takes it again, where `NSLock` would deadlock. Produce the value first, then store
+  it inside (`AsyncDocument.canAsynchronouslyWrite`). The one deliberate exception is
+  `QuickActionBar.SearchTask`, which calls its completion with the lock held — that is what stops an
+  invalidated task from delivering — and whose only completion is the bar's own, which just hops to
+  the main queue.
+</important>
+
+<important if="you are adding or editing a private Objective-C header">
+Private headers live in `UIFoundationAppleInternalObjC/include/` (AppKit, Core Animation) and
+`UIFoundationCarbonInternal/include/` (HIToolbox, `NSMenu`). Two shapes, picked by whether the SDK
+ships a public header for the class:
+
+- `<Class>_Private.h` re-opens a public class with `@interface ClassName ()` (`NSView_Private.h`,
+  `NSScrollView_Private.h`, `CALayer_Private.h`, `NSColor_Private.h`).
+- `<Class>.h` declares a fully private class — symbols only in the framework's `.tbd` — as a whole
+  `@interface ClassName : NSObject` (`NSScene.h`, `CABackdropLayer.h`, `NSToolTip.h`,
+  `NSToolTipManager.h`). An Apple documentation page does not make a class public: `NSToolTipManager`
+  has one and no SDK header. Check first with
+  `grep "interface NSToolTipManager" $(xcrun --sdk macosx --show-sdk-path)/System/Library/Frameworks/AppKit.framework/Headers/*.h`.
+</important>
+
+## Example app
+
+<important if="you are adding a demo or changing the example app">
+`UIFoundationExample-macOS/` is a single-window demo browser: a source-list sidebar grouped by
+category, the selected demo's view controller on the right. No storyboard or xib — the menu is
+`MainMenu.standard()`. Under `UIFoundationExample-macOS/UIFoundationExample-macOS/`:
+
+- `AppDelegate.swift` — the hand-written `@main enum App` entry point (a storyboard-free app cannot
+  put `@main` on its delegate — [MainMenu.md](Documentations/MainMenu.md)), plus `AppDelegate`, which
+  on macOS 26+ owns and registers the Settings scene representation in
+  `applicationWillFinishLaunching(_:)` and opens a `DemoBrowserWindowController` on launch.
+- `Browser/` — the window controller, the split view controller, and `DemoSidebarViewController`,
+  whose outline items are a private `SidebarNode` reference type because `NSOutlineView` needs stable
+  item identity.
+- `Catalog/` — `Demo` (`title`, `category`, `summary`, `minimumMacOS`, `makeViewController`) and the
+  `DemoCatalog.all` registry.
+- `Demos/` — one self-contained `NSViewController` per demo.
+
+**To add a demo**, drop an `NSViewController` file under `Demos/` and append one `Demo` to
+`DemoCatalog.all`. The app's source group is file-system-synchronized
+(`PBXFileSystemSynchronizedRootGroup`), so no `project.pbxproj` edit is needed to add, move or delete
+a file.
+
+- **To demo a trait-gated feature, add its trait** to the `traits` list of the project's
+  `XCLocalSwiftPackageReference`. A product outside the umbrella also needs an
+  `XCSwiftPackageProductDependency` and a Frameworks-phase entry — `UIFoundationSettings` /
+  `UIFoundationSettingsUI` do — or the demo's import does not resolve.
+- **Don't let a demo set the window's minimum width.** Auto Layout treats an `NSHostingView`'s ideal
+  width, and a wrapping `NSTextField`'s single-line width, as a hard floor, so the window is pushed
+  wide and cannot shrink back (measured: three SwiftUI panels side by side demanded 1006 pt, stacked
+  vertically 339 pt). Stack wide content vertically, add `.fixedSize(horizontal: false, vertical: true)`
+  to wrapping text, and lower horizontal compression resistance (`.defaultLow`) on hosting views and
+  labels. The detail pane's shared summary label is already set up this way.
+</important>
 
 ## Documentation
 
-- **Reverse engineering research reports** — All reverse engineering / framework internals research documents (AppKit/UIKit/CoreAnimation binary analysis, private API investigations, etc.) must be placed under the `Researchs/` directory at the repo root. Do **not** mix them into `docs/` or scatter them across module folders.
-- **Agent plugin skills** — `AgentPlugins/uifoundation/skills/` holds the `uifoundation-widgets` and `uifoundation-settings-layer` skills that downstream agents install as the `uifoundation` plugin (README, "Agent Plugin"). A change to the public API they describe — a widget, a builder, a `.box` helper, the settings types — updates the affected skill in the same commit and bumps `version` in both `AgentPlugins/uifoundation/.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`: Claude Code and Codex only update an installed plugin when that version changes.
+<important if="you are writing documentation, or changing public API or behaviour">
+
+- **Keep this file an index.** A component's detail goes into its guide, with one line here pointing
+  at it: Codex reads only the first 64 KB of this file and drops the rest, and Claude Code tells the
+  model this file may be irrelevant, so length costs attention. A rule belongs here only if it applies
+  across components.
+- A component's guide changes in the same commit as its behaviour. A new guide is added to
+  `Documentations/README.md`.
+- Reverse-engineering reports (binary analysis, private API investigations) go in `Researchs/` at the
+  repo root, nowhere else.
+- `AgentPlugins/uifoundation/skills/` holds `uifoundation-widgets` and `uifoundation-settings-layer`.
+  A change to the public API they describe — a widget, a builder, a `.box` helper, the settings types
+  — updates the affected skill in the same commit and bumps `version` in both
+  `AgentPlugins/uifoundation/.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`: Claude Code
+  and Codex update an installed plugin only when that version changes.
+</important>
