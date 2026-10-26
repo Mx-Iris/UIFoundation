@@ -27,6 +27,12 @@ enum DemoCatalog {
             makeViewController: { SpotlightPanelDemoViewController() }
         ),
         Demo(
+            title: "Quick Action Bar",
+            category: "Controls",
+            summary: "The Spotlight-style command bar — every presentation option, headings the list skips, ⌘1–⌘9 shortcuts, and a slowed-down search that shows stale answers being dropped.",
+            makeViewController: { QuickActionBarDemoViewController() }
+        ),
+        Demo(
             title: "Layer Background",
             category: "Rendering",
             summary: "LayerBackedView cards and an NSTableCellView composed with LayerBackgroundProviding.",
