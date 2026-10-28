@@ -33,6 +33,12 @@ enum DemoCatalog {
             makeViewController: { QuickActionBarDemoViewController() }
         ),
         Demo(
+            title: "Playback Slider",
+            category: "Controls",
+            summary: "Music's full-screen time slider — no knob, grows on a spring when pressed, seeks on release — following a simulated playback clock.",
+            makeViewController: { PlaybackSliderDemoViewController() }
+        ),
+        Demo(
             title: "Layer Background",
             category: "Rendering",
             summary: "LayerBackedView cards and an NSTableCellView composed with LayerBackgroundProviding.",
