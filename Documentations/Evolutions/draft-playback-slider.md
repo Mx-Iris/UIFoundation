@@ -1,8 +1,8 @@
 # Draft - PlaybackSlider：Music 全屏播放器的时间进度条
 
-- **状态**: Accepted
+- **状态**: In Progress
 - **创建日期**: 2026-10-28
-- **最后更新**: 2026-10-28
+- **最后更新**: 2026-10-29
 - **实现分支**: `feature/playback-slider`
 
 ## 摘要
@@ -69,7 +69,7 @@ Music 26.6 全屏播放器的时间进度条：
 
 ### 落地步骤
 
-1. [ ] 测试先行：把 `NSPlaybackSliderTests` 里验证行为契约的用例移植成 Swift Testing，对着只有接口、没有行为的空壳跑，
+1. [x] 测试先行：把 `NSPlaybackSliderTests` 里验证行为契约的用例移植成 Swift Testing，对着只有接口、没有行为的空壳跑，
    确认会失败。
 2. [ ] 实现 `PlaybackSlider`、`PlaybackSliderCell`、`PlaybackSliderDelegate`，第 1 步的测试全部通过；不开 trait、开
    `AppleInternal`、开全部 trait 三种构建都要通过。
@@ -92,3 +92,7 @@ Music 26.6 全屏播放器的时间进度条：
 | 2026-10-28 | 接口照搬 `NSPlaybackSlider`，去掉 NS 前缀 | 用户选定。LyricsX 只需要改名字；这套行为契约已经在 AppKitPlus 里实现并测过 |
 | 2026-10-28 | plus-lighter 混合只在 `AppleInternal` trait 下启用 | 用户选定。本库规定 `CAFilter` 这类私有 API 只能放在这个 trait 下 |
 | 2026-10-28 | 用户批准，开始实现 | 补上了四个落地步骤，每一步都能单独构建、验证 |
+| 2026-10-29 | 测试直接调用 cell 的跟踪方法，不投递真实点击 | 在 macOS 27.2 上，从终端启动的测试进程一旦开始处理窗口事件，没过多久就会被结束，退出码是 0，也没有结果汇总。所以 AppKit 自己负责的那部分没有覆盖到：连续滑块在按下、每次拖动、松手之后各发一次 action |
+| 2026-10-29 | 「按下后每帧重画」改成检查图层的 `needsDisplay()` | layer-backed 视图收到重画请求后会立刻转给图层，视图自己的 `needsDisplay` 随即读成 `false`，看不出帧回调有没有请求重画 |
+| 2026-10-29 | 测试时钟被滑块强引用；两组测试放进一个串行执行的父 suite | 显示链路或计时器在测试结束后还可能触发，读到已释放的时钟就崩溃；计时器测试会转主 run loop，别的测试会插进来执行 |
+| 2026-10-29 | 不移植 AppKitPlus 里归档、解码那两个测试 | 本库的视图只在代码里创建，`init(coder:)` 不可用 |
