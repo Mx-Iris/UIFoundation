@@ -1,6 +1,6 @@
 {
   "name": "uifoundation",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Teaches coding agents to build AppKit UI on UIFoundation: the widgets, stacks, result builders and .box helpers to reach for instead of hand-rolling, their traps, and an app settings layer on PersistentSettings.",
   "author": {
     "name": "Mx-Iris",

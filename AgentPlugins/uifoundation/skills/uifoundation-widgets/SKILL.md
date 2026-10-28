@@ -1,6 +1,6 @@
 ---
 name: uifoundation-widgets
-description: Building or migrating AppKit UI on Mx-Iris/UIFoundation — what the library already provides before hand-rolling a widget, a stack, a toolbar, a menu or a cell-reuse dance (scrollable view factories, .box makeView, VStackView / HStackView, NSToolbar and NSMenu result builders), and the traps in Label, ScrollView and the builders. Use before writing AppKit view code in a project that depends on UIFoundation, and when replacing system classes with UIFoundation ones.
+description: Building or migrating AppKit UI on Mx-Iris/UIFoundation — what the library already provides before hand-rolling a widget, a stack, a toolbar, a menu, a media time slider or a cell-reuse dance (scrollable view factories, .box makeView, VStackView / HStackView, NSToolbar and NSMenu result builders, PlaybackSlider), and the traps in Label, ScrollView and the builders. Use before writing AppKit view code in a project that depends on UIFoundation, and when replacing system classes with UIFoundation ones.
 ---
 
 # Building AppKit UI on UIFoundation
@@ -31,6 +31,7 @@ Read the package source rather than guessing. SwiftPM checks it out at
 | Menu builder | `Sources/UIFoundationAppKit/Menu/` |
 | `.box` helpers on system types | `Sources/UIFoundationToolbox/AppKit/` |
 | Controllers: the `Xibless*` bases and `LayerBackedViewController` | `Sources/UIFoundationAppKit/Controller/` (`XiblessViewController` itself is in `Sources/UIFoundationShared/Controller/`) |
+| A media time slider — Music's full-screen player bar: no knob, grows when pressed, `scrubbingDelegate` for press and release — instead of a hand-drawn progress bar or an `NSSlider` subclass | `Sources/UIFoundationAppKit/PlaybackSlider/` (`PlaybackSlider`; its plus-lighter colours need the `AppleInternal` trait, and a seek belongs on release, not on every action) |
 
 Four greps that surface the composed helpers a class listing hides:
 

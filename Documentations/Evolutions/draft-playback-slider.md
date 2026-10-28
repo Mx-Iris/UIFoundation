@@ -74,7 +74,7 @@ Music 26.6 全屏播放器的时间进度条：
 2. [ ] 实现 `PlaybackSlider`、`PlaybackSliderCell`、`PlaybackSliderDelegate`，第 1 步的测试全部通过；不开 trait、开
    `AppleInternal`、开全部 trait 三种构建都要通过。
 3. [ ] 在示例 app 里加 `PlaybackSliderDemo`，示例 app 能构建。
-4. [ ] 文档与随附项：指南、`Documentations/README.md`、CLAUDE.md 的组件一行、`uifoundation-widgets` skill 和两个
+4. [x] 文档与随附项：指南、`Documentations/README.md`、CLAUDE.md 的组件一行、`uifoundation-widgets` skill 和两个
    `plugin.json` 的版本号。
 
 ## 下游影响

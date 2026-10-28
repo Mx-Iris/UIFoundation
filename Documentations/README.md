@@ -43,6 +43,9 @@
 - [TextFinder](TextFinder.md) —— 表格与大纲视图的 ⌘F 查找。**含一条踩了就静默出错的契约**：
   宿主禁止直接调用 `textFinder.performAction(_:)`，必须走 `textFinderClient.performTextFinderAction(_:)`
   —— 索引是惰性的，直接调会搜到空文档且不报错。另有表格的 run-length 快路径与大纲的外部索引机制。
+- [PlaybackSlider](PlaybackSlider.md) —— Music 全屏播放器的时间进度条：静止时 7 pt 无滑块的胶囊，按下即跳到指针处、
+  用弹簧长到 16 pt，松手缩回；按下和松手各通知委托一次。plus-lighter 混合要开 `AppleInternal` trait，不开时普通混合、
+  略暗。另有为什么要松手才跳转播放位置、容器的命中测试为什么必须交回滑块本身，以及测试里为什么不能投递真实点击。
 - [SystemHUD](SystemHUD.md) —— 系统风格的 HUD 提示。
 - [ToolbarNavigation](ToolbarNavigation.md) —— `NSToolbar.Navigation`，Safari 式的后退 / 前进工具栏项。
   数据由组件**主动拉取**（借 `NSToolbarItem` 的验证周期），所以没有「历史变了要通知它」这一步。

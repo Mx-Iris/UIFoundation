@@ -136,6 +136,10 @@ No trait:
 - **TextFinder** — `UIFoundationAppKit/TextFinder/` — [TextFinder.md](Documentations/TextFinder.md).
   Never call `textFinder.performAction(_:)` directly; through anything but
   `textFinderClient.performTextFinderAction(_:)` it searches an index that was never built.
+- **PlaybackSlider** — `UIFoundationAppKit/PlaybackSlider/` — [PlaybackSlider.md](Documentations/PlaybackSlider.md).
+  Music's plus-lighter colours need the `AppleInternal` trait; without it the bar blends normally,
+  a little darker, and nothing says so. Its tests must not post real clicks: the runner is ended
+  with exit status 0.
 - **Self-sizing row views**, **view DSLs** — blocks below.
 
 Opt-in traits (wiring in the trait block below):
