@@ -71,9 +71,10 @@ Music 26.6 全屏播放器的时间进度条：
 
 1. [x] 测试先行：把 `NSPlaybackSliderTests` 里验证行为契约的用例移植成 Swift Testing，对着只有接口、没有行为的空壳跑，
    确认会失败。
-2. [ ] 实现 `PlaybackSlider`、`PlaybackSliderCell`、`PlaybackSliderDelegate`，第 1 步的测试全部通过；不开 trait、开
-   `AppleInternal`、开全部 trait 三种构建都要通过。
-3. [ ] 在示例 app 里加 `PlaybackSliderDemo`，示例 app 能构建。
+2. [x] 实现 `PlaybackSlider`、`PlaybackSliderCell`、`PlaybackSliderDelegate`，第 1 步的测试全部通过；不开 trait、开
+   `AppleInternal`、开全部 trait 三种构建都要通过。结果：不开 trait 40 个测试通过，开 `AppleInternal` 41 个通过（少了一个
+   只在不开 trait 时存在的测试，多了两个 plus-lighter 的测试），全部 trait 构建通过。
+3. [x] 在示例 app 里加 `PlaybackSliderDemo`，示例 app 能构建。
 4. [x] 文档与随附项：指南、`Documentations/README.md`、CLAUDE.md 的组件一行、`uifoundation-widgets` skill 和两个
    `plugin.json` 的版本号。
 
@@ -96,3 +97,5 @@ Music 26.6 全屏播放器的时间进度条：
 | 2026-10-29 | 「按下后每帧重画」改成检查图层的 `needsDisplay()` | layer-backed 视图收到重画请求后会立刻转给图层，视图自己的 `needsDisplay` 随即读成 `false`，看不出帧回调有没有请求重画 |
 | 2026-10-29 | 测试时钟被滑块强引用；两组测试放进一个串行执行的父 suite | 显示链路或计时器在测试结束后还可能触发，读到已释放的时钟就崩溃；计时器测试会转主 run loop，别的测试会插进来执行 |
 | 2026-10-29 | 不移植 AppKitPlus 里归档、解码那两个测试 | 本库的视图只在代码里创建，`init(coder:)` 不可用 |
+| 2026-10-29 | 示例 app 在源码副本里构建，并在 AGENTS.md 里记下做法 | 示例工程按 `../../UIFoundation` 找本库，而 Xcode 按真实目录名给本地包定身份，所以在 `UIFoundation-PlaybackSlider` 这样的 worktree 里解析不出包，经符号链接也不行。把 worktree 复制到一个名为 `UIFoundation` 的临时目录里构建，结果通过 |
+| 2026-10-29 | 实现完成，待用户看过后收尾 | 四个落地步骤都已完成；LyricsX 暂时依赖本分支，发 `0.42.0` 要等用户批准 |

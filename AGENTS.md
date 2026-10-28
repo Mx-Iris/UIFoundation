@@ -66,7 +66,10 @@ swift build --traits FilterUI 2>&1 | xcsift                       # one opt-in t
 # Every opt-in trait at once. Collisions between trait-gated sources only show up here.
 swift build --traits AppKitPlus,AppleInternal,FilterUI,IDEIcons,Navigation,NSAttributedStringBuilder,QuickActionBar,Settings,SpotlightPanel,StatusItemController,SystemHUD,TabBar,WelcomePanel 2>&1 | xcsift
 
-# Example app
+# Example app. It finds the library at ../../UIFoundation, and Xcode names a local package after its
+# real directory, so it builds only from a checkout whose directory is called UIFoundation — never
+# from a .worktrees/UIFoundation-<Purpose> worktree, not even through a symlink. From a worktree,
+# rsync the tree (without .git and .build) into a scratch directory named UIFoundation and build there.
 xcodebuild -project UIFoundationExample-macOS/UIFoundationExample-macOS.xcodeproj -scheme UIFoundationExample-macOS -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build 2>&1 | xcsift
 
 # The next two run through Xcode. Move UIFoundation.xcworkspace aside first — it only exposes the example schemes.
