@@ -1,9 +1,10 @@
-# Draft - PlaybackSlider：Music 全屏播放器的时间进度条
+# 0033 - PlaybackSlider：Music 全屏播放器的时间进度条
 
-- **状态**: In Progress
+- **状态**: Implemented
 - **创建日期**: 2026-10-28
 - **最后更新**: 2026-10-29
-- **实现分支**: `feature/playback-slider`
+- **实现分支**: `feature/playback-slider`（已快进合进 `main`，随 `0.42.0` 发布）
+- **配套文档**: [PlaybackSlider](../PlaybackSlider.md)（使用指南）
 
 ## 摘要
 
@@ -99,3 +100,4 @@ Music 26.6 全屏播放器的时间进度条：
 | 2026-10-29 | 不移植 AppKitPlus 里归档、解码那两个测试 | 本库的视图只在代码里创建，`init(coder:)` 不可用 |
 | 2026-10-29 | 示例 app 在源码副本里构建，并在 AGENTS.md 里记下做法 | 示例工程按 `../../UIFoundation` 找本库，而 Xcode 按真实目录名给本地包定身份，所以在 `UIFoundation-PlaybackSlider` 这样的 worktree 里解析不出包，经符号链接也不行。把 worktree 复制到一个名为 `UIFoundation` 的临时目录里构建，结果通过 |
 | 2026-10-29 | 实现完成，待用户看过后收尾 | 四个落地步骤都已完成；LyricsX 暂时依赖本分支，发 `0.42.0` 要等用户批准 |
+| 2026-10-29 | 落地：快进合进 `main`，编号 0033，发布 `0.42.0` | 用户批准收尾并发版。合并前 `main` 是功能分支的祖先，合并后的代码与验证过的相同；库的源码在第 2 步之后没有再改过，后面只动了示例 app 和文档，所以不重跑验证，用的是落地步骤第 2、3 步记下的结果。`0.41.0` 之后 `main` 上的三个文档提交一起发出去。实现与方案一致，没有没做完的项。使用指南 `PlaybackSlider.md` 已随实现提交，登记在头部；不需要另写实现说明；没有新术语：`PlaybackSlider` 是类型名，plus-lighter 是 Core Animation 的通用说法 |

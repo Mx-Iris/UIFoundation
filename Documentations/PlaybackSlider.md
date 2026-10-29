@@ -7,7 +7,7 @@
 >
 > Ships in `UIFoundationAppKit` (`Sources/UIFoundationAppKit/PlaybackSlider/`), no trait. macOS
 > only. Music's plus-lighter blending is private API and needs the `AppleInternal` trait
-> (section 3). Decision record: [the PlaybackSlider proposal](Evolutions/draft-playback-slider.md).
+> (section 3). Decision record: [Evolution 0033](Evolutions/0033-playback-slider.md).
 
 ---
 
