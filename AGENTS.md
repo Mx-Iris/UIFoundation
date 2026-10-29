@@ -510,7 +510,10 @@ a file.
 - A component's guide changes in the same commit as its behaviour. A new guide is added to
   `Documentations/README.md`.
 - Reverse-engineering reports (binary analysis, private API investigations) go in `Researchs/` at the
-  repo root, nowhere else.
+  repo root, nowhere else. The one exception is Mac Catalyst — how UIKit runs on AppKit (UIKitCore's
+  Mac build, UIKitMacHelper): that research lives in the AppKitPlus repository under
+  `Documentations/Researchs/MacCatalyst/`, which has its own system-version baseline. The reports that
+  used to sit here moved there on 2026-10-29; write new Catalyst research there, not here.
 - `AgentPlugins/uifoundation/skills/` holds `uifoundation-widgets` and `uifoundation-settings-layer`.
   A change to the public API they describe — a widget, a builder, a `.box` helper, the settings types
   — updates the affected skill in the same commit and bumps `version` in both

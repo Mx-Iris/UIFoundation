@@ -5,7 +5,7 @@
 >
 > 解决问题:FocusEngine.framework 提供了哪些类/协议、公开 vs 私有边界在哪、UIFocusSystem 的真实方法面、与 AppKitPlus 的集成路径如何选择。
 >
-> 配套阅读:[`catalyst-focus-system-bridge.md`](./catalyst-focus-system-bridge.md)(Catalyst / AppKit 桥接全景);本文专注 FocusEngine 自身。
+> 配套阅读:`catalyst-focus-system-bridge.md`(Catalyst / AppKit 桥接全景;2026-10-29 迁到 AppKitPlus 仓库,现为 `Documentations/Researchs/MacCatalyst/2026-05-18-focus-system-bridge.md`);本文专注 FocusEngine 自身。
 
 ---
 
