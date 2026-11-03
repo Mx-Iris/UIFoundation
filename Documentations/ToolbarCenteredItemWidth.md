@@ -3,7 +3,7 @@
 `UIFoundationAppleInternal`（`AppleInternal` trait）下 `NSToolbar.box.preferredCenteredItemWidthRatio`：读写 AppKit
 的私有属性 `preferredPrincipalItemWidthRatio`，让 `centeredItemIdentifiers` 指定的那一项按工具栏宽度的比例取宽，
 窗口缩放时跟着变。Xcode 26 工具栏正中的 Activity View 就是这样占工具栏宽的 40%。决策记录见
-[`Evolutions/draft-toolbar-centered-item-width-ratio.md`](Evolutions/draft-toolbar-centered-item-width-ratio.md)，逆向依据见
+[`Evolutions/0034-toolbar-centered-item-width-ratio.md`](Evolutions/0034-toolbar-centered-item-width-ratio.md)，逆向依据见
 [`Researchs/AppKit-NSToolbar-CenteredItemWidthRatio-Internals.md`](../Researchs/AppKit-NSToolbar-CenteredItemWidthRatio-Internals.md)。
 
 ## 什么时候需要它

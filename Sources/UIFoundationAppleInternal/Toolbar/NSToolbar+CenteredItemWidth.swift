@@ -1,7 +1,7 @@
 //
 //  Read off macOS 26.6's AppKit and measured on macOS 27.2.
 //  Reverse-engineering notes: Researchs/AppKit-NSToolbar-CenteredItemWidthRatio-Internals.md
-//  Decision record: Documentations/Evolutions/draft-toolbar-centered-item-width-ratio.md
+//  Decision record: Documentations/Evolutions/0034-toolbar-centered-item-width-ratio.md
 //
 
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)

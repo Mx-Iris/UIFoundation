@@ -1,9 +1,9 @@
-# Draft - 工具栏居中项的宽度比例：`NSToolbar.box.preferredCenteredItemWidthRatio`
+# 0034 - 工具栏居中项的宽度比例：`NSToolbar.box.preferredCenteredItemWidthRatio`
 
-- **状态**: In Progress
+- **状态**: Implemented
 - **创建日期**: 2026-11-03
 - **最后更新**: 2026-11-03
-- **实现分支 / PR**: `feature/toolbar-principal-item-width-ratio`（从 `main` `7811fe5` 切出）
+- **实现分支 / PR**: `feature/toolbar-principal-item-width-ratio`（从 `main` `7811fe5` 切出），快进合入 `main`，随 `0.43.0` 发布
 - **配套文档**: 指南 [`ToolbarCenteredItemWidth.md`](../ToolbarCenteredItemWidth.md)；逆向报告
   [`Researchs/AppKit-NSToolbar-CenteredItemWidthRatio-Internals.md`](../../Researchs/AppKit-NSToolbar-CenteredItemWidthRatio-Internals.md)
 
@@ -44,3 +44,4 @@ Xcode 用的是 `NSToolbar` 的私有属性 `preferredPrincipalItemWidthRatio`�
 |------|------|------|
 | 2026-11-03 | Created，直接 In Progress | 用户批准 RuntimeViewer 的活动进度提案时，一并同意了在本库加这个封装并发版 |
 | 2026-11-03 | 低于最小宽度时比例作废，写进契约 | macOS 27.2 实测如此（0.13 × 1200 = 156 < 160 时项取 928 点，0.14 时取 169 点），与 26.6 反汇编的读法不同；以实测为准，26.6 未实测 |
+| 2026-11-03 | 落地：快进合进 `main`，编号 0034，发布 `0.43.0` | 用户批准 RuntimeViewer 提案时同意了这次发版；`ToolbarCenteredItemWidthTests` 6 个用例与全部 trait 打开的构建都已通过。使用指南 `ToolbarCenteredItemWidth.md` 已随实现提交，不需要另写实现说明；没有新术语：centered item 是 AppKit 公开 API 的说法 |
