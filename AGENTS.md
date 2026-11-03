@@ -189,6 +189,9 @@ Opt-in traits (wiring in the trait block below):
   `delegate` setter.
 - **Scroll pockets** — `UIFoundationAppleInternal/ScrollView/` — [ScrollPockets.md](Documentations/ScrollPockets.md).
   Insetting content only through the clip view leaves the bottom pocket 0 pt tall.
+- **Toolbar centered item width** — `UIFoundationAppleInternal/Toolbar/` —
+  [ToolbarCenteredItemWidth.md](Documentations/ToolbarCenteredItemWidth.md). A ratio whose width falls below the
+  item's minimum width is dropped, not raised to it: the item takes its maximum width, as with no ratio.
 - **Custom tooltips** — `UIFoundationAppleInternal/Tooltip/` — [CustomToolTip.md](Documentations/CustomToolTip.md).
   `install()` is reference-counted, so every `install()` needs its `uninstall()`; hook methods cannot
   be `@MainActor` and reach the manager through `MainActor.assumeIsolated`.

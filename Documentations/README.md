@@ -75,6 +75,11 @@
   `NSView.barScrollPocketElementStyle`。**含一条踩了就没有效果、却看不出错的契约**：底部 pocket 的高度跟滚动视图自己的
   `contentInsets.bottom` 走，只设 clip view 的 inset 时高度为 0。另有顶部 pocket 跟安全区而不跟 inset、登记要配对撤销、
   私有方法会在小版本之间消失（27.0 的 `_registeredPocketContainersOnEdge:` 在 27.2 已删）。
+- [ToolbarCenteredItemWidth](ToolbarCenteredItemWidth.md) —— `AppleInternal` trait 下的
+  `toolbar.box.preferredCenteredItemWidthRatio`：让 `centeredItemIdentifiers` 指定的那一项按工具栏宽度的比例取宽、
+  随窗口缩放（Xcode 26 的 Activity View 占 40%）。**含一条踩了就整个不生效的契约**：算出的宽度小于项的最小宽度时，
+  比例作废、项退回最大宽度，而不是取最小宽度（macOS 27.2 实测）。另有「项要同时钉住最小与最大宽度」「赋值不重排，
+  下一次布局才生效」。
 - [NotificationMessages](NotificationMessages.md) —— 在 macOS 27 / iOS 26 之前的系统上，用 AppKit / UIKit 预置的类型化通知消息
   （`NSWindow.Backport.DidBecomeKeyMessage` 配 `.didBecomeKey` 之类，AppKit 137 个、UIKit 71 个），转换行为逐个照抄苹果二进制。
   **含两条踩了就静默收不到的契约**：`NSWorkspace` 的消息只在 `NSWorkspace.shared.notificationCenter` 上发；
