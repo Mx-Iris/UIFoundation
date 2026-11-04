@@ -141,6 +141,33 @@ struct StackViewImperativeConfigurationTests {
         #expect(!hasActiveConstraint(in: stackView, connecting: trailingView, attribute: .bottom))
     }
 
+    @Test("Hugging and clipping-resistance helpers set only the axes they are given")
+    func huggingAndClippingResistanceHelpersSetOnlyTheGivenAxes() {
+        let priorityStackView = HStackView(frame: .zero)
+        let untouchedVerticalHugging = priorityStackView.huggingPriority(for: .vertical)
+        let untouchedHorizontalClippingResistance = priorityStackView.clippingResistancePriority(for: .horizontal)
+
+        priorityStackView.box.hugging(h: .defaultHigh)
+        priorityStackView.box.clippingResistance(v: .dragThatCanResizeWindow)
+
+        #expect(priorityStackView.huggingPriority(for: .horizontal) == .defaultHigh)
+        #expect(priorityStackView.huggingPriority(for: .vertical) == untouchedVerticalHugging)
+        #expect(priorityStackView.clippingResistancePriority(for: .vertical) == .dragThatCanResizeWindow)
+        #expect(priorityStackView.clippingResistancePriority(for: .horizontal) == untouchedHorizontalClippingResistance)
+
+        let floatStackView = VStackView(frame: .zero)
+        let untouchedHorizontalHugging = floatStackView.huggingPriority(for: .horizontal)
+        let untouchedVerticalClippingResistance = floatStackView.clippingResistancePriority(for: .vertical)
+
+        floatStackView.box.hugging(v: 321)
+        floatStackView.box.clippingResistance(h: 432)
+
+        #expect(floatStackView.huggingPriority(for: .vertical) == NSLayoutConstraint.Priority(rawValue: 321))
+        #expect(floatStackView.huggingPriority(for: .horizontal) == untouchedHorizontalHugging)
+        #expect(floatStackView.clippingResistancePriority(for: .horizontal) == NSLayoutConstraint.Priority(rawValue: 432))
+        #expect(floatStackView.clippingResistancePriority(for: .vertical) == untouchedVerticalClippingResistance)
+    }
+
     private func hasActiveConstraint(in stackView: NSStackView, connecting view: NSView, attribute: NSLayoutConstraint.Attribute, constant expectedConstant: CGFloat? = nil) -> Bool {
         stackView.constraints.contains { constraint in
             guard constraint.isActive else { return false }

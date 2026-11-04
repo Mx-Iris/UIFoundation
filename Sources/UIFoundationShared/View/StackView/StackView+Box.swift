@@ -61,12 +61,30 @@ extension FrameworkToolbox where Base: NSUIStackView {
 
     /// Sets the Auto Layout priority for the stack view to minimize its size, per axis.
     @discardableResult
-    public func hugging(h: Float? = nil, v: Float? = nil) -> Base {
-        if let h = NSUILayoutPriority.valueOrNil(h) {
+    public func hugging(h: NSLayoutConstraint.Priority? = nil, v: NSLayoutConstraint.Priority? = nil) -> Base {
+        if let h {
             base.setHuggingPriority(h, for: .horizontal)
         }
-        if let v = NSUILayoutPriority.valueOrNil(v) {
+        if let v {
             base.setHuggingPriority(v, for: .vertical)
+        }
+        return base
+    }
+
+    /// Sets the Auto Layout priority for the stack view to minimize its size, per axis.
+    @discardableResult
+    public func hugging(h: Float? = nil, v: Float? = nil) -> Base {
+        hugging(h: NSLayoutConstraint.Priority.valueOrNil(h), v: NSLayoutConstraint.Priority.valueOrNil(v))
+    }
+
+    /// Sets the Auto Layout clipping-resistance priority for the stack view, per axis.
+    @discardableResult
+    public func clippingResistance(h: NSLayoutConstraint.Priority? = nil, v: NSLayoutConstraint.Priority? = nil) -> Base {
+        if let h {
+            base.setClippingResistancePriority(h, for: .horizontal)
+        }
+        if let v {
+            base.setClippingResistancePriority(v, for: .vertical)
         }
         return base
     }
@@ -74,13 +92,7 @@ extension FrameworkToolbox where Base: NSUIStackView {
     /// Sets the Auto Layout clipping-resistance priority for the stack view, per axis.
     @discardableResult
     public func clippingResistance(h: Float? = nil, v: Float? = nil) -> Base {
-        if let h = NSLayoutConstraint.Priority.valueOrNil(h) {
-            base.setClippingResistancePriority(h, for: .horizontal)
-        }
-        if let v = NSLayoutConstraint.Priority.valueOrNil(v) {
-            base.setClippingResistancePriority(v, for: .vertical)
-        }
-        return base
+        clippingResistance(h: NSLayoutConstraint.Priority.valueOrNil(h), v: NSLayoutConstraint.Priority.valueOrNil(v))
     }
 
     /// The geometric padding, in points, inside the stack view, surrounding its views.
