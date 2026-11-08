@@ -2,22 +2,25 @@
 
 import AppKit
 
-/// Host-built find index over the **top-level rows** of an outline whose cell
-/// strings cannot be gathered through the synchronous data-source walk — for
-/// example viewport-windowed content whose rows require background fetching.
+/// Host-built find index over the rows of a table, or the **top-level rows**
+/// of an outline, whose cell strings cannot be gathered through the
+/// synchronous data-source walk — for example viewport-windowed content whose
+/// rows require background fetching.
 ///
 /// Build it row by row on any thread (the type is a plain value), then hand
-/// it to `OutlineViewTextFinderClient.installExternalIndex(_:)` on the main
+/// it to `TableViewTextFinderClient.installExternalIndex(_:)` or
+/// `OutlineViewTextFinderClient.installExternalIndex(_:)` on the main
 /// thread. Cell strings are stored in one contiguous UTF-16 pool with a flat
 /// offset table, so a million-row index costs megabytes of contiguous
 /// storage instead of millions of individual `String` allocations, and
 /// `NSTextFinder`'s linear scan never has to re-fetch source rows.
 ///
-/// Tokens produced from an external index carry **top-level row indices**
-/// (not absolute outline rows); the client converts when navigating, so
-/// expanded child rows in the outline do not shift match targets.
+/// Tokens produced from an external index carry row indices. For an outline
+/// these are **top-level row indices** (not absolute outline rows); the
+/// outline client converts when navigating, so expanded child rows do not
+/// shift match targets.
 @available(macOS 12.0, *)
-public struct OutlineViewExternalTextIndex: Sendable {
+public struct TextFinderExternalIndex: Sendable {
 
     public let numberOfColumns: Int
     public private(set) var numberOfRows: Int = 0
@@ -31,14 +34,15 @@ public struct OutlineViewExternalTextIndex: Sendable {
     private var cellStartOffsets: [Int] = [0]
 
     public init(numberOfColumns: Int, estimatedRowCount: Int = 0) {
-        precondition(numberOfColumns > 0, "OutlineViewExternalTextIndex needs at least one column")
+        precondition(numberOfColumns > 0, "TextFinderExternalIndex needs at least one column")
         self.numberOfColumns = numberOfColumns
         if estimatedRowCount > 0 {
             cellStartOffsets.reserveCapacity(estimatedRowCount * numberOfColumns + 1)
         }
     }
 
-    /// Append the searchable strings for the next top-level row. The element
+    /// Append the searchable strings for the next row (for an outline, the
+    /// next top-level row). The element
     /// count must equal `numberOfColumns`. Strings must match what the cells
     /// render so Find hits what the user sees.
     public mutating func appendRow(columnStrings: [String]) {
@@ -60,7 +64,12 @@ public struct OutlineViewExternalTextIndex: Sendable {
     }
 }
 
-/// Index storage backed by `OutlineViewExternalTextIndex`'s contiguous pool.
+/// The name `TextFinderExternalIndex` had while only the outline client took
+/// one.
+@available(macOS 12.0, *)
+public typealias OutlineViewExternalTextIndex = TextFinderExternalIndex
+
+/// Index storage backed by `TextFinderExternalIndex`'s contiguous pool.
 /// `token(at:)` binary-searches the flat cell-offset table and decodes the
 /// cell's string straight out of the pool — O(log cells) per lookup, no
 /// callbacks into the data source.

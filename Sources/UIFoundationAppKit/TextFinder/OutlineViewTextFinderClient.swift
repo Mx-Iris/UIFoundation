@@ -155,7 +155,7 @@ open class OutlineViewTextFinderClient: NSObject, NSTextFinderClient {
     /// Install a host-built external index. Main thread only. Replaces any
     /// current storage (materialized or external) and, if the find bar is
     /// visible, re-triggers the search so the user sees results immediately.
-    public func installExternalIndex(_ externalIndex: OutlineViewExternalTextIndex) {
+    public func installExternalIndex(_ externalIndex: TextFinderExternalIndex) {
         textFinder.noteClientStringWillChange()
         indexStore.removeAll()
         indexedCollapsedItems.removeAll()

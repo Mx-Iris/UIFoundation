@@ -42,6 +42,27 @@ public protocol TableViewTextFinderDataSource: AnyObject {
     /// index build — implementations should be O(1) and must not read cell
     /// views.
     func textFinderClient(_ client: TableViewTextFinderClient, searchStringLengthsForRow row: Int) -> [Int]?
+
+    /// Return `true` when the host builds the find index externally — via
+    /// `TableViewTextFinderClient.installExternalIndex(_:)` — instead of the
+    /// client gathering cell strings on the main thread. Use this for
+    /// content whose row strings cannot be produced on demand on the main
+    /// thread (e.g. viewport-windowed rows that require background
+    /// fetching), and which cannot give O(1) lengths either.
+    ///
+    /// When `true`, a stale index is not rebuilt in place: the client clears
+    /// its storage and calls `textFinderClientNeedsExternalIndexRebuild(_:)`,
+    /// and the host is expected to build a `TextFinderExternalIndex`
+    /// (typically on a background task) and install it when done. Defaults
+    /// to `false`.
+    func textFinderClientBuildsIndexExternally(_ client: TableViewTextFinderClient) -> Bool
+
+    /// Kick off the host's external index build. Called on the main thread
+    /// whenever the (externally built) index is stale and a find interaction
+    /// needs it — the host should cancel-replace any build already in
+    /// flight, then call `installExternalIndex(_:)` on the main thread when
+    /// the build completes. Defaults to a no-op.
+    func textFinderClientNeedsExternalIndexRebuild(_ client: TableViewTextFinderClient)
 }
 
 @available(macOS 12.0, *)
@@ -53,6 +74,12 @@ public extension TableViewTextFinderDataSource {
     func textFinderClient(_ client: TableViewTextFinderClient, searchStringLengthsForRow row: Int) -> [Int]? {
         nil
     }
+
+    func textFinderClientBuildsIndexExternally(_ client: TableViewTextFinderClient) -> Bool {
+        false
+    }
+
+    func textFinderClientNeedsExternalIndexRebuild(_ client: TableViewTextFinderClient) {}
 }
 
 #endif

@@ -19,9 +19,12 @@ private final class RecordingTableTextFinderDataSource: NSObject, NSTableViewDat
     let rowCount: Int
     let columnCount: Int
     var cellStringPrefix: String
+    /// Opts into the external-index contract; rebuild requests are counted.
+    var buildsIndexExternally = false
 
     private(set) var offMainThreadCallbackCount = 0
     private(set) var stringCallbackCount = 0
+    private(set) var externalRebuildRequestCount = 0
 
     init(rowCount: Int, columnCount: Int, cellStringPrefix: String = "cell") {
         self.rowCount = rowCount
@@ -35,6 +38,14 @@ private final class RecordingTableTextFinderDataSource: NSObject, NSTableViewDat
 
     func numberOfSearchableColumns(in client: TableViewTextFinderClient) -> Int {
         columnCount
+    }
+
+    func textFinderClientBuildsIndexExternally(_ client: TableViewTextFinderClient) -> Bool {
+        buildsIndexExternally
+    }
+
+    func textFinderClientNeedsExternalIndexRebuild(_ client: TableViewTextFinderClient) {
+        externalRebuildRequestCount += 1
     }
 
     func textFinderClient(_ client: TableViewTextFinderClient, stringForRow row: Int, column: Int) -> String? {
@@ -371,6 +382,49 @@ struct TextFinderClientRunLengthPathTests {
         #expect(effectiveRange == NSRange(location: 0, length: 5))
         let secondRowString = client.string(at: 8, effectiveRange: &effectiveRange, endsWithSearchBoundary: &endsWithBoundary)
         #expect(secondRowString == "beta")
+
+        // Invalidation re-arms the external rebuild for the next interaction.
+        client.invalidateIndex()
+        #expect(client.stringLength() == 0)
+        client.prepareIndexIfNeeded()
+        #expect(dataSource.externalRebuildRequestCount == 2)
+    }
+
+    @Test("A table whose data source builds the index externally searches the index the host installs")
+    func tableExternalIndexFlow() async throws {
+        let dataSource = RecordingTableTextFinderDataSource(rowCount: 2, columnCount: 2)
+        dataSource.buildsIndexExternally = true
+        let tableView = NSTableView()
+        tableView.dataSource = dataSource
+        tableView.reloadData()
+        let client = TableViewTextFinderClient(tableView: tableView)
+        client.dataSource = dataSource
+
+        // First find interaction: no main-thread string walk, one host rebuild request.
+        client.prepareIndexIfNeeded()
+        #expect(dataSource.externalRebuildRequestCount == 1)
+        #expect(dataSource.stringCallbackCount == 0)
+        #expect(client.indexingTaskForTesting == nil)
+        #expect(client.stringLength() == 0)
+
+        // A repeated find action while the host build is in flight must not
+        // re-kick the build (index is no longer dirty).
+        client.prepareIndexIfNeeded()
+        #expect(dataSource.externalRebuildRequestCount == 1)
+
+        // Host completes the build and installs the index.
+        var externalIndex = TextFinderExternalIndex(numberOfColumns: 2)
+        externalIndex.appendRow(columnStrings: ["alpha", "one"])
+        externalIndex.appendRow(columnStrings: ["beta", "two"])
+        client.installExternalIndex(externalIndex)
+
+        // "alpha" + "one" + "beta" + "two" = 5 + 3 + 4 + 3.
+        #expect(client.stringLength() == 15)
+        let token = client.indexStorage.token(at: 8)
+        #expect(token.row == 1)
+        #expect(token.column == 0)
+        #expect(token.string == "beta")
+        #expect(dataSource.stringCallbackCount == 0)
 
         // Invalidation re-arms the external rebuild for the next interaction.
         client.invalidateIndex()

@@ -104,6 +104,20 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
         }
     }
 
+    /// Install a host-built external index. Main thread only. Replaces the
+    /// current storage and, if the find bar is visible, re-triggers the
+    /// search so the user sees results immediately.
+    public func installExternalIndex(_ externalIndex: TextFinderExternalIndex) {
+        // A materialized or run-length pass started before the data source
+        // switched to external building must not land over this index.
+        indexingGeneration &+= 1
+        indexingTask?.cancel()
+        indexingTask = nil
+        currentMatchRange = NSRange(location: 0, length: 0)
+        indexIsDirty = false
+        finishRebuild(installing: externalIndex.makeStore())
+    }
+
     /// Rebuild the index now if it is stale. Called automatically by
     /// `performTextFinderAction(_:)`; exposed for hosts that drive
     /// `textFinder` directly.
@@ -135,6 +149,16 @@ open class TableViewTextFinderClient: NSObject, NSTextFinderClient {
         currentMatchRange = NSRange(location: 0, length: 0)
 
         guard let tableView, let dataSource else { return }
+
+        // External mode: the host owns index construction — request a build
+        // and wait for `installExternalIndex(_:)`. `indexIsDirty` stays
+        // cleared so repeated find actions do not re-kick the build; a new
+        // `invalidateIndex()` re-arms it.
+        if dataSource.textFinderClientBuildsIndexExternally(self) {
+            dataSource.textFinderClientNeedsExternalIndexRebuild(self)
+            return
+        }
+
         let numberOfColumns = dataSource.numberOfSearchableColumns(in: self)
         let numberOfRows = tableView.numberOfRows
         guard numberOfRows > 0, numberOfColumns > 0 else { return }

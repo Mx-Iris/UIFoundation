@@ -15,7 +15,7 @@
 | `TableViewTextFinderDataSource` / `OutlineViewTextFinderDataSource` | Consumer-implemented string providers |
 | `TextIndexStore` | Materialized index storage: one token (owned `String`) per searchable cell |
 | `RunLengthTextIndexStore` | Length-only index storage: run-length compressed per-column length patterns, strings materialized on demand |
-| `OutlineViewExternalTextIndex` / `PooledTextIndexStore` | Host-built index over an outline's top-level rows: one contiguous UTF-16 pool + flat cell-offset table, buildable on any thread |
+| `TextFinderExternalIndex` / `PooledTextIndexStore` | Host-built index over a table's rows or an outline's top-level rows: one contiguous UTF-16 pool + flat cell-offset table, buildable on any thread. `OutlineViewExternalTextIndex` is its former name, kept as a typealias |
 
 Both clients concatenate every searchable cell into a virtual document whose
 character positions `NSTextFinder` searches; each cell ends with a search
@@ -126,21 +126,21 @@ Search cost itself is unchanged — `NSTextFinder` still scans the virtual
 document linearly on the main thread — but the scan only materializes the
 cells it actually visits, and nothing is paid before the user searches.
 
-## External index (outlines)
+## External index
 
 Content whose row strings cannot be produced through the synchronous
 data-source walk at all — viewport-windowed rows that must be fetched on a
 background task — can take over index construction entirely:
 
 ```swift
-// Data source:
+// Data source (the table data source has the same two methods, taking a TableViewTextFinderClient):
 func textFinderClientBuildsIndexExternally(_ client: OutlineViewTextFinderClient) -> Bool { true }
 func textFinderClientNeedsExternalIndexRebuild(_ client: OutlineViewTextFinderClient) {
     startBackgroundScan()   // host-owned, cancel-replace
 }
 
 // Background scan (any thread):
-var externalIndex = OutlineViewExternalTextIndex(numberOfColumns: 3, estimatedRowCount: rowCount)
+var externalIndex = TextFinderExternalIndex(numberOfColumns: 3, estimatedRowCount: rowCount)
 for row in fetchRowsSomehow() {
     externalIndex.appendRow(columnStrings: renderColumns(row))  // must mirror the cells
 }
@@ -156,7 +156,10 @@ storage keeps every cell string in one contiguous UTF-16 buffer, so
 million-row indexes cost megabytes of contiguous memory, and `NSTextFinder`'s
 linear scan decodes straight from the pool with zero data-source callbacks.
 
-External tokens carry **top-level row indices**. When the outline has
+Both `TableViewTextFinderClient` and `OutlineViewTextFinderClient` take the
+index through `installExternalIndex(_:)`. For a table, external tokens carry
+the table's row indices, used as they are. For an outline they carry
+**top-level row indices**. When the outline has
 expanded child rows, the client converts by walking to the n-th level-0 row;
 in the flat case (no expansion) the index is used directly. Child rows are
 not part of an external index — index top-level content only.

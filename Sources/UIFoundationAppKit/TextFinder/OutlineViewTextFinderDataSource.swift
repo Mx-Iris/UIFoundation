@@ -51,7 +51,7 @@ public protocol OutlineViewTextFinderDataSource: AnyObject {
     /// When `true`, a stale index is not rebuilt in place: the client clears
     /// its storage and calls
     /// `textFinderClientNeedsExternalIndexRebuild(_:)`, and the host is
-    /// expected to build an `OutlineViewExternalTextIndex` (typically on a
+    /// expected to build a `TextFinderExternalIndex` (typically on a
     /// background task) and install it when done. Defaults to `false`.
     func textFinderClientBuildsIndexExternally(_ client: OutlineViewTextFinderClient) -> Bool
 
