@@ -1,10 +1,11 @@
-# Draft - TableViewTextFinderClient 接收宿主建好的查找索引
+# 0035 - TableViewTextFinderClient 接收宿主建好的查找索引
 
-- **状态**: In Progress
+- **状态**: Implemented
 - **创建日期**: 2026-11-08
 - **最后更新**: 2026-11-08
 - **实现分支 / PR**: `feature/table-view-external-find-index`
 - **关联提案**: MachOKitUI 的 `draft-flat-tables-in-table-view`（行不展开的大表改用 `NSTableView`）
+- **配套文档**: [TextFinder.md](../TextFinder.md)
 
 ## 摘要
 
@@ -27,3 +28,4 @@
 | 2026-11-08 | Created；状态直接 In Progress | MachOKitUI 的提案 `draft-flat-tables-in-table-view` 把这一步列为第 1 步，用户已批准那份提案 |
 | 2026-11-08 | 索引类型改用中性名 `TextFinderExternalIndex`，旧名留作 typealias | table 版 client 收一个以 `OutlineView` 开头的类型读着别扭；typealias 保住源码兼容，不加废弃标注，免得下游突然冒警告 |
 | 2026-11-08 | 实现完成，待用户看过后收尾 | MachOKitUI 的 `feature/flat-tables-in-table-view` 已用上：行不能展开的大表在 `NSTableView` 里，⌘F 经 `TableViewTextFinderClient.installExternalIndex` 装后台建好的索引。发版要用户另行批准 |
+| 2026-11-08 | Implemented，编号 0035，随 `0.44.0` 发布 | 用户批准发版，供 MachOKitUI 升依赖。指南 `TextFinder.md` 随实现一起改好；没有新的项目术语要登记——`TextFinderExternalIndex` 是接口类型，不是术语 |
