@@ -50,7 +50,8 @@ func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, ro
 4. **`fill` 写进去的字符串要和单元格显示的一模一样**：查找栏是在单元格里高亮匹配位置的，字符串一不同，高亮就落错地方。
    `fill` 在后台线程上跑，只能读它捕获进来的东西；缓冲区会一行行复用，每一列都要写。
 5. **显示的字符串变了，要调 `invalidateFindIndex()`**：比如换了地址格式。`handle(.reloadAllRows)` 已经替你调过了。
-   查找栏开着时会立即重新扫描；关着时等下次查找再扫。
+   查找栏开着时会立即重新扫描；关着时等下次查找再扫。要等索引建好（比如测试里），等 `findIndexScanner.runningScan`
+   的 `value`；被取消或被新扫描顶掉的扫描结束时不交付索引，读之前先看 `textFinderClient.stringLength()`。
 6. **把 `controller` 设成 `nil` 就是关掉**：表格不再有行，也不再汇报滚动。同一张表要轮流显示别的内容时用它，
    不要靠换数据源。
 7. **只给行不能展开的表用**：它把行当成一层的表格。行能展开的表要用 `NSOutlineView`，不过 `NSOutlineView`

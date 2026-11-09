@@ -168,7 +168,7 @@ struct WindowedTableViewDataSourceTests {
             columns: WindowedFindIndexColumns(count: 1) { row, columnStrings in columnStrings[0] = row.text },
             showingProgressOver: nil
         ) { _ in deliveredCount += 1 }
-        let runningScan = try #require(scanner.scanTaskForTesting)
+        let runningScan = try #require(scanner.runningScan)
         scanner.cancel()
         await runningScan.value
         try await Task.sleep(nanoseconds: 20_000_000)

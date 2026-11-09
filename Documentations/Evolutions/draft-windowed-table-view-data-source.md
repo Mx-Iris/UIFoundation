@@ -52,3 +52,4 @@ MachOKitUI 随后改用它们。
 | 2026-11-09 | Created as In Progress | MachOKitUI 的提案 `extract-windowed-rows` 已获用户批准，本提案是它的第 2 步，随实现一起写 |
 | 2026-11-09 | 查找数据源用 `@MainActor TableViewTextFinderDataSource` 隔离遵循 | 数据源是 `@MainActor`，而该协议没有隔离；普通遵循会报跨隔离警告，Swift 6 下是错误 |
 | 2026-11-09 | `WindowedFindIndexColumns` 要求至少一列 | `TextFinderExternalIndex` 在零列时触发 precondition；没有可搜的列时，组件改装一个一列的空索引 |
+| 2026-11-09 | `WindowedFindIndexScanner.runningScan` 公开；扫描器释放后扫描在下一批停下 | MachOKitUI 改用它时发现：它的测试要等 ⌘F 扫描结束才能读索引，宿主也可能要等；扫描原先在宿主的 `deinit` 里取消，扫描器跟着宿主释放后理应自己停 |

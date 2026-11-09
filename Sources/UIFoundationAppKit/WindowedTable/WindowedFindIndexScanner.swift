@@ -59,8 +59,9 @@ public final class WindowedFindIndexScanner {
     private weak var progressScrollView: NSScrollView?
     private lazy var progressView = WindowedFindIndexProgressView(fillColor: progressBarColor)
 
-    /// The running scan, for tests that wait for it.
-    var scanTaskForTesting: Task<Void, Never>? { scanTask }
+    /// The scan in flight, or `nil`. Await its value to wait for the index; a
+    /// scan that is cancelled or replaced ends without delivering one.
+    public var runningScan: Task<Void, Never>? { scanTask }
 
     public init() {}
 
@@ -101,7 +102,8 @@ public final class WindowedFindIndexScanner {
             var lastProgressReport = scanStart
             var displayedIndex = 0
             while displayedIndex < displayedRowCount {
-                if Task.isCancelled { return }
+                // A scanner that is gone has nobody to deliver to.
+                if Task.isCancelled || self == nil { return }
                 let chunkUpperBound = min(displayedIndex + chunkRowCount, displayedRowCount)
                 for row in displayedRows.rows(in: displayedIndex ..< chunkUpperBound) {
                     columns.fill(row, &columnStrings)
