@@ -31,6 +31,7 @@ Read the package source rather than guessing. SwiftPM checks it out at
 | Menu builder | `Sources/UIFoundationAppKit/Menu/` |
 | `.box` helpers on system types | `Sources/UIFoundationToolbox/AppKit/` |
 | Controllers: the `Xibless*` bases and `LayerBackedViewController` | `Sources/UIFoundationAppKit/Controller/` (`XiblessViewController` itself is in `Sources/UIFoundationShared/Controller/`) |
+| A table of millions of rows that builds only the rows in view, with a filter and ⌘F over all of them — instead of an array of every row, or a diffable data source with an identifier per row | `Sources/UIFoundationAppKit/WindowedTable/` (`WindowedTableViewDataSource` over FrameworkToolbox's `WindowedRowsController`; the table must be in its scroll view first, and the controller's events go to `handle(_:)`) |
 | A media time slider — Music's full-screen player bar: no knob, grows when pressed, `scrubbingDelegate` for press and release — instead of a hand-drawn progress bar or an `NSSlider` subclass | `Sources/UIFoundationAppKit/PlaybackSlider/` (`PlaybackSlider`; its plus-lighter colours need the `AppleInternal` trait, and a seek belongs on release, not on every action) |
 
 Four greps that surface the composed helpers a class listing hides:

@@ -120,6 +120,13 @@ let package = Package(
             from: "0.6.0",
         ),
         .package(
+            // Set USING_LOCAL_DEPENDENCIES=1 to build against a sibling FrameworkToolbox
+            // checkout, for a change that spans both repositories.
+            local: .package(
+                path: "../FrameworkToolbox",
+                isRelative: true,
+                isEnabled: Context.environment["USING_LOCAL_DEPENDENCIES"] == "1",
+            ),
             remote: .package(
                 url: "https://github.com/Mx-Iris/FrameworkToolbox",
                 from: "0.15.0",
@@ -159,6 +166,7 @@ let package = Package(
                 "UIFoundationShared",
                 .product(name: "AssociatedObject", package: "AssociatedObject"),
                 .product(name: "OSToolbox", package: "FrameworkToolbox"),
+                .product(name: "WindowedRowsToolbox", package: "FrameworkToolbox"),
                 .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(platforms: appkitPlatforms, traits: ["AppKitPlus"])),
             ],
             resources: [

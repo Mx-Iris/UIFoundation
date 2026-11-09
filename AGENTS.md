@@ -139,6 +139,10 @@ No trait:
 - **TextFinder** — `UIFoundationAppKit/TextFinder/` — [TextFinder.md](Documentations/TextFinder.md).
   Never call `textFinder.performAction(_:)` directly; through anything but
   `textFinderClient.performTextFinderAction(_:)` it searches an index that was never built.
+- **WindowedTable** — `UIFoundationAppKit/WindowedTable/` — [WindowedTable.md](Documentations/WindowedTable.md).
+  The table must sit in its scroll view before `WindowedTableViewDataSource` is created: scroll
+  reporting and the find bar attach to `enclosingScrollView` then, and without it neither works nor
+  complains. Built on FrameworkToolbox's `WindowedRowsToolbox`, which `UIFoundationAppKit` re-exports.
 - **PlaybackSlider** — `UIFoundationAppKit/PlaybackSlider/` — [PlaybackSlider.md](Documentations/PlaybackSlider.md).
   Music's plus-lighter colours need the `AppleInternal` trait; without it the bar blends normally,
   a little darker, and nothing says so. Its tests must not post real clicks: the runner is ended

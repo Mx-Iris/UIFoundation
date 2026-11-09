@@ -164,6 +164,12 @@ expanded child rows, the client converts by walking to the n-th level-0 row;
 in the flat case (no expansion) the index is used directly. Child rows are
 not part of an external index — index top-level content only.
 
+For rows that come from FrameworkToolbox's `WindowedRowsController`, the scan above is already
+written: `WindowedFindIndexScanner` walks the displayed rows straight from their source in the
+background, shows a thin progress bar along the bottom of the find bar, and hands the finished
+index to a completion that installs it. `WindowedTableViewDataSource` uses it for its table; an
+outline client can use it directly — see [WindowedTable](WindowedTable.md).
+
 ## Known limitations
 
 - Navigating to a match inside a collapsed outline subtree expands ancestors,

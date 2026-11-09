@@ -43,6 +43,9 @@
 - [TextFinder](TextFinder.md) —— 表格与大纲视图的 ⌘F 查找。**含一条踩了就静默出错的契约**：
   宿主禁止直接调用 `textFinder.performAction(_:)`，必须走 `textFinderClient.performTextFinderAction(_:)`
   —— 索引是惰性的，直接调会搜到空文档且不报错。另有表格的 run-length 快路径与大纲的外部索引机制。
+- [WindowedTable](WindowedTable.md) —— 上百万行的 `NSTableView`：`WindowedTableViewDataSource` 把 FrameworkToolbox 的
+  `WindowedRowsController` 接到表格上，`WindowedFindIndexScanner` 在后台建 ⌘F 索引。**含一条踩了就静默出错的契约**：
+  表格要先放进滚动视图再建数据源，否则滚动不取行、查找栏没有容器，都不报错；另有控制器的事件为什么要交给 `handle(_:)`。
 - [PlaybackSlider](PlaybackSlider.md) —— Music 全屏播放器的时间进度条：静止时 7 pt 无滑块的胶囊，按下即跳到指针处、
   用弹簧长到 16 pt，松手缩回；按下和松手各通知委托一次。plus-lighter 混合要开 `AppleInternal` trait，不开时普通混合、
   略暗。另有为什么要松手才跳转播放位置、容器的命中测试为什么必须交回滑块本身，以及测试里为什么不能投递真实点击。
