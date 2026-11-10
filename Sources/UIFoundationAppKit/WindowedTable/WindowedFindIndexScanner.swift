@@ -1,7 +1,7 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
-import WindowedRowsToolbox
+import UIFoundationWindowedRows
 
 /// The strings the find bar searches in each row of a windowed table: how many
 /// columns, and how to write a row's strings into them.

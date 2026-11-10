@@ -1,6 +1,6 @@
 # Draft - UIFoundationWindowedRows：把上百万行表格的数据层从 FrameworkToolbox 搬进来
 
-- **状态**: Accepted
+- **状态**: In Progress
 - **创建日期**: 2026-11-10
 - **最后更新**: 2026-11-10
 - **实现分支 / PR**: 本库、FrameworkToolbox、MachOKitUI 都是 `feature/windowed-rows-module`
@@ -58,7 +58,7 @@ FrameworkToolbox。那个包里的模块都是某个 Apple 框架的工具箱（
 
 **落地步骤**
 
-1. 本库：加 `UIFoundationWindowedRows` 与它的测试 target，WindowedTable 改用它，文档与插件 skill 同步。
+1. 本库：加 `UIFoundationWindowedRows` 与它的测试 target，WindowedTable 改用它，文档与插件 skill 同步。（已完成）
 2. FrameworkToolbox：删模块、测试与使用指南，构建并跑全量测试。
 3. MachOKitUI：改依赖与 import，用本地依赖对着第 1、2 步的检出构建，跑全量测试。
 4. 发版：本库 0.46.0（编号、合并、推送、打 tag）→ FrameworkToolbox 0.20.0 → MachOKitUI 改用两个发布版、重新解析
@@ -70,3 +70,4 @@ FrameworkToolbox。那个包里的模块都是某个 Apple 框架的工具箱（
 |------|------|------|
 | 2026-11-10 | Created as Draft | 用户认为数据层放在 FrameworkToolbox 不合适：那里是 Apple 框架的工具箱，而它不是；它也不依赖本库别的 target，搬进来不会给与界面无关的使用方带进 AppKit。模块名暂定 `UIFoundationWindowedRows`，待用户确认 |
 | 2026-11-10 | Accepted；模块名定为 `UIFoundationWindowedRows`；做完先发版，再把 MachOKitUI 合进本地 | 用户批准。名字与本库其他模块同一个前缀，也避开 FrameworkToolbox 旧版里的同名模块，三个库不必卡着同一时刻发版 |
+| 2026-11-10 | 第 1 步完成：插件版本升到 1.3.0；「不依赖本库别的 target」写进 `Package.swift` 注释与 `AGENTS.md`，不另加守护测试 | `uifoundation-widgets` 新加了一行讲数据层，按以往教新组件升 minor 的惯例。FrameworkToolbox 守依赖边界的办法是在子进程里跑 `swift package dump-package`，算新的测试设施，超出本提案范围 |

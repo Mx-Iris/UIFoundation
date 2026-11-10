@@ -2,7 +2,7 @@
 
 import AppKit
 import Testing
-import WindowedRowsToolbox
+import UIFoundationWindowedRows
 @testable import UIFoundationAppKit
 
 /// A row that says which source row it is.

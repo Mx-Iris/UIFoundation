@@ -43,7 +43,10 @@
 - [TextFinder](TextFinder.md) —— 表格与大纲视图的 ⌘F 查找。**含一条踩了就静默出错的契约**：
   宿主禁止直接调用 `textFinder.performAction(_:)`，必须走 `textFinderClient.performTextFinderAction(_:)`
   —— 索引是惰性的，直接调会搜到空文档且不报错。另有表格的 run-length 快路径与大纲的外部索引机制。
-- [WindowedTable](WindowedTable.md) —— 上百万行的 `NSTableView`：`WindowedTableViewDataSource` 把 FrameworkToolbox 的
+- [UIFoundationWindowedRows](WindowedRows.md) —— 上百万行表格的数据层：按需取行的来源、只留可见行附近几个窗口的缓存、
+  后台搜索与串起它们的控制器，不依赖本库别的 target，与界面无关的模块可以直接用。七条签名上看不出的契约（`fetch` 必须是
+  纯函数、别在主线程读行数、两种事件要转交缓存、扫描全部行时绕开缓存等），以及表格那边的约定。
+- [WindowedTable](WindowedTable.md) —— 上百万行的 `NSTableView`：`WindowedTableViewDataSource` 把 `UIFoundationWindowedRows` 的
   `WindowedRowsController` 接到表格上，`WindowedFindIndexScanner` 在后台建 ⌘F 索引。**含一条踩了就静默出错的契约**：
   表格要先放进滚动视图再建数据源，否则滚动不取行、查找栏没有容器，都不报错；另有控制器的事件为什么要交给 `handle(_:)`。
 - [PlaybackSlider](PlaybackSlider.md) —— Music 全屏播放器的时间进度条：静止时 7 pt 无滑块的胶囊，按下即跳到指针处、

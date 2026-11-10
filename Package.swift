@@ -95,6 +95,20 @@ let package = Package(
                 "UIFoundationComponent",
             ],
         ),
+
+        // The data layer for tables of millions of rows: a row source that fetches any
+        // range on demand, a cache that keeps only the windows around the visible rows, a
+        // background row search, and a controller that runs them for one table. A product
+        // of its own so that a renderer-agnostic module can depend on it without compiling
+        // or linking AppKit -- which only holds while its target depends on no other
+        // target here. `UIFoundationAppKit` builds `WindowedTable` on it and re-exports it.
+        // See Documentations/WindowedRows.md.
+        .library(
+            name: "UIFoundationWindowedRows",
+            targets: [
+                "UIFoundationWindowedRows",
+            ],
+        ),
     ],
     traits: [
         .trait(name: "AppKitPlus"),
@@ -166,7 +180,7 @@ let package = Package(
                 "UIFoundationShared",
                 .product(name: "AssociatedObject", package: "AssociatedObject"),
                 .product(name: "OSToolbox", package: "FrameworkToolbox"),
-                .product(name: "WindowedRowsToolbox", package: "FrameworkToolbox"),
+                "UIFoundationWindowedRows",
                 .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(platforms: appkitPlatforms, traits: ["AppKitPlus"])),
             ],
             resources: [
@@ -273,6 +287,17 @@ let package = Package(
             swiftSettings: swiftSettings,
         ),
 
+        // Must not depend on any other target in this package, so that depending on
+        // it never brings in AppKit or UIKit -- see the product's comment above.
+        // `OSToolbox` is only for the logging and signpost macros.
+        .target(
+            name: "UIFoundationWindowedRows",
+            dependencies: [
+                .product(name: "OSToolbox", package: "FrameworkToolbox"),
+            ],
+            swiftSettings: swiftSettings,
+        ),
+
         .testTarget(
             name: "UIFoundationTests",
             dependencies: [
@@ -292,6 +317,14 @@ let package = Package(
                 // `Mutex`, for the test doubles that several threads write to.
                 .product(name: "OSToolbox", package: "FrameworkToolbox"),
                 .product(name: "AppKitPlus", package: "AppKitPlus-Release", condition: .when(platforms: appkitPlatforms, traits: ["AppKitPlus"])),
+            ],
+        ),
+
+        // A test target of its own, so these tests build without the AppKit layers.
+        .testTarget(
+            name: "UIFoundationWindowedRowsTests",
+            dependencies: [
+                "UIFoundationWindowedRows",
             ],
         ),
     ],

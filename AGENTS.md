@@ -27,6 +27,7 @@ UIFoundation                     umbrella product — @_exported imports the mod
 UIFoundationSettings             `Settings` trait, macOS 14+; model layer
 UIFoundationSettingsUI           `Settings` trait, macOS 14+; window layer
 UIFoundationComponent            frame-computing layout system ported from lkzhao/UIComponent
+UIFoundationWindowedRows         data layer for tables of millions of rows; depends on no target here
 AppKitPlus (binary)              linked into UIFoundationAppKit and UIFoundationToolbox under the `AppKitPlus` trait
 ```
 
@@ -36,7 +37,12 @@ AppKitPlus (binary)              linked into UIFoundationAppKit and UIFoundation
 - The Settings products and `UIFoundationComponent` stay outside the umbrella — the first to keep
   macOS 14 off every consumer, the second because `Component` / `Spacer` collide with umbrella names
   (Evolution [`0024`](Documentations/Evolutions/0024-component-layout-system.md)).
-- `Tests/UIFoundationTests/` — the one test target; coverage is sparse.
+- `UIFoundationWindowedRows` **must not depend on any other target here** — only on FrameworkToolbox's
+  `OSToolbox`, for the logging and signpost macros — so a renderer-agnostic module (MachOKitUICore)
+  can depend on it without AppKit. `UIFoundationAppKit` builds `WindowedTable` on it and re-exports it,
+  so `import UIFoundation` still sees it on macOS. Contract: [WindowedRows.md](Documentations/WindowedRows.md).
+- `Tests/UIFoundationTests/` — the main test target; coverage is sparse. `Tests/UIFoundationWindowedRowsTests/`
+  tests `UIFoundationWindowedRows` on its own, without building the AppKit layers.
 - `UIFoundationExample-macOS/` — the demo browser app, plus the `ComponentLayoutExample` package.
 - `Documentations/` — one guide per component, indexed in `Documentations/README.md` (Chinese);
   decision records in `Documentations/Evolutions/`.
@@ -45,7 +51,7 @@ AppKitPlus (binary)              linked into UIFoundationAppKit and UIFoundation
 
 | Dependency | Used for |
 |---|---|
-| `FrameworkToolbox` (Mx-Iris) | the `.box` namespace; `NotificationCenter.Backport` (module `FoundationToolbox`); `Mutex` (module `OSToolbox`) |
+| `FrameworkToolbox` (Mx-Iris) | the `.box` namespace; `NotificationCenter.Backport` (module `FoundationToolbox`); `Mutex` and, in `UIFoundationWindowedRows`, the `@Loggable` / `@Signpostable` macros (module `OSToolbox`) |
 | `AssociatedObject` (p-x9) | the `@AssociatedObject` macro |
 | `AppKitPlus` (AppKitSupportProgram, **binary**) | UIKit APIs ported to AppKit, behind the `AppKitPlus` trait (default off) |
 
@@ -142,7 +148,8 @@ No trait:
 - **WindowedTable** — `UIFoundationAppKit/WindowedTable/` — [WindowedTable.md](Documentations/WindowedTable.md).
   The table must sit in its scroll view before `WindowedTableViewDataSource` is created: scroll
   reporting and the find bar attach to `enclosingScrollView` then, and without it neither works nor
-  complains. Built on FrameworkToolbox's `WindowedRowsToolbox`, which `UIFoundationAppKit` re-exports.
+  complains. Built on `UIFoundationWindowedRows` ([WindowedRows.md](Documentations/WindowedRows.md)),
+  which `UIFoundationAppKit` re-exports.
 - **PlaybackSlider** — `UIFoundationAppKit/PlaybackSlider/` — [PlaybackSlider.md](Documentations/PlaybackSlider.md).
   Music's plus-lighter colours need the `AppleInternal` trait; without it the bar blends normally,
   a little darker, and nothing says so. Its tests must not post real clicks: the runner is ended

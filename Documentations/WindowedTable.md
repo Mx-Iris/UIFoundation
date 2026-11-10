@@ -1,6 +1,6 @@
 # WindowedTable —— 上百万行的 `NSTableView`
 
-`UIFoundationAppKit/WindowedTable/` 把 FrameworkToolbox 的 `WindowedRowsController` 接到一张基于视图的
+`UIFoundationAppKit/WindowedTable/` 把 `UIFoundationWindowedRows` 的 `WindowedRowsController` 接到一张基于视图的
 `NSTableView` 上，有三样东西：
 
 - **`WindowedTableViewDataSource<Row>`**：表格的数据源，同时汇报滚动，并负责表格的查找栏。
@@ -8,9 +8,11 @@
   `OutlineViewTextFinderClient` 用。
 - **`WindowedFindIndexColumns<Row>`**：查找栏要搜的列数，以及每行往这些列里写什么字符串。
 
-按需取行的数据层（行的来源、窗口缓存、过滤搜索、控制器）在 FrameworkToolbox 的 `WindowedRowsToolbox` 里，契约见那边的
-`Documentations/WindowedRowsToolbox.md`。`import UIFoundation` 会一并导出它。决策记录见
-[`Evolutions/0036-windowed-table-view-data-source.md`](Evolutions/0036-windowed-table-view-data-source.md)。
+按需取行的数据层（行的来源、窗口缓存、过滤搜索、控制器）在本库的 `UIFoundationWindowedRows` 里，契约见
+[UIFoundationWindowedRows](WindowedRows.md)。`import UIFoundation` 会一并导出它。决策记录见
+[`Evolutions/0036-windowed-table-view-data-source.md`](Evolutions/0036-windowed-table-view-data-source.md)；数据层
+2026-11-10 从 FrameworkToolbox 搬进本库，见
+[`Evolutions/draft-windowed-rows-module.md`](Evolutions/draft-windowed-rows-module.md)。
 
 ## 最小用法
 

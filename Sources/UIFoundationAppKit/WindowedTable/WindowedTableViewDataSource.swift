@@ -1,7 +1,7 @@
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
 
 import AppKit
-import WindowedRowsToolbox
+import UIFoundationWindowedRows
 
 /// Shows the rows of a ``WindowedRowsController`` in a view-based
 /// `NSTableView`: the table's data source, its scroll reporting, and its find
