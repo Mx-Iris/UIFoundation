@@ -95,6 +95,12 @@ xcodebuild test -scheme UIFoundation-Package -destination 'platform=macOS,varian
   - Don't rebuild with the trait to put the pin back. Without a pin, resolution takes the newest
     AppKitPlus in range — a silent bump, and a bump needs the collision re-check in
     [AppKitPlus.md](Documentations/AppKitPlus.md).
+  - **Any edit to `Package.swift`, even a comment, has the same effect on the next plain
+    `swift build` / `swift test`.** `Package.resolved`'s `originHash` is the SHA-256 of the manifest's
+    text; while it matches, SwiftPM uses the pins as they are, and once it doesn't, it resolves again
+    without traits and drops the pin. Commit a manifest edit with the pins unchanged and the hash set to
+    `shasum -a 256 Package.swift` (read off SwiftPM 6.4's `computeResolvedFileOriginHash`; measured
+    2026-11-10).
 - `xcodebuild` has no trait flag: under Xcode the consuming project or scheme picks the traits.
 </important>
 
