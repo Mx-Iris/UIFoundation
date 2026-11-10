@@ -1,7 +1,7 @@
 # UIFoundationWindowedRows —— 上百万行表格的数据层
 
 > 面向使用方。为什么放在本库，见提案
-> [UIFoundationWindowedRows：把上百万行表格的数据层从 FrameworkToolbox 搬进来](Evolutions/draft-windowed-rows-module.md)；
+> [UIFoundationWindowedRows：把上百万行表格的数据层从 FrameworkToolbox 搬进来](Evolutions/0037-windowed-rows-module.md)；
 > 最初的设计见 FrameworkToolbox 的提案 0017（那时模块叫 `WindowedRowsToolbox`）。AppKit 的表格组件见
 > [WindowedTable](WindowedTable.md)。
 

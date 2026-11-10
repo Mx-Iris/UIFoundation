@@ -12,7 +12,7 @@
 [UIFoundationWindowedRows](WindowedRows.md)。`import UIFoundation` 会一并导出它。决策记录见
 [`Evolutions/0036-windowed-table-view-data-source.md`](Evolutions/0036-windowed-table-view-data-source.md)；数据层
 2026-11-10 从 FrameworkToolbox 搬进本库，见
-[`Evolutions/draft-windowed-rows-module.md`](Evolutions/draft-windowed-rows-module.md)。
+[`Evolutions/0037-windowed-rows-module.md`](Evolutions/0037-windowed-rows-module.md)。
 
 ## 最小用法
 
