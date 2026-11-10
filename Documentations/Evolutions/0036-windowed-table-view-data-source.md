@@ -1,8 +1,8 @@
-# Draft - WindowedTable：上百万行的 `NSTableView`
+# 0036 - WindowedTable：上百万行的 `NSTableView`
 
-- **状态**: In Progress
+- **状态**: Implemented
 - **创建日期**: 2026-11-09
-- **最后更新**: 2026-11-09
+- **最后更新**: 2026-11-10
 - **配套文档**: [WindowedTable](../WindowedTable.md)
 - **关联提案**: MachOKitUI 的 `extract-windowed-rows`（把 windowed 机制抽成可复用组件），本提案是它的第 2 步；
   第 1 步是 FrameworkToolbox 的 `windowed-rows-toolbox`
@@ -53,3 +53,6 @@ MachOKitUI 随后改用它们。
 | 2026-11-09 | 查找数据源用 `@MainActor TableViewTextFinderDataSource` 隔离遵循 | 数据源是 `@MainActor`，而该协议没有隔离；普通遵循会报跨隔离警告，Swift 6 下是错误 |
 | 2026-11-09 | `WindowedFindIndexColumns` 要求至少一列 | `TextFinderExternalIndex` 在零列时触发 precondition；没有可搜的列时，组件改装一个一列的空索引 |
 | 2026-11-09 | `WindowedFindIndexScanner.runningScan` 公开；扫描器释放后扫描在下一批停下 | MachOKitUI 改用它时发现：它的测试要等 ⌘F 扫描结束才能读索引，宿主也可能要等；扫描原先在宿主的 `deinit` 里取消，扫描器跟着宿主释放后理应自己停 |
+| 2026-11-10 | 要求的 FrameworkToolbox 升到 0.19.0 | `WindowedRowsToolbox` 从 0.19.0 起才有（FrameworkToolbox 提案 0017）。RuntimeViewer 与 PrivateSymbols 对 FrameworkToolbox 的要求都写成 `from:`，容得下这一版，所以对它们仍是零影响 |
+| 2026-11-10 | Implemented，编号 0036，随 `0.45.0` 发布 | 用户批准发版，供 MachOKitUI 升依赖。对着发布的 FrameworkToolbox 0.19.0，全量测试串行、并行都反复跑过，开 Thread Sanitizer 也没有报告；打开全部 trait 能构建。指南 `WindowedTable.md` 随实现写好；没有新的项目术语要登记——新增的三个都是接口类型，不是术语 |
+| 2026-11-10 | 并行跑全量测试时偶发段错误，与本提案无关，照常发版 | 四十多次运行里出现一次，两次都停在 `NSDocumentAsyncOperationTests` 的「canClose() autosaves an edited document that autosaves in place, then answers true」刚开始时；不含本提案的 `main`（FrameworkToolbox 0.15.0）上同样出现。问题在那条 autosave 测试一侧，没有在这里修 |

@@ -10,7 +10,7 @@
 
 按需取行的数据层（行的来源、窗口缓存、过滤搜索、控制器）在 FrameworkToolbox 的 `WindowedRowsToolbox` 里，契约见那边的
 `Documentations/WindowedRowsToolbox.md`。`import UIFoundation` 会一并导出它。决策记录见
-[`Evolutions/draft-windowed-table-view-data-source.md`](Evolutions/draft-windowed-table-view-data-source.md)。
+[`Evolutions/0036-windowed-table-view-data-source.md`](Evolutions/0036-windowed-table-view-data-source.md)。
 
 ## 最小用法
 
