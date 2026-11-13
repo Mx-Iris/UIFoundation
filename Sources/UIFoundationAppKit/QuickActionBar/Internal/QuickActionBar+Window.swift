@@ -155,6 +155,9 @@ extension QuickActionBar {
 
         internal var userDidActivateItem: Bool = false
 
+        /// The rounded platter view the search field and the results sit in.
+        private(set) var primaryView: QuickActionBar.PrimaryRoundedView?
+
         private var isResultsExpanded = false
 
         private var currentSearchRequestTask: QuickActionBar.SearchTask?
@@ -194,6 +197,7 @@ extension QuickActionBar.Window {
             let content = QuickActionBar.PrimaryRoundedView()
             content.translatesAutoresizingMaskIntoConstraints = false
             container.addSubview(content)
+            self.primaryView = content
 
             let pad = QuickActionBar.animationPadding
             NSLayoutConstraint.activate([

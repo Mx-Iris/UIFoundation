@@ -21,6 +21,14 @@ extension QuickActionBar {
 
         let contentView = NSView()
 
+        /// macOS 26 and later: the platter's glass, with room for the browse buttons.
+        @available(macOS 26.0, *)
+        var glassPlatterView: GlassPlatterView? {
+            glassPlatterViewStorage as? GlassPlatterView
+        }
+
+        private var glassPlatterViewStorage: NSView?
+
         override init(frame frameRect: NSRect) {
             super.init(frame: frameRect)
             self.setup()
@@ -36,17 +44,16 @@ extension QuickActionBar {
             self.translatesAutoresizingMaskIntoConstraints = false
 
             if #available(macOS 26.0, *) {
-                let glassView = NSGlassEffectView()
-                glassView.contentView = contentView
-                glassView.cornerRadius = 28
-                glassView.translatesAutoresizingMaskIntoConstraints = false
-                addSubview(glassView)
+                let glassPlatterView = QuickActionBar.GlassPlatterView(platterContentView: contentView)
+                glassPlatterView.translatesAutoresizingMaskIntoConstraints = false
+                addSubview(glassPlatterView)
                 NSLayoutConstraint.activate([
-                    topAnchor.constraint(equalTo: glassView.topAnchor),
-                    leadingAnchor.constraint(equalTo: glassView.leadingAnchor),
-                    trailingAnchor.constraint(equalTo: glassView.trailingAnchor),
-                    bottomAnchor.constraint(equalTo: glassView.bottomAnchor),
+                    topAnchor.constraint(equalTo: glassPlatterView.topAnchor),
+                    leadingAnchor.constraint(equalTo: glassPlatterView.leadingAnchor),
+                    trailingAnchor.constraint(equalTo: glassPlatterView.trailingAnchor),
+                    bottomAnchor.constraint(equalTo: glassPlatterView.bottomAnchor),
                 ])
+                glassPlatterViewStorage = glassPlatterView
             } else if !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
                 let blurView = NSVisualEffectView()
                 blurView.translatesAutoresizingMaskIntoConstraints = false
@@ -93,9 +100,10 @@ extension QuickActionBar {
                 } else {
                     baseLayer.borderWidth = 0
                 }
-            } else {
-                layer?.cornerRadius = bounds.height / 2
             }
+            // macOS 26 and later draw nothing here: the glass carries its own corner radius. A
+            // radius on this layer would also turn `clipsToBounds` on (macOS 27.2) and trim the
+            // browse buttons, which overshoot past the platter's trailing edge as they settle.
         }
     }
 }
