@@ -100,7 +100,7 @@ quickActionBar.present(placeholderText: "Search")
 1. 通用弹簧，`ResizeSpring` 改由它表达，弹簧测试。（已完成）
 2. 玻璃改进容器；没有按钮时外观不变。（已完成）
 3. 浏览按钮：API、几何、编排、显示条件、绘制，以及上面列的测试。（已完成）
-4. 示例 App 演示。
+4. 示例 App 演示。（已完成）
 5. 文档。
 6. 验证：全 trait 构建、整套测试、示例 App 构建；动画由人目测。
 

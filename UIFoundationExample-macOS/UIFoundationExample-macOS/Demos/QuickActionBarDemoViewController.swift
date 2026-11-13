@@ -101,6 +101,19 @@ final class QuickActionBarDemoViewController: NSViewController {
         action: nil
     )
 
+    /// How many of Spotlight's four browse buttons to show beside the search field (macOS 26 and
+    /// later). The index of the selected item is the count.
+    private let browseButtonCountPopUpButton = NSPopUpButton(frame: .zero, pullsDown: false)
+
+    /// Spotlight's own browse buttons, in its order, with the symbols it uses. The second symbol
+    /// stands in on a system that lacks the first.
+    private let spotlightBrowseButtons: [(title: String, symbolName: String, fallbackSymbolName: String)] = [
+        ("Applications", "appstore", "square.grid.2x2"),
+        ("Files", "folder", "folder"),
+        ("Actions", "app.2.stack.3d", "square.stack.3d.up"),
+        ("Clipboard", "document.on.document", "doc.on.doc"),
+    ]
+
     // MARK: - Search controls
 
     private let searchLatencySlider = NSSlider(value: 0, minValue: 0, maxValue: 1.5, target: nil, action: nil)
@@ -146,9 +159,19 @@ final class QuickActionBarDemoViewController: NSViewController {
     // MARK: - User interface
 
     private func buildUserInterface() {
+        browseButtonCountPopUpButton.addItems(withTitles: [
+            "None — the bar as before",
+            "1",
+            "2",
+            "3",
+            "4, as Spotlight",
+        ])
+        browseButtonCountPopUpButton.selectItem(at: spotlightBrowseButtons.count)
+
         let presentationSection = makeSection(title: "Presentation", rows: [
             makeRow(label: "Bar width", control: barWidthSlider, value: barWidthValueField),
             makeRow(label: "Results height", control: resultsHeightSlider, value: resultsHeightValueField),
+            makeRow(label: "Browse buttons", control: browseButtonCountPopUpButton),
             makeRow(label: "Placeholder", control: placeholderTextField),
             centersOnWindowCheckbox,
             showsKeyboardShortcutsCheckbox,
@@ -292,6 +315,15 @@ final class QuickActionBarDemoViewController: NSViewController {
         the log reports didCancel, then didClose. Activating a row reports didActivateItem and no didCancel.
         8.  Reopening mid-dismissal reverses it rather than restarting. Press the button above, \
         or press Escape on an empty query and immediately hit ⏎ here.
+        9.  The browse buttons bud out the way Spotlight's do (macOS 26 and later). About half a \
+        second after the bar appears, the query field narrows and the circles grow out of its \
+        trailing end — joined to it and to each other at first, then pulling apart — and their \
+        icons sharpen as they fade in. Compare with Spotlight side by side. With "None" the bar \
+        looks exactly as it did before browse buttons existed.
+        10. Results draw them back in. Type a letter: as the list grows downwards the circles \
+        shrink back into the widening field. Escape on that query brings them out again.
+        11. Clicking a browse button logs it and leaves the bar open, with the keyboard focus \
+        still in the query field.
         """)
         checksField.font = .systemFont(ofSize: 11)
         checksField.textColor = .secondaryLabelColor
@@ -391,6 +423,7 @@ final class QuickActionBarDemoViewController: NSViewController {
 
     private func presentBar(initialSearchText: String?) {
         quickActionBar.requiredClickCount = activatesOnSingleClickCheckbox.state == .on ? .single : .double
+        quickActionBar.browseItems = makeBrowseItems(count: browseButtonCountPopUpButton.indexOfSelectedItem)
         quickActionBar.present(
             parentWindow: centersOnWindowCheckbox.state == .on ? view.window : nil,
             placeholderText: placeholderTextField.stringValue,
@@ -403,6 +436,18 @@ final class QuickActionBarDemoViewController: NSViewController {
                 self?.appendToEventLog("didClose")
             }
         )
+    }
+
+    /// The first `count` of Spotlight's browse buttons. A click is logged and leaves the bar open.
+    private func makeBrowseItems(count: Int) -> [QuickActionBar.BrowseItem] {
+        spotlightBrowseButtons.prefix(count).map { button in
+            let image = NSImage(systemSymbolName: button.symbolName, accessibilityDescription: button.title)
+                ?? NSImage(systemSymbolName: button.fallbackSymbolName, accessibilityDescription: button.title)
+                ?? NSImage()
+            return QuickActionBar.BrowseItem(title: button.title, image: image) { [weak self] _ in
+                self?.appendToEventLog("browse item: \(button.title)")
+            }
+        }
     }
 
     /// Presents, cancels, then resumes before the dismissal has finished.
