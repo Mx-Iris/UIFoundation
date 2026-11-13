@@ -1,6 +1,6 @@
-# Draft - 跨多个滚动视图的滚动边缘效果：`ScrollPocketView` 与 `NSView.box.titlebarBackdropGroupName`
+# 0038 - 跨多个滚动视图的滚动边缘效果：`ScrollPocketView` 与 `NSView.box.titlebarBackdropGroupName`
 
-- **状态**: In Progress
+- **状态**: Implemented
 - **创建日期**: 2026-11-13
 - **最后更新**: 2026-11-13
 - **实现分支 / PR**: `feature/scroll-pocket-titlebar-backdrop-group`（从 `main` `8152d37` 切出）
@@ -70,3 +70,4 @@ RuntimeViewer 的编辑区分成左右两栏，两栏的滚动视图都伸到工
 | 2026-11-13 | 加 `ScrollPocketView`，与分组名同发一个版本 | RuntimeViewer 的用户比较两种解法后选了 Xcode 的做法：一块独立 pocket 盖住所有分栏，一次截全，也盖住画在工具栏上的 Minimap。两样 API 进同一个版本，下游只抬一次 pin |
 | 2026-11-13 | 默认 style 2、不画分隔线；`captureView` 交给宿主摆放 | 与 Xcode 27 的 `DVTEdgeOcclusionView` 一致；style 0 / 1 的独立 pocket 没有元素，什么都不画。capture view 必须在所盖内容的后面，只有宿主知道那是哪里 |
 | 2026-11-13 | 不接点击 | 盖在工具栏那一条的 pocket 被标题栏挡在后面，盖在栏后的 pocket 不该吞掉栏背景上的点击；Xcode 另放一块吞事件的视图，这里不需要 |
+| 2026-11-13 | Implemented，编号 0038，随 `0.47.0` 发布 | 用户批准发版，供 RuntimeViewer 抬依赖。全量测试通过，打开全部 trait 能构建。指南是 `ScrollPockets.md` 新加的一节，逆向依据在 `Researchs` 报告第 5 节，没有另写实现说明；backdrop 分组、capture view 在指南与报告里解释过，没有新术语要进术语表 |

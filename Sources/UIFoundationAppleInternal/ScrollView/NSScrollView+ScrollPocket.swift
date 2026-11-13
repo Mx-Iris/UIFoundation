@@ -2,7 +2,7 @@
 //  Read off macOS 27.0's AppKit and measured on macOS 27.2 (26B5101f).
 //  Reverse-engineering notes: Researchs/AppKit-NSScrollView-ScrollPocket-Internals.md
 //  Decision records: Documentations/Evolutions/0029-scroll-view-scroll-pockets.md; titlebarBackdropGroupName in
-//  Documentations/Evolutions/draft-scroll-pockets-across-scroll-views.md
+//  Documentations/Evolutions/0038-scroll-pockets-across-scroll-views.md
 //
 
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)

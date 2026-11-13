@@ -53,7 +53,7 @@ override var _scrollPocketElementStyle: Int {
 AppKit 把一个窗口里所有伸到标题栏底下的 pocket 放进同一个 backdrop 分组，这个分组只截一次图，在第一个 pocket 绘制时
 截。之后才绘制的东西——旁边那个滚动视图、盖在第一个 pocket 上面的视图（比如 Minimap）——都不在截图里，它们上方的
 标题栏只剩一块平的窗口底色。两种解法，决策记录见
-[`Evolutions/draft-scroll-pockets-across-scroll-views.md`](Evolutions/draft-scroll-pockets-across-scroll-views.md)：
+[`Evolutions/0038-scroll-pockets-across-scroll-views.md`](Evolutions/0038-scroll-pockets-across-scroll-views.md)：
 
 **一块独立的 pocket 盖住所有滚动视图（Xcode 编辑区的做法）**：`ScrollPocketView` 放在所有滚动视图之后、框住标题栏
 那一条，它的 `captureView` 放在它们之前、同一位置。它一次截全，也盖住了画在各自 pocket 上面的视图。

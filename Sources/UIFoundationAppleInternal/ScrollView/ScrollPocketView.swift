@@ -1,7 +1,7 @@
 //
 //  Read off macOS 27.2's AppKit and Xcode 27.2's DVTUserInterfaceKit and IDEKit, measured on macOS 27.2.
 //  Reverse-engineering notes: Researchs/AppKit-NSScrollView-ScrollPocket-Internals.md, section 5
-//  Decision record: Documentations/Evolutions/draft-scroll-pockets-across-scroll-views.md
+//  Decision record: Documentations/Evolutions/0038-scroll-pockets-across-scroll-views.md
 //
 
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
