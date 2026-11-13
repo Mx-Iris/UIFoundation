@@ -305,6 +305,10 @@ final class TappableViewExamplesView: ChapterView {
                             .tappableViewConfig(TappableViewConfig(
                                 onHighlightChanged: { view, isHighlighted in
                                     viewModel.isHighlighted = isHighlighted
+                                    guard #available(macOS 15.0, *) else {
+                                        view.transform = isHighlighted ? CGAffineTransform(scaleX: 0.95, y: 0.95) : .identity
+                                        return
+                                    }
                                     NSView.animate(withDuration: 0.2) {
                                         view.transform = isHighlighted ? CGAffineTransform(scaleX: 0.95, y: 0.95) : .identity
                                     }
@@ -324,6 +328,10 @@ final class TappableViewExamplesView: ChapterView {
                             }
                             .tappableViewConfig(TappableViewConfig(
                                 onHighlightChanged: { view, isHighlighted in
+                                    guard #available(macOS 15.0, *) else {
+                                        view.alphaValue = isHighlighted ? 0.5 : 1.0
+                                        return
+                                    }
                                     NSView.animate(withDuration: 0.15) {
                                         view.alphaValue = isHighlighted ? 0.5 : 1.0
                                     }
@@ -424,8 +432,12 @@ final class TappableViewExamplesView: ChapterView {
                     }
                     .tappableViewConfig(TappableViewConfig(
                         onHighlightChanged: { view, isHighlighted in
+                            view.wantsLayer = true
+                            guard #available(macOS 15.0, *) else {
+                                view.layer?.backgroundColor = (isHighlighted ? NSColor.systemGray5 : NSColor.systemGray6).cgColor
+                                return
+                            }
                             NSView.animate(withDuration: 0.2) {
-                                view.wantsLayer = true
                                 view.layer?.backgroundColor = (isHighlighted ? NSColor.systemGray5 : NSColor.systemGray6).cgColor
                             }
                         }
@@ -460,6 +472,11 @@ final class TappableViewExamplesView: ChapterView {
                             }
                             .tappableViewConfig(TappableViewConfig(
                                 onHighlightChanged: { view, isHighlighted in
+                                    guard #available(macOS 15.0, *) else {
+                                        view.transform = isHighlighted ? CGAffineTransform(scaleX: 0.92, y: 0.92) : .identity
+                                        view.alphaValue = isHighlighted ? 0.7 : 1.0
+                                        return
+                                    }
                                     NSView.animate(withDuration: 0.15) {
                                         view.transform = isHighlighted ? CGAffineTransform(scaleX: 0.92, y: 0.92) : .identity
                                         view.alphaValue = isHighlighted ? 0.7 : 1.0

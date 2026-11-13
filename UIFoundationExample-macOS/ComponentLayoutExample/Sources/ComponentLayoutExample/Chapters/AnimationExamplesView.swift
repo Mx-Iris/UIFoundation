@@ -323,6 +323,7 @@ final class AnimationExamplesView: ChapterView {
                                     .animateInsert { hostingView, view, frame in
                                         view.bounds.size = frame.size
                                         view.center = CGPoint(x: frame.midX, y: frame.midY)
+                                        guard #available(macOS 15.0, *) else { return }
                                         view.alphaValue = 0
                                         view.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
                                         NSView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.6, initialSpringVelocity: 0) {
@@ -331,6 +332,7 @@ final class AnimationExamplesView: ChapterView {
                                         }
                                     }
                                     .animateDelete { hostingView, view, completion in
+                                        guard #available(macOS 15.0, *) else { return completion() }
                                         NSView.animate(withDuration: 0.3) {
                                             view.alphaValue = 0
                                             view.transform = CGAffineTransform(scaleX: 0.1, y: 0.1)
@@ -357,6 +359,10 @@ final class AnimationExamplesView: ChapterView {
                             .backgroundColor(.systemBlue)
                             .cornerRadius(8)
                             .animateUpdate { hostingView, view, frame in
+                                guard #available(macOS 15.0, *) else {
+                                    view.frame = frame
+                                    return
+                                }
                                 NSView.animate(withDuration: 0.3) {
                                     view.frame = frame
                                 }
@@ -560,7 +566,8 @@ struct CustomFadeAnimator: Animator {
         view.center = CGPoint(x: frame.midX, y: frame.midY)
 
         // Only animate when component is reloading
-        if hostingView.componentEngine.isReloading,
+        if #available(macOS 15.0, *),
+           hostingView.componentEngine.isReloading,
            // Don't animate the first reload
            hostingView.componentEngine.hasReloaded,
            // Only animate visible views
@@ -574,7 +581,8 @@ struct CustomFadeAnimator: Animator {
 
     func delete(hostingView: NSView, view: NSView,
                completion: @escaping () -> Void) {
-        if hostingView.componentEngine.isReloading,
+        if #available(macOS 15.0, *),
+           hostingView.componentEngine.isReloading,
            hostingView.bounds.intersects(view.frame) {
             NSView.animate(withDuration: duration) {
                 view.alphaValue = 0
@@ -587,6 +595,10 @@ struct CustomFadeAnimator: Animator {
     }
 
     func update(hostingView: NSView, view: NSView, frame: CGRect) {
+        guard #available(macOS 15.0, *) else {
+            view.frame = frame
+            return
+        }
         NSView.animate(withDuration: duration) {
             view.frame = frame
         }

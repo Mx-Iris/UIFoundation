@@ -518,6 +518,11 @@ a file.
   `XCLocalSwiftPackageReference`. A product outside the umbrella also needs an
   `XCSwiftPackageProductDependency` and a Frameworks-phase entry — `UIFoundationSettings` /
   `UIFoundationSettingsUI` do — or the demo's import does not resolve.
+- **The example's `Package.resolved` is git-ignored** (`project.xcworkspace`), so a fresh checkout — a
+  worktree, an archive, another machine — resolves the newest AppKitPlus in range while an old
+  checkout keeps its pin. AppKitPlus 0.21.0 marks `NSView.animate(withDuration:…)` macOS 15, which the
+  example's macOS 12 target then fails on: guard such calls with `#available`, and build the example
+  from a fresh copy before trusting a build in your own checkout.
 - **Don't let a demo set the window's minimum width.** Auto Layout treats an `NSHostingView`'s ideal
   width, and a wrapping `NSTextField`'s single-line width, as a hard floor, so the window is pushed
   wide and cannot shrink back (measured: three SwiftUI panels side by side demanded 1006 pt, stacked
