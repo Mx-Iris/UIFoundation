@@ -102,6 +102,16 @@ typedef NS_ENUM(NSInteger, NSViewSemanticContext) {
 /// (`-[IDETwoLevelChooserView _scrollPocketElementStyle]`) both do.
 @property (readonly) NSInteger _scrollPocketElementStyle API_AVAILABLE(macos(26.0));
 
+/// The backdrop group that the scroll pockets reaching the title bar inside this view blur their content in, or an
+/// empty string when the view names none — the default, and what it reads back after being given `nil`. A scroll
+/// pocket with the title bar among its containers takes the nearest non-empty name
+/// up its superview chain, and the window's own (`TitlebarGroup-<window>`) at the top, so by default every such
+/// pocket in a window is in one group; AppKit itself names the group of each title bar section on the scroll view
+/// or split view item under it. Read off macOS 27.2: `-[NSView computed_effectiveTitlebarGroupName]`
+/// (`0x18B1D672C`), the pocket's model (`0x18B478CF0`). See
+/// `Researchs/AppKit-NSScrollView-ScrollPocket-Internals.md`, "Backdrop groups under the title bar".
+@property (copy, nullable, setter=_setTitlebarGroupName:) NSString *_titlebarGroupName API_AVAILABLE(macos(26.0));
+
 @end
 
 NS_HEADER_AUDIT_END(nullability, sendability)

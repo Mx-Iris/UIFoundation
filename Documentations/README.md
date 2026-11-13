@@ -80,7 +80,9 @@
   自制栏也有 macOS 26 的滚动边缘效果（登记容器、常显一条边、样式、只读查看 pocket），以及栏要回答的
   `NSView.barScrollPocketElementStyle`。**含一条踩了就没有效果、却看不出错的契约**：底部 pocket 的高度跟滚动视图自己的
   `contentInsets.bottom` 走，只设 clip view 的 inset 时高度为 0。另有顶部 pocket 跟安全区而不跟 inset、登记要配对撤销、
-  私有方法会在小版本之间消失（27.0 的 `_registeredPocketContainersOnEdge:` 在 27.2 已删）。
+  私有方法会在小版本之间消失（27.0 的 `_registeredPocketContainersOnEdge:` 在 27.2 已删）。几个滚动视图并排伸到标题栏底下时，
+  除第一个外它们上方的标题栏只剩平的窗口底色：用独立的 `ScrollPocketView` 盖住它们（Xcode 编辑区的做法），或用
+  `NSView.box.titlebarBackdropGroupName` 给各自起一个 backdrop 分组。
 - [ToolbarCenteredItemWidth](ToolbarCenteredItemWidth.md) —— `AppleInternal` trait 下的
   `toolbar.box.preferredCenteredItemWidthRatio`：让 `centeredItemIdentifiers` 指定的那一项按工具栏宽度的比例取宽、
   随窗口缩放（Xcode 26 的 Activity View 占 40%）。**含一条踩了就整个不生效的契约**：算出的宽度小于项的最小宽度时，

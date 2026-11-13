@@ -6,8 +6,8 @@
 > moves between releases.
 >
 > Behaviour: measured on macOS 27.2 (26B5101f) with `Tests/UIFoundationTests/ScrollPocketTests.swift` and a throwaway
-> probe of the same shape. No 27.2 AppKit export exists yet, so 27.2's method list was read from the Objective-C
-> runtime (`class_copyMethodList`).
+> probe of the same shape. No 27.2 AppKit export existed then, so 27.2's method list was read from the Objective-C
+> runtime (`class_copyMethodList`). Section 5 has its own header: it was read off 27.2's AppKit.
 >
 > How Xcode uses all this comes from the RuntimeViewer team's reverse engineering of Xcode 27.2, in
 > `/Volumes/RE/Xcode/27.2/README.md`, section "Navigator chooser and scroll pockets (2026-10-14)".
@@ -155,8 +155,79 @@ From `/Volumes/RE/Xcode/27.2/README.md`:
   and its `contentInsets` are `(safeAreaInsets.top + 8, 0, safeAreaInsets.bottom, 0)`; the scroll view's own automatic
   insets stay on.
 
-## 5. Open questions
+## 5. Backdrop groups under the title bar
+
+> Read off macOS 27.2 (cache UUID `b411828b…`, AppKit UUID `77E3ADB8…`) in the IDA database
+> `/Volumes/DyldSharedCaches/macOS/27.2/AppKit+UIKitCore+UIKitMacHelper+UpdateCycle.i64`, opened through a copy;
+> addresses are that cache's. Measured on macOS 27.2 with the `TitlebarFixture` tests in `ScrollPocketTests.swift`
+> and in RuntimeViewer, whose editor area puts two scroll views side by side under the toolbar (2026-11-13).
+
+**The symptom.** Two scroll views side by side under a toolbar, both reaching the title bar: the title bar over the
+first shows its content blurred, and from the first one's last subview drawn over its pocket (RuntimeViewer's
+minimap) to the window's trailing edge — the whole second scroll view included — the title bar is a flat fill of the
+window's background, as if nothing scrolled under it.
+
+**Why.** On 27.2 a pocket draws through its v8 model (feature flag `MPV8`, `NSIsMagicPocketV8Enabled`,
+`0x18B468D78`); `NSScrollPocket.layout()` (`0x18B479FA0`) hides the older views, `NSHardPocketView` among them. Its
+layers name the recipe: the soft one is `ThinFilmBackgroundReplay` (a 16-point Gaussian blur of what lies behind the
+scroll view, at opacity 0.6) under `ThinFilmContentBlurFill`, a `CABackdropLayer` that blurs the content. Each entry's
+`groupName` is set in `sub_18B466A38`: a replay joins the pocket's own `backgroundGroup-…` group, the content blur
+joins the model's `backdropGroupName` unless the pocket sits over glass (`!isOverGlass`, `sub_18B45E6D8`) — a
+sidebar's pocket is, and gets `nil`. The model's name (`sub_18B478CF0`), first match wins:
+
+1. the pocket's own `backdropGroupName` (`-[NSScrollPocket setBackdropGroupName:]`, `0x18B47D69C`), when not empty;
+2. with the title bar among its containers (`titlebarElementContainerCount ≥ 1`), its `_effectiveTitlebarGroupName`;
+3. `NSScrollPocket-0x…`, one per pocket (`sub_18B480B0C`).
+
+`-[NSView computed_effectiveTitlebarGroupName]` (`0x18B1D672C`) is the view's own `_titlebarGroupName` when not empty,
+else its superview's, up to `-[NSWindow _titlebarBackdropGroupName]` (`0x18A41D130`), `TitlebarGroup-<window>`. The
+default of `_titlebarGroupName` is an empty string (`+[NSView default_titlebarGroupName]`, `0x18B1D6720`), and it reads
+back empty after being given `nil`. A title bar section names its own group, `TitlebarGroup-<NSTitlebarBackgroundView>`
+(`-[NSTitlebarView _updateSectionBackgroundViews:]`, `0x18AF1595C`), and `_updateSectionGroupNames` (`0x18AF153F4`)
+hands it to the section's background material and, through `-[NSWindowSectionContentController setGroupName:]`
+(`0x18B1D7ADC`), to the split view item's adapter or else the section's primary scroll view.
+
+So every pocket under the title bar in one section or window blurs in one group. Core Animation captures a group's
+backdrop once per frame in the render server (`CA::OGL::capture_backdrop`, QuartzCore `0x18DD92CB8`; a group keeps a
+master capture its members take sub-rectangles of, `BackdropGroup::subrect_to_master`, `0x18DF31D30`). That the
+capture is taken when the group's first member is drawn was not read line by line; it is what the symptom shows —
+everything drawn after the first pocket, its own overlays and the second scroll view, is missing from the capture.
+Measured in RuntimeViewer: both editor pockets' `ThinFilmContentBlurFill` had the group `TitlebarGroup-0x…`, the
+same name, and the flat strip began exactly where the first pane's minimap does.
+
+**What separates them.** A non-empty `_titlebarGroupName` on a view around each scroll view
+(`NSView.box.titlebarBackdropGroupName`): each pocket inside takes its own view's name, including a pocket AppKit makes
+later for a scroll view swapped in, and a name set on a hierarchy on screen reaches the pockets already there. Setting
+the pocket's own `backdropGroupName` works too and wins over everything, but a pocket made later starts without it.
+The cost: each group captures only what lies behind its own pockets, so the blur of two neighbours meets at their
+shared edge rather than running across it.
+
+**A stand-alone pocket.** Xcode 27.2 sidesteps the question in its editor area: one `NSScrollPocket` of its own, in a
+`DVTEdgeOcclusionView`, lies over all editor panes under the toolbar with a backdrop group name of its own
+(`WindowTop`), and one lies behind each editor bar (the RuntimeViewer team's notes on IDEKit and DVTUserInterfaceKit
+27.2: `-[IDEEditorAreaContainer initWithFrame:]` `0x10AF50`, `dvt_configureSubviewsBeforeSubviewLayout` `0x10B4FC`,
+`-[DVTEdgeOcclusionView layout]` `0x287FC`). Style 2, `allowsSeparator` NO on 27, and the container keeps the
+occlusion views' capture views at its back. Measured on 27.2, in RuntimeViewer's process and with `ScrollPocketView`:
+
+- `NSScrollPocket` is exported (AppKit's `.tbd` lists it under `objc-classes`) and `init(frame:)` makes a working one
+  outside any scroll view; `_isEnabled` is already true.
+- Style 2 draws the hard recipe whatever the pocket's elements: `HardPocketContentBlur`, in the pocket's
+  `backdropGroupName`, under `HardPocketBackgroundReplay` at opacity 0.85 in a window that was not key.
+- Style 0 or 1 with no element containers draws nothing: the v8 root layer's opacity is 0. Given the title bar
+  container with `addElementContainer:`, style 0 draws the soft recipe (`ThinFilm…`).
+- The background replay comes from the pocket's `captureView`, a capture-only `CABackdropLayer` in the pocket's
+  `backgroundGroup-…` group. A scroll view puts its own pocket's first among its subviews, behind the clip view; a
+  stand-alone pocket's must be put behind the content it covers by whoever hosts it.
+- Drawn after every pane, the pocket's one capture holds them all, and whatever is drawn over their own pockets.
+  Those pockets still lie beneath it; `-[NSScrollView setAllowedPocketEdges:0]` removes them altogether (and with them
+  any container registered on them), but Xcode leaves them, and so does RuntimeViewer.
+
+## 6. Open questions
 
 - What each `scrollPocketStyle` value draws, and what the element styles other than 2 change.
-- What `allowedPocketEdges` restricts, and what `_scrollPocketElementBehavioralVariance` is.
+- What `allowedPocketEdges` restricts. Of `_scrollPocketElementBehavioralVariance` only one bit is known: an element
+  answering it with bit 2 — `NSBannerView`, `NSRulerView` — makes the pocket hard, a near-opaque fill (27.2, the v8
+  model build `sub_18B47C0C4`).
+- Whether a group's backdrop is captured when its first member is drawn — the account in section 5 rests on the
+  symptom, not on QuartzCore's code.
 - Whether the containers a scroll view keeps are held strongly — 27.2 offers no way to read them back.

@@ -1,7 +1,8 @@
 //
 //  Read off macOS 27.0's AppKit and measured on macOS 27.2 (26B5101f).
 //  Reverse-engineering notes: Researchs/AppKit-NSScrollView-ScrollPocket-Internals.md
-//  Decision record: Documentations/Evolutions/0029-scroll-view-scroll-pockets.md
+//  Decision records: Documentations/Evolutions/0029-scroll-view-scroll-pockets.md; titlebarBackdropGroupName in
+//  Documentations/Evolutions/draft-scroll-pockets-across-scroll-views.md
 //
 
 #if canImport(AppKit) && !targetEnvironment(macCatalyst)
@@ -137,6 +138,49 @@ extension NSScrollView {
     @available(macOS 26.0, *)
     fileprivate static var carriesScrollPocketViews: Bool {
         instancesRespond(to: #selector(NSScrollView._pocket(forEdge:makeIfNeeded:)))
+    }
+}
+
+extension FrameworkToolbox where Base: NSView {
+    /// The backdrop group in which the scroll pockets under the title bar inside this view blur what scrolls
+    /// under the title bar, or `nil` — what a view starts with — for the group of the nearest ancestor that
+    /// names one, and at the top the window's. Setting `nil` goes back to that.
+    ///
+    /// AppKit puts every scroll pocket that reaches the title bar in one backdrop group per window, and a group
+    /// captures what lies behind it once, when the first of its pockets is drawn. Whatever is drawn after that —
+    /// a second scroll view beside the first, a view over the first one's pocket — is missing from what the
+    /// other pockets blur, and the title bar over it shows the window's background, flat. Give scroll views
+    /// side by side under the title bar, such as editor panes, a group each by naming one on a view around
+    /// each of them:
+    ///
+    /// ```swift
+    /// paneView.box.titlebarBackdropGroupName = "EditorPane-\(paneID)"
+    /// ```
+    ///
+    /// A pocket AppKit makes later inside the view — for content swapped in — takes the name too, and so does
+    /// one already there. Each group blurs only what lies behind its own pockets, so the blur of two
+    /// neighbours meets at their shared edge rather than running across it.
+    ///
+    /// Before macOS 26, or where AppKit lacks the private property, reads `nil` and setting does nothing.
+    public var titlebarBackdropGroupName: String? {
+        get {
+            guard #available(macOS 26.0, *), Base.carriesTitlebarGroupName else { return nil }
+            // AppKit's "none" is an empty string, which is also what it reads back after being given nil.
+            guard let name = base._titlebarGroupName, !name.isEmpty else { return nil }
+            return name
+        }
+        nonmutating set {
+            guard #available(macOS 26.0, *), Base.carriesTitlebarGroupName else { return }
+            base._titlebarGroupName = newValue ?? ""
+        }
+    }
+}
+
+extension NSView {
+    @available(macOS 26.0, *)
+    fileprivate static var carriesTitlebarGroupName: Bool {
+        instancesRespond(to: #selector(getter: NSView._titlebarGroupName))
+            && instancesRespond(to: #selector(setter: NSView._titlebarGroupName))
     }
 }
 
