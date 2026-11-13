@@ -1,6 +1,6 @@
 # Draft - QuickActionBar：搜索框旁的浏览按钮，复刻 Spotlight 的分裂动画
 
-- **状态**: Accepted
+- **状态**: In Progress
 - **创建日期**: 2026-11-13
 - **最后更新**: 2026-11-13
 - **实现分支 / PR**: `feature/quick-action-bar-browse-items`
@@ -95,7 +95,7 @@ quickActionBar.present(placeholderText: "Search")
 
 **落地步骤**（每步都能单独构建、相关测试通过，各提交一次）
 
-1. 通用弹簧，`ResizeSpring` 改由它表达，弹簧测试。
+1. 通用弹簧，`ResizeSpring` 改由它表达，弹簧测试。（已完成）
 2. 玻璃改进容器；没有按钮时外观不变。
 3. 浏览按钮：API、几何、编排、显示条件、绘制，以及上面列的测试。
 4. 示例 App 演示。
