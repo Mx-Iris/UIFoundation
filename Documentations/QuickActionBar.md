@@ -156,6 +156,11 @@ Traps that fail confusingly rather than loudly:
   `finishBrowseButtonAnimations()` before measuring frames, as `QuickActionBarBrowseButtonTests`
   does. The motion itself is tested on `QuickActionBar.MitosisAnimation`, against SwiftUI's own
   springs (`QuickActionBarMitosisTests`).
+- **Don't sit out the 0.47-second start delay; end it with `finishBrowseButtonsPresentationDelay()`.**
+  Only one test waits it out for real. The presentation suite is serialized and the longest in the
+  run, and with seven such waits in it the full `swift test` run was ended early by the system in
+  both of two runs (inside PlaybackSlider's event tests, exit status 0); with the waits cut it
+  completed.
 - **Glass does not look like glass in a test run** (a `swift test` binary carries an old SDK
   version, and AppKit gates the macOS 26 look on it). Assert on frames, corner radii and the
   container's `spacing`; judge the look in the demo.

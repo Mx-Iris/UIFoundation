@@ -122,7 +122,9 @@ xcodebuild test -scheme UIFoundation-Package -destination 'platform=macOS,varian
   moment after it starts handling window events — posted mouse events and `performClick(_:)` both
   did it (PlaybackSlider, QuickActionBar). The exit status is 0 and every later test silently never
   runs, so call `sendAction(_:to:)` (or the cell's tracking methods), and check that the output ends
-  with its `Test run with … tests` summary line.
+  with its `Test run with … tests` summary line. Keep real-time waits out of window tests too: end a
+  delay through a test hook rather than sleeping through it — longer window-heavy runs were ended
+  more often.
 - Testing traps specific to one component are in that component's guide.
 </important>
 

@@ -467,12 +467,19 @@ extension QuickActionBar.Window {
         browseButtonsPresentationDelayWorkItem?.cancel()
         hasBrowseButtonsPresentationDelayElapsed = false
         let workItem = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            self.hasBrowseButtonsPresentationDelayElapsed = true
-            self.updateBrowseButtons()
+            self?.finishBrowseButtonsPresentationDelay()
         }
         browseButtonsPresentationDelayWorkItem = workItem
         DispatchQueue.main.asyncAfter(deadline: .now() + QuickActionBar.Mitosis.presentationDelay, execute: workItem)
+    }
+
+    /// Ends the wait now. Tests call this rather than sit the delay out: on macOS 27.2 a test
+    /// runner that handles window events is ended a few seconds in, so every second counts.
+    func finishBrowseButtonsPresentationDelay() {
+        browseButtonsPresentationDelayWorkItem?.cancel()
+        browseButtonsPresentationDelayWorkItem = nil
+        hasBrowseButtonsPresentationDelayElapsed = true
+        updateBrowseButtons()
     }
 
     func browseItemsDidChange() {

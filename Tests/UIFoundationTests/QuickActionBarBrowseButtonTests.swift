@@ -9,7 +9,9 @@ import Testing
 /// The buttons move on a display link, which a test cannot wait on reliably, so tests read where
 /// the buttons are heading (`isShowingBrowseButtons`) and then end the animation with
 /// `finishBrowseButtonAnimations()` before measuring frames. The motion itself is covered by
-/// `QuickActionBarMitosisTests`.
+/// `QuickActionBarMitosisTests`. Likewise all but one test end Spotlight's 0.47-second start delay
+/// with `finishBrowseButtonsPresentationDelay()` instead of sleeping through it: this suite is the
+/// longest in the run, and a long window-heavy run gets ended early by the system on macOS 27.2.
 ///
 /// These live in the presentation suite so that they never run beside another bar: a bar closes
 /// itself when it resigns key or main, and serializing keeps one bar on screen at a time.
@@ -47,14 +49,15 @@ extension QuickActionBarPresentationTests {
     }
 
     @Test("No browse items, no buttons — even after Spotlight's delay")
-    func noBrowseItemsNoButtons() async throws {
+    func noBrowseItemsNoButtons() throws {
         guard #available(macOS 26.0, *), NSScreen.main != nil else { return }
 
         let actionBar = makeBrowseButtonActionBar(browseItems: [])
         defer { actionBar.cancel() }
-        let glassPlatterView = try #require(actionBar.quickActionBarWindow?.primaryView?.glassPlatterView)
+        let window = try #require(actionBar.quickActionBarWindow)
+        let glassPlatterView = try #require(window.primaryView?.glassPlatterView)
 
-        try await ContinuousClock().sleep(for: .milliseconds(600))
+        window.finishBrowseButtonsPresentationDelay()
 
         #expect(!glassPlatterView.hasBrowseButtons)
         #expect(glassPlatterView.glassSmoothness == 0)
@@ -69,6 +72,8 @@ extension QuickActionBarPresentationTests {
         let window = try #require(actionBar.quickActionBarWindow)
         let glassPlatterView = try #require(window.primaryView?.glassPlatterView)
 
+        // The one test that sits out the real delay; the others end it at once, to keep the run
+        // short (see `finishBrowseButtonsPresentationDelay()`).
         #expect(!glassPlatterView.hasBrowseButtons)
         try await ContinuousClock().sleep(for: .milliseconds(600))
         #expect(glassPlatterView.isShowingBrowseButtons)
@@ -85,7 +90,7 @@ extension QuickActionBarPresentationTests {
     }
 
     @Test("Clicking a browse button calls its action with the bar, which stays open")
-    func clickingCallsTheAction() async throws {
+    func clickingCallsTheAction() throws {
         guard #available(macOS 26.0, *), NSScreen.main != nil else { return }
 
         var activatedTitles: [String] = []
@@ -100,7 +105,7 @@ extension QuickActionBarPresentationTests {
         defer { actionBar.cancel() }
         let window = try #require(actionBar.quickActionBarWindow)
         let glassPlatterView = try #require(window.primaryView?.glassPlatterView)
-        try await ContinuousClock().sleep(for: .milliseconds(600))
+        window.finishBrowseButtonsPresentationDelay()
         glassPlatterView.finishBrowseButtonAnimations()
 
         let filesButton = try #require(glassPlatterView.browseButtonControls.last)
@@ -127,7 +132,7 @@ extension QuickActionBarPresentationTests {
         defer { actionBar.cancel() }
         let window = try #require(actionBar.quickActionBarWindow)
         let glassPlatterView = try #require(window.primaryView?.glassPlatterView)
-        try await ContinuousClock().sleep(for: .milliseconds(600))
+        window.finishBrowseButtonsPresentationDelay()
         glassPlatterView.finishBrowseButtonAnimations()
         #expect(glassPlatterView.isShowingBrowseButtons)
 
@@ -149,14 +154,14 @@ extension QuickActionBarPresentationTests {
     }
 
     @Test("Results arriving while the buttons are out leave the platter narrow until the springs widen it")
-    func resultsDoNotWidenThePlatterAtOnce() async throws {
+    func resultsDoNotWidenThePlatterAtOnce() throws {
         guard #available(macOS 26.0, *), NSScreen.main != nil else { return }
 
         let actionBar = makeBrowseButtonActionBar(browseItems: Self.spotlightBrowseItems(), contentSource: BrowseButtonContentSource.make())
         defer { actionBar.cancel() }
         let window = try #require(actionBar.quickActionBarWindow)
         let glassPlatterView = try #require(window.primaryView?.glassPlatterView)
-        try await ContinuousClock().sleep(for: .milliseconds(600))
+        window.finishBrowseButtonsPresentationDelay()
         glassPlatterView.finishBrowseButtonAnimations()
 
         window.editLabel.stringValue = "xcode"
@@ -187,14 +192,14 @@ extension QuickActionBarPresentationTests {
     }
 
     @Test("A query with no results still draws the buttons in, to give the query the whole field")
-    func queryWithoutResultsDrawsTheButtonsIn() async throws {
+    func queryWithoutResultsDrawsTheButtonsIn() throws {
         guard #available(macOS 26.0, *), NSScreen.main != nil else { return }
 
         let actionBar = makeBrowseButtonActionBar(browseItems: Self.spotlightBrowseItems(), contentSource: BrowseButtonContentSource.make())
         defer { actionBar.cancel() }
         let window = try #require(actionBar.quickActionBarWindow)
         let glassPlatterView = try #require(window.primaryView?.glassPlatterView)
-        try await ContinuousClock().sleep(for: .milliseconds(600))
+        window.finishBrowseButtonsPresentationDelay()
         #expect(glassPlatterView.isShowingBrowseButtons)
 
         window.editLabel.stringValue = "nothing matches"
@@ -204,14 +209,14 @@ extension QuickActionBarPresentationTests {
     }
 
     @Test("New browse items replace the buttons that are out: the old ones draw in, the new ones bud out")
-    func newItemsReplaceTheButtons() async throws {
+    func newItemsReplaceTheButtons() throws {
         guard #available(macOS 26.0, *), NSScreen.main != nil else { return }
 
         let actionBar = makeBrowseButtonActionBar(browseItems: Self.spotlightBrowseItems())
         defer { actionBar.cancel() }
         let window = try #require(actionBar.quickActionBarWindow)
         let glassPlatterView = try #require(window.primaryView?.glassPlatterView)
-        try await ContinuousClock().sleep(for: .milliseconds(600))
+        window.finishBrowseButtonsPresentationDelay()
         glassPlatterView.finishBrowseButtonAnimations()
 
         actionBar.browseItems = Array(Self.spotlightBrowseItems().prefix(2))

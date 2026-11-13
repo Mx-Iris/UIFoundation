@@ -103,7 +103,10 @@ quickActionBar.present(placeholderText: "Search")
 3. 浏览按钮：API、几何、编排、显示条件、绘制，以及上面列的测试。（已完成）
 4. 示例 App 演示。（已完成）
 5. 文档。（已完成）
-6. 验证：全 trait 构建、整套测试、示例 App 构建；动画由人目测。
+6. 验证：全 trait 构建、整套测试、示例 App 构建；动画由人目测。（已完成，动画尚待目测）
+   - 全 trait `swift build` 通过，零警告。
+   - 全 trait `swift test`：574 条测试完整跑完，失败的只有 main 上本来就挂的两条（`MainMenuTests` 第 200 行、`QuickActionBarPresentationTests` 第 35 行），与 main 的对照运行一致。
+   - 示例 App：main 本身在 Xcode 27.2 上就编不过（`ComponentLayoutExample` 的 `AnimationExamplesView` 在 macOS 12 的部署目标下用了 macOS 15 的 `NSView.animate`）。在临时副本里把部署目标提到 15 后，带本改动的示例 App 编译通过，新增代码无警告。
 
 ## 决策日志
 
@@ -117,3 +120,5 @@ quickActionBar.present(placeholderText: "Search")
 | 2026-11-13 | 搜索框玻璃改用约束摆放，钉在宿主视图上 | 手动 frame 在首次布局前为 0 宽，打断搜索行的约束；钉在容器 content view 上则会被拉伸 |
 | 2026-11-13 | 图标做成玻璃之上的 `NSButton`，不放进玻璃 | 与 Spotlight 的结构一致；图层变换与 Core Image 模糊在玻璃外照常生效，按下与辅助功能沿用系统按钮 |
 | 2026-11-13 | 结果列表宽度约束降到 `dragThatCannotResizeWindow` | 高于 500 会撑大整个窗口，required 会打断栈的边距约束；代价是收回那 0.4 秒里结果随搜索框变宽，而不是像 Spotlight 那样被裁 |
+| 2026-11-13 | 测试用 `finishBrowseButtonsPresentationDelay()` 结束出现延时，只留一条真等 | 呈现套件是整套里最长的一条；七处各等 0.6 秒时，全 trait 整套两次都被系统中途结束（退出码 0，结束在 PlaybackSlider 的事件测试里），去掉等待后完整跑完 |
+| 2026-11-13 | 实现完成，待用户看过后收尾 | 文档已同步：QuickActionBar 指南、研究报告第 11 节、AGENTS.md 测试规则、README、两份索引 |
