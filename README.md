@@ -259,6 +259,22 @@ if actionBar.resumePresentation() {
 
 Escape works the way it does in Spotlight: with text in the search field it clears the query and searches again for the empty term — which collapses the results, unless your content source returns some for an empty term — and only on an empty field does it close the bar. `quickActionBarDidCancel(_:)` is called for the close, not for the clear. The results expand and collapse along Spotlight's own spring, `Spring(duration: 0.3, bounce: 0.2)`.
 
+On macOS 26 and later the bar can show round browse buttons beside the search field, like Spotlight's Applications, Files, Actions and Clipboard. There are none by default:
+
+```swift
+actionBar.browseItems = [
+    QuickActionBar.BrowseItem(
+        title: "Applications",
+        image: NSImage(systemSymbolName: "appstore", accessibilityDescription: nil)!
+    ) { actionBar in
+        actionBar.cancel()
+        showApplications()
+    },
+]
+```
+
+They bud out of the search field shortly after the bar appears and draw back into it when a query brings up results, with Spotlight's own springs and its merging glass. A click calls the item's `action` and leaves the bar open.
+
 ### Tab Bar
 
 Enable the `TabBar` trait for a multi-tab control styled after the macOS 26 window tab bar:

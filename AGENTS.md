@@ -118,6 +118,11 @@ xcodebuild test -scheme UIFoundation-Package -destination 'platform=macOS,varian
   exist in a command-line run. Assert on AppKit state instead. To see it, `vtool -set-build-version
   macos <minos> 27.0 -replace` the binary into a hand-built `.app`, re-sign ad hoc, and copy the
   SwiftPM resource bundles into `Contents/Resources/`.
+- **Don't click in a test: send the action.** On macOS 27.2 the system ends a `swift test` runner a
+  moment after it starts handling window events — posted mouse events and `performClick(_:)` both
+  did it (PlaybackSlider, QuickActionBar). The exit status is 0 and every later test silently never
+  runs, so call `sendAction(_:to:)` (or the cell's tracking methods), and check that the output ends
+  with its `Test run with … tests` summary line.
 - Testing traps specific to one component are in that component's guide.
 </important>
 

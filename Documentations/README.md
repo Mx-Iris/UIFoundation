@@ -108,7 +108,7 @@
   以及怎样把它装到不能继承它的 `NSView` 子类（如 `NSTableCellView`）上。**含一条踩了就静默失效的契约**：
   本身已有 `backgroundColor` 的类（`NSTextField`、`NSTableView`、`NSScrollView`）不能遵守这个协议，否则协议的属性
   被遮蔽、收不到值。另有 macOS 27.2 上设圆角会自动打开裁剪、连续圆角边框的画法，以及按像素测试时参照物要先裁剪。
-- [QuickActionBar](QuickActionBar.md) —— 从 DSFQuickActionBar 移植的 Spotlight 式浮动操作栏：公开 API、两段式 Escape
+- [QuickActionBar](QuickActionBar.md) —— 从 DSFQuickActionBar 移植的 Spotlight 式浮动操作栏：公开 API、两段式 Escape、搜索框旁的浏览按钮（复刻 Spotlight 的分裂动画）
   （先清空查询再关闭）、可以中途反转的收起动画、Spotlight 的弹簧尺寸动画，以及与上游的差异。另有在测试进程里驱动它的
   两个坑：窗口不会成为 key，所以要直接发 `cancelOperation:`；content source 要活到结果返回之后。
 - [FilterUI](FilterUI.md) —— 从 filter-ui 移植的 AppKit 过滤控件（搜索框、token 框、可过滤菜单）：公开 API 版与

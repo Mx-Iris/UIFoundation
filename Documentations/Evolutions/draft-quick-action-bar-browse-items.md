@@ -88,9 +88,10 @@ quickActionBar.present(placeholderText: "Search")
 
 **文档与 demo**
 
-- `Documentations/QuickActionBar.md`：公开 API 表加一行，新增一节讲浏览按钮，实现说明里记各常数与出处。
-- `Researchs/Spotlight-Panel-Internals.md`：新增「27.2 的浏览按钮」一节（几何、编排、触发、融合的实现、地址）。
-- `AGENTS.md` 的 QuickActionBar 一条按需补陷阱；提案索引加一行。`uifoundation-widgets` skill 没写到 QuickActionBar，插件版本不动。
+- `Documentations/QuickActionBar.md`：公开 API 表加两行；新增第 5 节讲浏览按钮的用法，测试一节补上 `performClick` 与 display link 两个坑，实现说明新增一节记 Spotlight 的常数、AppKit 玻璃容器的机理和那几条看似能简化、其实不能的做法；原第 5–7 节顺延为 6–8。
+- `Researchs/Spotlight-Panel-Internals.md`：新增第 11 节「27.2 的浏览按钮」（几何、编排、触发、融合的实现、AppKit 玻璃容器 `spacing` 的去向，附地址）；第 10 节的归档路径更正为 `27.2-beta/`（那份 26B118 的 cache 后来换了目录名）。
+- `AGENTS.md`：测试一块加一条跨组件规则——测试里不要点击，改发动作，并核对汇总行（PlaybackSlider 与 QuickActionBar 各踩过一次）。QuickActionBar 那条索引不变。
+- `README.md` 的 Quick Action Bar 一节加浏览按钮的示例；`Documentations/README.md` 的索引行补上浏览按钮；提案索引加一行。`uifoundation-widgets` skill 没写到 QuickActionBar，插件版本不动。
 - 示例 App 的 QuickActionBar 演示加一个 0–4 个浏览按钮的选项，用 Spotlight 自己的四个符号（`appstore`、`folder`、`app.2.stack.3d`、`document.on.document`）；点击写进事件日志，人工检查清单加上动画几条。
 
 **下游影响**：XCOrganizer、StarLight、RuntimeViewer 不设 `browseItems` 就不会出现按钮，源码兼容。但 macOS 26+ 上搜索框的玻璃换进了容器，外观应不变，需要目测确认。
@@ -101,7 +102,7 @@ quickActionBar.present(placeholderText: "Search")
 2. 玻璃改进容器；没有按钮时外观不变。（已完成）
 3. 浏览按钮：API、几何、编排、显示条件、绘制，以及上面列的测试。（已完成）
 4. 示例 App 演示。（已完成）
-5. 文档。
+5. 文档。（已完成）
 6. 验证：全 trait 构建、整套测试、示例 App 构建；动画由人目测。
 
 ## 决策日志
