@@ -109,8 +109,8 @@ quickActionBar.browseItems = [
 quickActionBar.present(placeholderText: "Search")
 ```
 
-- **When they are out.** They bud out of the search field 0.47 seconds after the bar starts to
-  appear, while the query is empty and no results are showing. Results arriving draw them back into
+- **When they are out.** They bud out of the search field 0.47 seconds after the bar's first frame
+  on screen, while the query is empty and no results are showing. Results arriving draw them back into
   the field — for a non-empty query even an empty answer does, so the query gets the whole field —
   and an empty query's results collapsing brings them out again; Escape on a query does both in
   turn. Like Spotlight's, they follow the results as they arrive, not each keystroke.
@@ -275,7 +275,18 @@ current value and velocity, as SwiftUI's do, and turns them into geometry.
 
 **The 0.47-second start delay was measured, not read.** On a 60 fps recording the field starts to
 narrow 28–29 frames after the bar's first visible frame. In the binary the buttons start as the
-window enters its invoking state, with no delay of its own on that path.
+window enters its invoking state, with no delay of its own on that path. The bar counts the delay
+from its own first frame too, which the first tick of a display link marks, falling back to a fifth
+of a second after `present(…)`. Counting from `present(…)` itself put the buttons about six frames
+early: a new bar's first commit, where the glass is built, lands about a tenth of a second after the
+call returns.
+
+**Judge the motion in a Release build.** Recorded at 60 fps from the demo app's Release build, the
+bud-out runs at full rate but for one two-frame drop as the buttons pull apart — Spotlight's own
+recording drops single frames too. The Debug build falls to about 28 fps there. Sampling the
+Release build, the bar's own per-frame work is about a millisecond; the rest of the frame is
+SwiftUI rendering the glass and the search field relaying out as it narrows, which Spotlight pays
+as well.
 
 **How the bar draws it** (`QuickActionBar.GlassPlatterView`, macOS 26 and later):
 

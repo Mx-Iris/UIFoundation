@@ -30,9 +30,9 @@ extension QuickActionBar {
         /// field. The union is smoothed less and less as they move out, until each is on its own.
         static let mergedSmoothness: CGFloat = 100
 
-        /// How long after the bar starts to appear the buttons start to bud out. Measured on a 60 fps
-        /// recording of Spotlight (28–29 frames); the binary starts them when the window reaches
-        /// its invoking state, with no delay of its own on that path.
+        /// How long after the bar's first frame on screen the buttons start to bud out. Measured on
+        /// a 60 fps recording of Spotlight (28–29 frames); the binary starts them when the window
+        /// reaches its invoking state, with no delay of its own on that path.
         static let presentationDelay: CFTimeInterval = 0.47
 
         /// A button is a circle 2 points smaller than the collapsed search field is tall.

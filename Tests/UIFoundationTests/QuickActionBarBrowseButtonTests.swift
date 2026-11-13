@@ -73,9 +73,13 @@ extension QuickActionBarPresentationTests {
         let glassPlatterView = try #require(window.primaryView?.glassPlatterView)
 
         // The one test that sits out the real delay; the others end it at once, to keep the run
-        // short (see `finishBrowseButtonsPresentationDelay()`).
+        // short (see `finishBrowseButtonsPresentationDelay()`). The 0.47 seconds count from the
+        // bar's first frame on screen, or from a fifth of a second in when no frame is reported,
+        // so 0.67 seconds is the latest the buttons can start.
         #expect(!glassPlatterView.hasBrowseButtons)
-        try await ContinuousClock().sleep(for: .milliseconds(600))
+        try await ContinuousClock().sleep(for: .milliseconds(300))
+        #expect(!glassPlatterView.hasBrowseButtons)
+        try await ContinuousClock().sleep(for: .milliseconds(500))
         #expect(glassPlatterView.isShowingBrowseButtons)
 
         glassPlatterView.finishBrowseButtonAnimations()

@@ -64,7 +64,7 @@ quickActionBar.present(placeholderText: "Search")
   - 按钮的玻璃圆按 frame 摆；搜索框的玻璃却用约束摆，宽度是一条尾部约束的常量，逐帧改。手动 frame 在第一次布局前是 0 宽，搜索行内容的最小宽度放不下，AppKit 会打断文本框的约束（每开一次面板三条）。约束钉在整个按钮区的宿主视图上，不钉在容器的 content view 上：容器给 content view 的约束低于 required，会被拉伸。
 - **弹簧**：`ResizeSpring` 推广成一个通用的闭式弹簧（duration、bounce、初速度）。中途换目标时从当前位置和速度接着走，SwiftUI 的弹簧被打断时就是这样衔接的。`ResizeSpring` 改由它表达，行为不变，现有测试照旧要过。
 - **图标**：每个按钮是一个无边框的 `NSButton`，放在玻璃容器之上的一层覆盖视图里，不放进玻璃的 content view——和 Spotlight 一样，玻璃只是按钮背后的背景。这样缩放用图层变换（绕中心）、不透明度用 `alphaValue`、模糊用 `contentFilters` 里的 `CIGaussianBlur`（公开 API，开 `layerUsesCoreImageFilters`），都照常生效。覆盖视图只在按钮上响应 hit-test，其余点击照旧落到搜索框。
-- **显示条件**：有按钮、查询为空、结果列表收起、面板出现已满 0.47 秒、不在关闭中，五条同时成立才显示。在搜索结果更新、0.47 秒到点、`browseItems` 改变时重新判断，变了就跑出现或收回动画。和 Spotlight 一样，打字不直接触发，结果回来、列表展开那一刻才收回；Esc 清空查询后，列表收起和按钮长回同时发生。
+- **显示条件**：有按钮、查询为空、结果列表收起、面板第一帧上屏后已满 0.47 秒、不在关闭中，五条同时成立才显示。在搜索结果更新、0.47 秒到点、`browseItems` 改变时重新判断，变了就跑出现或收回动画。和 Spotlight 一样，打字不直接触发，结果回来、列表展开那一刻才收回；Esc 清空查询后，列表收起和按钮长回同时发生。
 - **结果列表的宽度**：原来钉死成 `width`（required）。按钮还在外面时结果就到了，搜索框窄、结果要满宽，会冲突。优先级改成 `dragThatCannotResizeWindow`（490），满宽时照旧是 `width`，搜索框窄的那几帧跟着搜索框走。不能只降到 999：窗口自己的尺寸约束是 500（`windowSizeStayPut`），任何高于它的优先级都会让 AppKit 把整个窗口撑宽（实测 640 宽、四个按钮时撑到 896）。Spotlight 在这几帧里是让结果保持满宽、被收窄的玻璃裁掉；这里改成结果随搜索框变宽，只持续 0.4 秒左右。
 - 打开「减少动态效果」时不做动画，直接切到终态（Spotlight 自己也有一个关掉这组动画的开关）。
 
@@ -73,7 +73,7 @@ quickActionBar.present(placeholderText: "Search")
 - 只在 macOS 26 及以上显示按钮，更早的系统忽略 `browseItems`：Spotlight 26 才有这排按钮，更早的系统没有玻璃，做不出融合。
 - 不做键盘操作（Tab、方向键、⌘ 数字键与角标），只支持鼠标点击和辅助功能；结果列表已有的 ⌘1–⌘9 不受影响。以后要加可以单独做，不影响本提案的结构。
 - 类型叫 `BrowseItem`，沿用 Spotlight 内部的叫法（browse button）。
-- 0.47 秒的延时取自录屏；二进制里找到延时来源后再改。
+- 0.47 秒的延时取自录屏（从面板第一帧可见算起）；二进制里找到延时来源后再改。
 - 不给 `SpotlightPanel` 加同样的按钮。
 
 **测试**
@@ -122,3 +122,5 @@ quickActionBar.present(placeholderText: "Search")
 | 2026-11-13 | 结果列表宽度约束降到 `dragThatCannotResizeWindow` | 高于 500 会撑大整个窗口，required 会打断栈的边距约束；代价是收回那 0.4 秒里结果随搜索框变宽，而不是像 Spotlight 那样被裁 |
 | 2026-11-13 | 测试用 `finishBrowseButtonsPresentationDelay()` 结束出现延时，只留一条真等 | 呈现套件是整套里最长的一条；七处各等 0.6 秒时，全 trait 整套两次都被系统中途结束（退出码 0，结束在 PlaybackSlider 的事件测试里），去掉等待后完整跑完 |
 | 2026-11-13 | 实现完成，待用户看过后收尾 | 文档已同步：QuickActionBar 指南、研究报告第 11 节、AGENTS.md 测试规则、README、两份索引 |
+| 2026-11-14 | 出现延时改为从面板第一帧上屏起算（display link 第一次回调；0.2 秒内没有回调就照常开始计时） | 用户要求对照录屏修正。从 `present()` 起算时比 Spotlight 早约 6 帧：新面板第一次提交要建玻璃，约 0.1 秒后才上屏。改后从第一帧到开始收窄是 29 帧，Spotlight 是 28–29 帧 |
+| 2026-11-14 | 不为帧率另做优化 | 用户要求查掉帧。Release 版录屏在按钮冒出时只在分开的瞬间丢 2 帧，Spotlight 自己的录像也有零星单帧丢失；采样显示本组件每帧约 1 毫秒，其余是 SwiftUI 渲染玻璃和搜索框重排，Spotlight 同样要付。先前约 28 fps 的录屏是 Debug 构建 |

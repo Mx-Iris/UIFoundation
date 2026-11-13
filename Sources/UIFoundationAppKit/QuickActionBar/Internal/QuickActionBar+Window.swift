@@ -170,6 +170,10 @@ extension QuickActionBar {
         private var hasBrowseButtonsPresentationDelayElapsed = false
         private var browseButtonsPresentationDelayWorkItem: DispatchWorkItem?
 
+        /// Waits for the bar's first frame on screen, which the start delay is measured from.
+        /// Typed loosely because `CADisplayLink` needs macOS 14.
+        private var firstFrameDisplayLink: NSObject?
+
         private var currentSearchRequestTask: QuickActionBar.SearchTask?
 
         private var springAnimationTimer: Timer?
@@ -463,19 +467,58 @@ extension QuickActionBar {
 extension QuickActionBar.Window {
     /// Starts the wait Spotlight leaves between the bar appearing and its browse buttons budding
     /// out of the search field.
+    ///
+    /// The wait is measured from the bar's first frame on screen, as it was measured in Spotlight.
+    /// A new bar's first commit is its heaviest — the glass is built then — and lands about a
+    /// tenth of a second after `present(…)` returns; counted from the call, the buttons came out
+    /// that much early (measured against a recording of Spotlight). The first tick of a display
+    /// link marks the frame. Should none arrive, the count starts a fifth of a second in anyway.
     func startBrowseButtonsPresentationDelay() {
-        browseButtonsPresentationDelayWorkItem?.cancel()
+        invalidateFirstFrameDisplayLink()
         hasBrowseButtonsPresentationDelayElapsed = false
+        let now = CACurrentMediaTime()
+        if #available(macOS 14.0, *), let contentView {
+            let link = contentView.displayLink(target: self, selector: #selector(firstFrameWasPresented(_:)))
+            link.add(to: .main, forMode: .common)
+            firstFrameDisplayLink = link
+            scheduleBrowseButtonsPresentationDelay(from: now + Self.firstFrameTimeout)
+        } else {
+            scheduleBrowseButtonsPresentationDelay(from: now)
+        }
+    }
+
+    /// How long the start delay waits for the first frame before it starts counting anyway.
+    private static let firstFrameTimeout: CFTimeInterval = 0.2
+
+    @available(macOS 14.0, *)
+    @objc private func firstFrameWasPresented(_ link: CADisplayLink) {
+        invalidateFirstFrameDisplayLink()
+        guard !hasBrowseButtonsPresentationDelayElapsed else { return }
+        // `timestamp` is when the frame on screen now — the bar's first — was presented.
+        scheduleBrowseButtonsPresentationDelay(from: link.timestamp)
+    }
+
+    private func scheduleBrowseButtonsPresentationDelay(from startTime: CFTimeInterval) {
+        browseButtonsPresentationDelayWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             self?.finishBrowseButtonsPresentationDelay()
         }
         browseButtonsPresentationDelayWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + QuickActionBar.Mitosis.presentationDelay, execute: workItem)
+        let remainingDelay = max(startTime + QuickActionBar.Mitosis.presentationDelay - CACurrentMediaTime(), 0)
+        DispatchQueue.main.asyncAfter(deadline: .now() + remainingDelay, execute: workItem)
+    }
+
+    private func invalidateFirstFrameDisplayLink() {
+        if #available(macOS 14.0, *) {
+            (firstFrameDisplayLink as? CADisplayLink)?.invalidate()
+        }
+        firstFrameDisplayLink = nil
     }
 
     /// Ends the wait now. Tests call this rather than sit the delay out: on macOS 27.2 a test
     /// runner that handles window events is ended a few seconds in, so every second counts.
     func finishBrowseButtonsPresentationDelay() {
+        invalidateFirstFrameDisplayLink()
         browseButtonsPresentationDelayWorkItem?.cancel()
         browseButtonsPresentationDelayWorkItem = nil
         hasBrowseButtonsPresentationDelayElapsed = true
