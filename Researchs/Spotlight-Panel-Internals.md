@@ -17,6 +17,11 @@
 > the app binary into private frameworks. It covers Escape and the results platter's resize curve,
 > consumed by both `SpotlightPanel` and `QuickActionBar` through
 > [`Documentations/Evolutions/0032-escape-clears-query-before-dismissing.md`](../Documentations/Evolutions/0032-escape-clears-query-before-dismissing.md).
+>
+> **§11 is the browse buttons beside the search field on 27.2** — their geometry, the springs that
+> bud them out of the field and draw them back in, what triggers them, and how the merged glass is
+> drawn, with the AppKit counterpart. Consumed by `QuickActionBar` through
+> [`Documentations/Evolutions/draft-quick-action-bar-browse-items.md`](../Documentations/Evolutions/draft-quick-action-bar-browse-items.md).
 
 ---
 
@@ -32,6 +37,7 @@
 - [8. The keyboard table](#8-the-keyboard-table)
 - [9. What was not recovered](#9-what-was-not-recovered)
 - [10. macOS 27.2: Escape and the resize curve](#10-macos-272-escape-and-the-resize-curve)
+- [11. macOS 27.2: the browse buttons](#11-macos-272-the-browse-buttons)
 
 ---
 
@@ -423,7 +429,8 @@ system — a process-wide effect, and out of scope for a UI library.
 
 Read off macOS 27.2 build 26B118. Addresses are unslid addresses in that build's dyld shared cache
 (cache UUID `b39b8e818b0e3d1491b55ed0494535d6`, archived at
-`/Volumes/DyldSharedCaches/macOS/27.2/`); the IDA databases are
+`/Volumes/DyldSharedCaches/macOS/27.2-beta/` — the directory was named `27.2/` when this section
+was written; `27.2/` now holds the release build, 26B123); the IDA databases are
 `SpotlightUIInternal+SpotlightUIShared+SpotlightUIServices.i64` and `AppKit.i64` in the same
 directory, and the app binary's is `/Volumes/RE/Spotlight/27.2/Spotlight.i64`. Every method address
 came from the interface dumps beside them or from `runtime-viewer-cli` on the running system, and
@@ -520,7 +527,7 @@ The panel's content is SwiftUI in 27.2: the search field and the results sit in 
 clipped to a rounded rectangle, whose height comes from `WindowAnimatedHeightModifier`, driven by
 the Observable `WindowAnimationCoordinator` (class metadata `0x2E3F6E400`; `sizingHAnimation` /
 `sizingVAnimation`, `animatedWindowHeight`, `immediateWindowHeight`). The browse buttons beside the
-field are a `MitosisButtonStack`.
+field are a `MitosisButtonStack` (§11).
 
 ### 10.5 Not settled
 
@@ -528,3 +535,194 @@ field are a `MitosisButtonStack`.
   cleared first.
 - How soon after a cleared query the collapse starts. 26.6.2 had an expansion debouncer (§6); 27.2's
   `WindowSizingCoordinator` still has one, but its delay was not read.
+
+---
+
+## 11. macOS 27.2: the browse buttons
+
+The round buttons beside the search field — Applications, Files, Actions and Clipboard — and the
+way they bud out of the field. Spotlight's side is read off macOS 27.2 build 26B118, with the cache
+and database of §10. The AppKit counterpart in §11.6 is read off build 26B123 (cache
+`b411828b445038e3973aafe7b7b5bef5` at `/Volumes/DyldSharedCaches/macOS/27.2/`, databases
+`AppKit+UIKitCore+UIKitMacHelper+UpdateCycle.i64` and `SwiftUICore.i64` beside it). Everything was
+checked in the assembly unless marked *inferred*; the motion was compared with a 60 fps screen
+recording of Spotlight on 26B123.
+
+### 11.1 Types
+
+- **`BrowseButton`**, a SwiftUI view. `AnimationState { browseMode: SSFilterResult (+0x0),
+  index: Int (+0x8), isTranslated (+0x10), isScaled (+0x11), isVisible (+0x12) }`; the view also
+  holds the colour scheme, `windowWidth`, `collapsedWindowHeight`, `isSelected`, `action` and
+  `onHover`. Body `0x2ADF4B088`, its `ZStack` content `0x2ADF4B3BC`, the icon label closure
+  `0x2ADF4C9A0`.
+- **`MitosisButtonStack`**, body `0x2ADF4DD3C` → item builder `0x2ADF4D658`:
+  `ForEach(buttonStates.reversed(), id: \.index) { BrowseButton(…).id(index).offset(x: −(animatedWindowWidth − anticipatedWindowWidth) × 0.5) }`.
+  The offset only re-centres the stack while the window's width animates and is 0 at rest. The list
+  is reversed so that index 0, the button nearest the field, draws on top (*inferred* from `ZStack`
+  order). In the root `ZStack { MitosisButtonStack, field }` the field draws above every button.
+- **`BrowseButtonController`**, a pure Swift `Observable` class, metadata `0x2E3F74DF0`, vtable
+  entry k at `(25 + k) × 8`: show `0x2ADF17F6C` (+0x370), hide `0x2ADF189D0` (+0x378),
+  `showBrowseButtonForSizeChange` `0x2ADF17A98`, `showBrowseButtonsIfNeeded` `0x2ADF19500`, the
+  `allowsBrowseButtons` getter `0x2ADF161AC`.
+
+### 11.2 Geometry and each button's look
+
+| Part | Value | Where |
+|---|---|---|
+| Button size | `h ≥ 56 ? h − 2 : 54` for the collapsed height h (Campo: `h ≥ 86 ? h − 2 : 84`) | `topLevelBrowseButtonSize` `0x2ADFA8FBC` |
+| Spacing | 10 | double at `0x2AE0893D0` |
+| Collapsed field width | `W − (size + 10) × modeCount` | `0x2ADFA90B4` |
+| Position | x = collapsed field width + (isTranslated ? 10 + size / 2 + index × (size + 10) : 0); y = h / 2 | `0x2ADF4B2D0`–`35C` |
+| Circle | `Circle().foregroundStyle(.clear)`, content shape and clip `Circle`, `_glassElement(cornerRadius: nil` → capsule`, style: .continuous)` | assembly |
+| Circle scale | `isScaled ? 1 : 0.1`, anchor centre | `0x2ADF4B950`–`988` |
+| Selection background | `SelectionMaterialView().opacity(isSelected && isVisible ? 1 : 0)`, clipped to a circle | `0x2ADF4B8CC`–`8E8` |
+| Icon | `Image(_internalSystemName: symbolName ?? "magnifyingglass").font(.title)` | assembly |
+| Icon blur, opacity, scale | `isVisible ? 0 : 10` (not opaque); `isVisible ? 1 : 0`; `isScaled ? 1 : 0.1`, anchor centre | `0x2ADF4CA64`–`A78` |
+| Icon frame | the button's size, `padding(.horizontal, 5)` | pseudocode |
+| Enabled | `isEnabled && isTranslated` (the key path is *inferred*) | closure `0x2ADF4D414` |
+| Accessibility | `accessibilityHidden(!isVisible)`, `focusable(false)` | assembly |
+
+For a 640-point window and a 56-point collapsed height with four modes: the collapsed field is 384
+points; untranslated buttons are 5.4-point dots centred on x = 384, inside the still full-width
+field; translated centres are at 421, 485, 549 and 613, and the last button's right edge is at 640.
+
+The modes (`topLevelBrowseModes`, `0x22F233B88`) are applications, files and actions, then the
+pasteboard only when the pasteboard-history setting is on. Their symbols, read with `ipsw` from the
+`SSFilterResult` factories in SpotlightServices (the argument's role is *inferred* from its value):
+`appstore` (Applications), `folder` (Files), `app.2.stack.3d` (Actions), `document.on.document`
+(Clipboard).
+
+### 11.3 Choreography
+
+Every step goes through `WindowAnimationCoordinator.animate` (`0x2ADF2FFB4`):
+`withAnimation(animation, completionCriteria: .removed)` plus an animation assertion. With
+`SUIUtilities.isBrowseButtonAnimationEnabled` off, the same body runs without animation. All values
+are SwiftUI `Spring(duration:bounce:)` with `blendDuration: 0`.
+
+**Show** issues everything in one run-loop turn; nothing is staggered except through each index's
+own spring and the icons' delay:
+
+| Order | Change | Animation | Where |
+|---|---|---|---|
+| 0 | `buttonStates` = initial (every flag false); `mitosisSmoothness = 100` | none | the immediate `0x4059000000000000` |
+| 1 | `mitosisSmoothness = 0` | spring(0.71, 0.01) | `0x2ADF13A94` |
+| 2 | `horizontalBrowseButtonAnimation = spring(0.39, 0.39)`; `isSearchHorizontallyExpanded = false` | spring(0.39, 0.39) | `0x2ADF13AC8` |
+| 3, each i | `isTranslated = true` | 0.35/0.43, 0.45/0.39, 0.55/0.35, 0.60/0.31; past index 3, 0.45 + 0.1i / max(0.39 − 0.04i, 0) | `0x2ADF13AEC` |
+| 4, each i | `isScaled = true` | 0.41/0.394, 0.55/0.35, 0.65/0.32; from index 3, 0.41 + 0.1i / max(0.394 − 0.04i, 0), i.e. 0.71/0.274 | `0x2ADF13D14` |
+| 5, each i | `isVisible = true`, then `selectedButton = highlightedButton = mode` | spring(0.49, 0.15).delay(0.17) | `0x2ADF13974` |
+
+**Hide** (`0x2ADF189D0`) returns at once, calling only its completion, when the field is already
+expanded or there is no window coordinator:
+
+| Order | Change | Animation | Where |
+|---|---|---|---|
+| 0 | `mitosisSmoothness = 0` | none | |
+| 1 | every `isVisible = false` | spring(0.20, 0.05) | `0x2ADF13F24` |
+| 2 | `horizontalBrowseButtonAnimation` = this spring; `isSearchHorizontallyExpanded = true`; `mitosisSmoothness = 100`; every `isTranslated` and `isScaled` false; then the completion | spring(0.41, 0.12) | `0x2ADF13EF0` |
+
+*Inferred:* `mitosisSmoothness` starts at 0 (initialiser `0x2ADF280CC`), so on the very first show
+after launch the 0 → 100 → 0 changes land in one update and the first value probably does not
+animate; every later show starts from the 100 that hide leaves behind. `QuickActionBar` animates
+from 100 every time.
+
+### 11.4 What triggers them
+
+- **Invocation.** `SpotlightContentView` (body `0x2ADF58B04`) has an `onChange(of: invocationState)`
+  (closure `0x2ADF5C4F0`). On `.invoking` (raw value 1; the order is dismissed, invoking, invoked,
+  dismissing), with `SpotlightWindowState.showBrowseButtons` true, it calls `show(nil)`. On
+  `.dismissed` it calls vtable +0x398 instead, which was not decompiled.
+- **Size changes.** `showBrowseButtonForSizeChange(isCollapse:)`: collapsing with
+  `expandButtonsOnCollapse` set and buttons allowed calls show; otherwise it calls
+  `hide(animated: true)` when buttons are not allowed (or the field is already expanded).
+- **On request.** `showBrowseButtonsIfNeeded()` needs `allowsBrowseButtons` and an expanded field,
+  sets `expandButtonsOnCollapse = true`, then calls `onShowBrowseButtons` if one is installed and
+  show otherwise.
+- **`allowsBrowseButtons`** is true only while the window is invoking or invoked, the stored flag is
+  set, no browse mode is active and two more state checks pass. The query path (`0x2AE00AB00`) sets
+  the stored flag from the query's type (`TopLevelFiltersQuery.showBrowseSuggestions`). An empty or
+  non-empty query does not call show or hide by itself.
+- **No delay on any of these paths.** Yet on the recording the field starts to narrow 28–29 frames
+  (about 0.47 s) after the panel's first visible frame, and its first frames follow spring(0.39,
+  0.39) to within half a frame. When `.invoking` actually fires was not traced; running
+  `log stream --predicate 'eventMessage CONTAINS "browse:"'` while invoking Spotlight would show it,
+  since each path logs its own `browse: …` line.
+
+### 11.5 The field's width, the merged glass, and the rest
+
+- **The field's width** (`0x2ADF5A12C`) is `isolatedAnimation(animation, value: w) { $0.frame(width: w) }`,
+  w being the coordinator's `animatedWindowWidth` while expanded and
+  `collapsedWindowWidth(for:buttonWidth:)` of it otherwise. The animation (`0x2ADF16D30`) is
+  `horizontalBrowseButtonAnimation` — spring(0.39, 0.39) on show, spring(0.41, 0.12) on hide —
+  unless a window-size flag picks `sizingHAnimation`. It runs alongside the translation, started in
+  the same call. The field's glass has a continuous corner radius of half the collapsed height.
+- **The merged glass.** `GlassElementModifier` (on the Solarium path) only writes an anchor
+  preference, `GlassElement { id, cornerRadius?, style, anchor(bounds), enabled }` (`0x2ADFA0800`).
+  The root view applies `_glassBackdropLayer(smoothness: coordinator.mitosisSmoothness, enabled: WindowStyling.isTransient)`
+  (call site `0x2ADF63264`; the smoothness through vtable +0x3D8). That builds `GlassEffect`
+  (`0x2ADFA0C58`, `0x2ADFA0F2C`), which draws in a `GeometryReader` background
+  `Rectangle().foregroundStyle(.clear).materialEffect(Material._glass(.regular.size(.large).adaptive(false).excludingShadow().interactionState(.disabled).contentLensing(true)), in: _ShapeSet(shapes:, smoothness:))`.
+  The shapes (`0x2ADFA155C`) are each enabled element's anchor resolved into a `Capsule` path, or a
+  `RoundedRectangle(r)` path when it has a radius, so scale and position animations reach them. It
+  is one glass material over a smooth union of shapes, `mitosisSmoothness` being the union's
+  smoothing distance in points — not `GlassEffectContainer`, not `glassEffectUnion`, not a shader,
+  not a `CAFilter`.
+- **Hover** only reports `(Bool, mode)` to the controller as the highlight; the button draws nothing
+  for it. **Pressed** is the system borderless button style. **Selected** puts the selection
+  material behind the circle at full opacity and the icon in the dark colour scheme.
+- **The ⌘ overlay** (`BrowseButtonShortcutIndicatorOverlay`, `0x2ADF4E1C0`) shows each button's digit
+  key (`keyCodeForDigit(index + 1)`) at opacity 1 or 0 from the keyboard-indicator controller,
+  collapsed-height tall, with a trailing padding of 57 or 20.
+
+### 11.6 The AppKit counterpart: `NSGlassEffectContainerView.spacing`
+
+Build 26B123.
+
+- **`spacing` is stored as the smoothness.** `-[NSGlassEffectContainerView setSpacing:]`
+  (`0x18B31947C`) calls the Swift setter `0x18B3194C8`: inside an implicit-animation context it
+  forwards to `animator().setSpacing(_:)`; otherwise, when the value changed, it writes the
+  `_smoothness` ivar (offset 0x220) and calls `setNeedsLayout:YES` — nothing else.
+  `+defaultAnimationForKey:` (`0x18B31E554`) animates exactly one key, `"spacing"`, with a plain
+  `CABasicAnimation`.
+- **It reaches SwiftUI on the next layout pass, synchronously.** `layout()` (`0x18B31CA38`) reads
+  `spacing` every pass, writes `RootView { groups, spacing }` into the effects view's hosting view
+  and calls `ViewGraphHost.updateRoot(transaction:)`. The `RootView` body (`0x18B31C6E4`) builds one
+  `MaterialGroup` per group, whose body (`0x18B319E70`) calls
+  `_GlassEffectContainer.init(smoothness: spacing, content:)` (call at `0x18B31A078`) — and, when
+  `UnifiedGlassDisabled` holds, also `materialEffect(material, in: _ShapeSet(elements:, smoothness: spacing))`
+  (`0x18B31BBD4`).
+- **It is the same number Spotlight sets.** In SwiftUICore the public
+  `GlassEffectContainer.init(spacing:)` (`0x190C8C0C4`) is a single branch to
+  `_GlassEffectContainer.init(smoothness:)` (`0x190C89D10`), which stores
+  `_Glass.Smoothness(function: .default, value: spacing ?? min(Spacing.defaultValue.width, .height))`;
+  `GlassEffectAnimatedPathSet.updateValue` (`0x1911F0350`) merges a container entry's paths into one
+  `PathSet { elements, smoothness, smoothnessFunction }` — the field `_ShapeSet` sets. *Inferred:*
+  shapes farther apart than about the smoothness do not blend, so the one number is both the merge
+  distance and the blend radius. How Core Animation rasterises it was not traced.
+- **Which views merge is decided by identity, not distance.** SwiftUI's
+  `GlassContainer.Storage.appendToExistingEntry` (`0x190BB3240`) groups by group ID and namespace,
+  `Variant.ID` and model ID. AppKit's `layout()` groups members by `GlassIdentity` — configuration,
+  backdrop context, `backdropGroupName`, colour scheme, contrast, adaptive appearance — and
+  different identities never merge.
+- **Shapes come from frames and corner radii.** For each member `layout()` takes its private
+  `_path`, else `effectiveCornerRadii` (uniform → `RoundedRectangle(cornerRadius:style: .continuous)`,
+  otherwise `UnevenRoundedRectangle`), else `cornerRadius`, builds the path in the member's
+  `bounds` and maps it into the container with `_NSViewGetTransformToAncestor` (`0x18AD40D6C`), which
+  uses frame and bounds origins, flippedness and the bounds matrix but never `CALayer.transform`.
+- **What marks the container for layout.** A frame change does — `setFrameOrigin:` →
+  `_invalidateFocus` → `geometryInWindowDidChange` → `renewGState`, which `NSGlassEffectView`
+  overrides (`0x18B31672C`) to mark its container. `setCornerRadius:` (`0x18B30EC7C`) marks only the
+  glass view itself.
+- **Members at any depth are collected**: `viewDidMoveToSuperview` (`0x18B3162B4`) walks up to the
+  nearest container (helper `0x18B305DA4`) and joins its `_components`. Hidden members, members
+  with `_disableEmbeddingCount > 0` and `_variant == 13` are skipped.
+- **Collected paths are not animated in steady state.** The update's transaction animation
+  (`0x18B32A344`) is only a member's pending layout animation, written by the `_variant` setter in an
+  implicit-animation context, or a one-shot ease-out when the appearance or backdrop context
+  changes.
+
+### 11.7 Not settled
+
+- Where the ≈0.47 s start delay comes from.
+- What vtable +0x398, called on `.dismissed`, resets.
+- How Core Animation rasterises `PathSet.smoothness` — a true smooth-minimum radius in points is
+  *inferred*.

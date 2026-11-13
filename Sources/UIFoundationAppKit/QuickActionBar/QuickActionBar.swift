@@ -49,6 +49,18 @@ public final class QuickActionBar {
     /// Row height used when automatic row heights are not available.
     public var rowHeight: CGFloat = 36
 
+    /// Round buttons beside the search field, the way macOS 26 Spotlight shows Applications,
+    /// Files, Actions and Clipboard. None by default, which leaves the bar as it was.
+    ///
+    /// Each button takes 64 points of the search field at the default height; Spotlight shows four
+    /// in a 640-point bar. Changing the list while the bar is open draws the current buttons back
+    /// into the field and lets the new ones bud out. Ignored before macOS 26.
+    public var browseItems: [BrowseItem] = [] {
+        didSet {
+            quickActionBarWindow?.browseItemsDidChange()
+        }
+    }
+
     /// The current search text.
     public var currentSearchText: String? {
         quickActionBarWindow?.currentSearchText
@@ -177,6 +189,7 @@ public extension QuickActionBar {
         }
 
         quickBarWindow.presentWithAnimation()
+        quickBarWindow.startBrowseButtonsPresentationDelay()
     }
 }
 
@@ -193,7 +206,10 @@ public extension QuickActionBar {
     /// - Returns: `true` when an active dismissal was reversed; otherwise, `false`.
     @discardableResult
     func resumePresentation() -> Bool {
-        self.quickActionBarWindow?.resumePresentation() ?? false
+        guard let quickActionBarWindow, quickActionBarWindow.resumePresentation() else { return false }
+        // A delay that ran out while the bar was leaving brought no buttons out.
+        quickActionBarWindow.updateBrowseButtons()
+        return true
     }
 }
 

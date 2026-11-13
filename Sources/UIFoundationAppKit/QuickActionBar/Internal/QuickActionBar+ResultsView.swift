@@ -65,7 +65,14 @@ extension QuickActionBar.ResultsView {
         addConstraint(NSLayoutConstraint(item: scrollView, attribute: .right, relatedBy: .equal, toItem: self, attribute: .right, multiplier: 1.0, constant: 0))
         addConstraint(NSLayoutConstraint(item: scrollView, attribute: .bottom, relatedBy: .equal, toItem: self, attribute: .bottom, multiplier: 1.0, constant: 0))
 
-        scrollView.addConstraint(NSLayoutConstraint(item: scrollView, attribute: .width, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: quickActionBar.width))
+        // Below the window's own size (`windowSizeStayPut`, 500): results that arrive while the
+        // browse buttons are still drawing back into a narrowed search field take the field's
+        // width for that moment. Any priority above 500 makes AppKit grow the whole window instead
+        // (measured: 896 points for a 640-point bar with four buttons out), and a required one
+        // breaks the stack's edge constraints. At full width nothing changes.
+        let widthConstraint = NSLayoutConstraint(item: scrollView, attribute: .width, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: quickActionBar.width)
+        widthConstraint.priority = .dragThatCannotResizeWindow
+        scrollView.addConstraint(widthConstraint)
         scrollView.addConstraint(NSLayoutConstraint(item: scrollView, attribute: .height, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: quickActionBar.height))
 
         scrollView.backgroundColor = NSColor.clear

@@ -155,7 +155,20 @@ extension QuickActionBar {
 
         internal var userDidActivateItem: Bool = false
 
+        /// The rounded platter view the search field and the results sit in.
+        private(set) var primaryView: QuickActionBar.PrimaryRoundedView?
+
         private var isResultsExpanded = false
+
+        /// Counts changes to the bar's browse items, so buttons made from an older list are
+        /// recognised and replaced.
+        private var browseItemsGeneration = 0
+
+        /// The items the browse buttons on screen were made from, in their order.
+        private var displayedBrowseItems: [QuickActionBar.BrowseItem] = []
+
+        private var hasBrowseButtonsPresentationDelayElapsed = false
+        private var browseButtonsPresentationDelayWorkItem: DispatchWorkItem?
 
         private var currentSearchRequestTask: QuickActionBar.SearchTask?
 
@@ -194,6 +207,15 @@ extension QuickActionBar.Window {
             let content = QuickActionBar.PrimaryRoundedView()
             content.translatesAutoresizingMaskIntoConstraints = false
             container.addSubview(content)
+            self.primaryView = content
+            if #available(macOS 26.0, *), let glassPlatterView = content.glassPlatterView {
+                glassPlatterView.browseButtonClickHandler = { [weak self] index in
+                    self?.activateBrowseItem(at: index)
+                }
+                glassPlatterView.browseButtonsDidSettle = { [weak self] in
+                    self?.updateBrowseButtons()
+                }
+            }
 
             let pad = QuickActionBar.animationPadding
             NSLayoutConstraint.activate([
@@ -307,8 +329,9 @@ extension QuickActionBar.Window {
 // MARK: - Results Expand/Collapse Animation
 
 extension QuickActionBar.Window {
-    /// Called by `ResultsView` when the results count changes.
+    /// Called by `ResultsView` whenever results arrive, whether or not their count changed.
     func handleResultsCountChanged(hasResults: Bool) {
+        defer { updateBrowseButtons() }
         if hasResults == isResultsExpanded {
             results.isHidden = !hasResults
             return
@@ -416,13 +439,7 @@ extension QuickActionBar {
     /// at 1 — passing 1 by about 1.5 % a quarter second in. Each resize starts from rest, from
     /// wherever the frame is.
     enum ResizeSpring {
-        static let duration: CGFloat = 0.3
-        static let bounce: CGFloat = 0.2
-
-        private static let naturalFrequency = 2 * .pi / duration
-        private static let dampingRatio = 1 - bounce
-        private static let decayRate = dampingRatio * naturalFrequency
-        private static let dampedFrequency = naturalFrequency * (1 - dampingRatio * dampingRatio).squareRoot()
+        static let spring = QuickActionBar.Spring(duration: 0.3, bounce: 0.2)
 
         private static let positionThreshold: CGFloat = 0.0005
         private static let velocityThreshold: CGFloat = 0.01
@@ -430,16 +447,85 @@ extension QuickActionBar {
         /// How far the resize has come `elapsed` seconds in, 0 being where it started and 1 the
         /// target.
         static func position(at elapsed: CGFloat) -> CGFloat {
-            let envelope = exp(-decayRate * elapsed)
-            let oscillation = cos(dampedFrequency * elapsed) + decayRate / dampedFrequency * sin(dampedFrequency * elapsed)
-            return 1 - envelope * oscillation
+            spring.value(from: 0, to: 1, time: elapsed)
         }
 
         /// Whether the spring has come to rest on the target.
         static func isSettled(at elapsed: CGFloat) -> Bool {
-            let velocity = exp(-decayRate * elapsed) * naturalFrequency * naturalFrequency / dampedFrequency * sin(dampedFrequency * elapsed)
+            let velocity = spring.velocity(from: 0, to: 1, time: elapsed)
             return abs(position(at: elapsed) - 1) < positionThreshold && abs(velocity) < velocityThreshold
         }
+    }
+}
+
+// MARK: - Browse buttons
+
+extension QuickActionBar.Window {
+    /// Starts the wait Spotlight leaves between the bar appearing and its browse buttons budding
+    /// out of the search field.
+    func startBrowseButtonsPresentationDelay() {
+        browseButtonsPresentationDelayWorkItem?.cancel()
+        hasBrowseButtonsPresentationDelayElapsed = false
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.finishBrowseButtonsPresentationDelay()
+        }
+        browseButtonsPresentationDelayWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + QuickActionBar.Mitosis.presentationDelay, execute: workItem)
+    }
+
+    /// Ends the wait now. Tests call this rather than sit the delay out: on macOS 27.2 a test
+    /// runner that handles window events is ended a few seconds in, so every second counts.
+    func finishBrowseButtonsPresentationDelay() {
+        browseButtonsPresentationDelayWorkItem?.cancel()
+        browseButtonsPresentationDelayWorkItem = nil
+        hasBrowseButtonsPresentationDelayElapsed = true
+        updateBrowseButtons()
+    }
+
+    func browseItemsDidChange() {
+        browseItemsGeneration &+= 1
+        updateBrowseButtons()
+    }
+
+    /// Brings the browse buttons out, or draws them back in, to match the bar's state.
+    ///
+    /// They are out while the bar has items, has been up for Spotlight's delay, shows no results
+    /// and has an empty query — when Spotlight offers its own. Like Spotlight's, they follow the
+    /// results as they arrive rather than each keystroke.
+    func updateBrowseButtons() {
+        guard #available(macOS 26.0, *), let glassPlatterView = primaryView?.glassPlatterView else { return }
+        let items = quickActionBar.browseItems
+        let wantsBrowseButtons = !items.isEmpty
+            && hasBrowseButtonsPresentationDelayElapsed
+            && !isResultsExpanded
+            && editLabel.stringValue.isEmpty
+            && !isDismissingPresentation
+        let animated = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+
+        guard wantsBrowseButtons else {
+            glassPlatterView.hideBrowseButtons(animated: animated)
+            return
+        }
+        if glassPlatterView.displayedBrowseItemsIdentifier == browseItemsGeneration {
+            glassPlatterView.showBrowseButtons(displayedBrowseItems, identifier: browseItemsGeneration, collapsedHeight: collapsedSearchHeight, animated: animated)
+        } else if glassPlatterView.hasBrowseButtons {
+            // Buttons from an older list are out: they draw back in first, and settling calls
+            // this again for the new list.
+            glassPlatterView.hideBrowseButtons(animated: animated)
+        } else {
+            displayedBrowseItems = items
+            glassPlatterView.showBrowseButtons(items, identifier: browseItemsGeneration, collapsedHeight: collapsedSearchHeight, animated: animated)
+        }
+    }
+
+    /// The platter's height with the results collapsed: the search row and its insets.
+    private var collapsedSearchHeight: CGFloat {
+        primaryStack.edgeInsets.top + searchStack.fittingSize.height + primaryStack.edgeInsets.bottom
+    }
+
+    private func activateBrowseItem(at index: Int) {
+        guard displayedBrowseItems.indices.contains(index) else { return }
+        displayedBrowseItems[index].action(quickActionBar)
     }
 }
 

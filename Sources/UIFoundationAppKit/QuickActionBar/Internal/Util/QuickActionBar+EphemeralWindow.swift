@@ -85,6 +85,11 @@ extension QuickActionBar {
         /// Called when the window closes.
         var didDetectClose: (() -> Void)?
 
+        /// Whether the panel is on its way out, or already gone.
+        var isDismissingPresentation: Bool {
+            presentationAnimationState == .dismissing || presentationAnimationState == .closed
+        }
+
         /// Called when the present animation finishes.
         var didFinishPresentAnimation: (() -> Void)?
 
