@@ -529,6 +529,10 @@ a file.
   vertically 339 pt). Stack wide content vertically, add `.fixedSize(horizontal: false, vertical: true)`
   to wrapping text, and lower horizontal compression resistance (`.defaultLow`) on hosting views and
   labels. The detail pane's shared summary label is already set up this way.
+- **A demo page that scrolls is made with `NSScrollView.box.makeFlipped()`.** Its document is a stack
+  view, which is not flipped, and `NSClipView` is flipped only when its document view is: behind
+  AppKit's own clip view the page opens scrolled to its bottom. Logs and lists need nothing — text,
+  table and outline views are flipped already.
 </important>
 
 ## Documentation
