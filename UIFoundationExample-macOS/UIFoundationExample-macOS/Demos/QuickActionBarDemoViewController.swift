@@ -224,7 +224,8 @@ final class QuickActionBarDemoViewController: NSViewController {
         outerStackView.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
         outerStackView.translatesAutoresizingMaskIntoConstraints = false
 
-        let scrollView = NSScrollView()
+        // Flipped, so the page opens at its top: a stack view is not, and would open at its bottom.
+        let scrollView = NSScrollView.box.makeFlipped()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.hasVerticalScroller = true
         scrollView.drawsBackground = false
