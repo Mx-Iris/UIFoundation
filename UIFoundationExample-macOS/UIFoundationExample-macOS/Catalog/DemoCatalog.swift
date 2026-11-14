@@ -33,6 +33,13 @@ enum DemoCatalog {
             makeViewController: { QuickActionBarDemoViewController() }
         ),
         Demo(
+            title: "Quick Action Bar Browse Buttons",
+            category: "Controls",
+            summary: "The round buttons beside the search field, put to work three ways — browsing a category as Spotlight does, acting at once, and custom images replaced while the bar is open.",
+            minimumMacOS: OperatingSystemVersion(majorVersion: 26, minorVersion: 0, patchVersion: 0),
+            makeViewController: { QuickActionBarBrowseButtonsDemoViewController() }
+        ),
+        Demo(
             title: "Playback Slider",
             category: "Controls",
             summary: "Music's full-screen time slider — no knob, grows on a spring when pressed, seeks on release — following a simulated playback clock.",
