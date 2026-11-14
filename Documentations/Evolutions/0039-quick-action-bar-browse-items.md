@@ -1,9 +1,12 @@
-# Draft - QuickActionBar：搜索框旁的浏览按钮，复刻 Spotlight 的分裂动画
+# 0039 - QuickActionBar：搜索框旁的浏览按钮，复刻 Spotlight 的分裂动画
 
-- **状态**: In Progress
+- **状态**: Implemented
 - **创建日期**: 2026-11-13
-- **最后更新**: 2026-11-13
-- **实现分支 / PR**: `feature/quick-action-bar-browse-items`
+- **最后更新**: 2026-11-14
+- **实现分支 / PR**: `feature/quick-action-bar-browse-items`（本地 `--no-ff` 合进 `main`）
+- **配套文档**: 指南 [`QuickActionBar.md`](../QuickActionBar.md) 第 5 节（用法）与第 8.3、8.5 节（弹簧、
+  按钮怎么动）；逆向报告 [`Researchs/Spotlight-Panel-Internals.md`](../../Researchs/Spotlight-Panel-Internals.md)
+  第 11 节
 
 ## 摘要
 
@@ -92,7 +95,7 @@ quickActionBar.present(placeholderText: "Search")
 - `Researchs/Spotlight-Panel-Internals.md`：新增第 11 节「27.2 的浏览按钮」（几何、编排、触发、融合的实现、AppKit 玻璃容器 `spacing` 的去向，附地址）；第 10 节的归档路径更正为 `27.2-beta/`（那份 26B118 的 cache 后来换了目录名）。
 - `AGENTS.md`：测试一块加一条跨组件规则——测试里不要点击，改发动作，并核对汇总行（PlaybackSlider 与 QuickActionBar 各踩过一次）。QuickActionBar 那条索引不变。
 - `README.md` 的 Quick Action Bar 一节加浏览按钮的示例；`Documentations/README.md` 的索引行补上浏览按钮；提案索引加一行。`uifoundation-widgets` skill 没写到 QuickActionBar，插件版本不动。
-- 示例 App 的 QuickActionBar 演示加一个 0–4 个浏览按钮的选项，用 Spotlight 自己的四个符号（`appstore`、`folder`、`app.2.stack.3d`、`document.on.document`）；点击写进事件日志，人工检查清单加上动画几条。
+- 示例 App 的 QuickActionBar 演示加一个 0–4 个浏览按钮的选项，用 Spotlight 自己的四个符号（`appstore`、`folder`、`app.2.stack.3d`、`document.on.document`），系统里取不到的退回相近的公开符号（`appstore` 是系统私有的，App 拿不到，退回 `square.grid.2x2`）；点击写进事件日志，人工检查清单加上动画几条。
 
 **下游影响**：XCOrganizer、StarLight、RuntimeViewer 不设 `browseItems` 就不会出现按钮，源码兼容。但 macOS 26+ 上搜索框的玻璃换进了容器，外观应不变，需要目测确认。
 
@@ -103,10 +106,19 @@ quickActionBar.present(placeholderText: "Search")
 3. 浏览按钮：API、几何、编排、显示条件、绘制，以及上面列的测试。（已完成）
 4. 示例 App 演示。（已完成）
 5. 文档。（已完成）
-6. 验证：全 trait 构建、整套测试、示例 App 构建；动画由人目测。（已完成，动画尚待目测）
-   - 全 trait `swift build` 通过，零警告。
-   - 全 trait `swift test`：574 条测试完整跑完，失败的只有 main 上本来就挂的两条（`MainMenuTests` 第 200 行、`QuickActionBarPresentationTests` 第 35 行），与 main 的对照运行一致。
-   - 示例 App：main 本身在 Xcode 27.2 上就编不过（`ComponentLayoutExample` 的 `AnimationExamplesView` 在 macOS 12 的部署目标下用了 macOS 15 的 `NSView.animate`）。在临时副本里把部署目标提到 15 后，带本改动的示例 App 编译通过，新增代码无警告。
+6. 验证：全 trait 构建、整套测试、示例 App 构建；动画由人目测。（已完成）
+   - 全 trait `swift build` 通过，新增代码零警告。
+   - 全 trait `swift test`：574 个测试。实现期间整套在一个进程里完整跑完过一次，失败的只有 main 上本来就挂的两条（`MainMenuTests` 第 200 行、`QuickActionBarPresentationTests` 第 35 行），与 main 的对照运行一致；最终代码分四段跑完，只剩第 35 行那条（第 200 行只在整套一起跑时挂）。
+   - 示例 App：新检出里编不过的问题（AppKitPlus 0.21.0 把 `NSView.animate` 标成 macOS 15，而 `ComponentLayoutExample` 的部署目标是 macOS 12）已另行修复，与本提案一同落地；带本改动的示例 App 从新副本构建通过，新增代码无警告。
+   - 动画：示例 App 的 Release 构建与 Spotlight 的 60 fps 录屏逐帧对照，几何、时机与外观一致；从面板第一帧到搜索框开始收窄 29 帧，Spotlight 是 28–29 帧。
+
+**后续**
+
+- 浏览模式：点击进入该类别（搜索框出现类别标记、结果只列这一类、Esc 先退出类别）。这次按决定只回调宿主。
+- 键盘操作：Tab 与方向键聚焦按钮，按住 ⌘ 显示 1–4 的角标、⌘ 数字键触发。
+- 收回的那约 0.4 秒里，结果列表随搜索框变宽；Spotlight 让结果保持满宽、由收窄的玻璃裁掉。要对齐，得让结果视图不再跟着搜索框的宽度走。
+- 0.47 秒延时在二进制里的来源没有找到，现在用的是录屏实测值。
+- 顺带发现、与本提案无关的旧问题：macOS 26 以前打开「降低透明度」时，`PrimaryRoundedView` 两个分支都不添加 `contentView`，面板是空的。
 
 ## 决策日志
 
@@ -124,3 +136,4 @@ quickActionBar.present(placeholderText: "Search")
 | 2026-11-13 | 实现完成，待用户看过后收尾 | 文档已同步：QuickActionBar 指南、研究报告第 11 节、AGENTS.md 测试规则、README、两份索引 |
 | 2026-11-14 | 出现延时改为从面板第一帧上屏起算（display link 第一次回调；0.2 秒内没有回调就照常开始计时） | 用户要求对照录屏修正。从 `present()` 起算时比 Spotlight 早约 6 帧：新面板第一次提交要建玻璃，约 0.1 秒后才上屏。改后从第一帧到开始收窄是 29 帧，Spotlight 是 28–29 帧 |
 | 2026-11-14 | 不为帧率另做优化 | 用户要求查掉帧。Release 版录屏在按钮冒出时只在分开的瞬间丢 2 帧，Spotlight 自己的录像也有零星单帧丢失；采样显示本组件每帧约 1 毫秒，其余是 SwiftUI 渲染玻璃和搜索框重排，Spotlight 同样要付。先前约 28 fps 的录屏是 Debug 构建 |
+| 2026-11-14 | Implemented，编号 0039 | 用户看过效果后收尾。最终代码上的验证以退出码为准：全 trait `swift build` 通过；全 trait 整套测试放在一个进程里跑了两次都没跑完，一次撞上 main 上本来就有的偶发 SIGSEGV，一次被系统以退出码 0 中途结束（AGENTS.md 记过的 macOS 27.2 问题；分段后不含本功能任何窗口测试的那一段也被结束过一次），于是分四段各自跑完：574 个测试全部跑到，失败的只有 main 上本来就挂的 `QuickActionBarPresentationTests` 第 35 行。实现与方案一致，偏离之处已逐条记在上面，没做的项列在「后续」。配套文档：使用指南（`QuickActionBar.md` 第 5、8 节）与研究报告第 11 节随实现写好，不另写实现说明。浏览按钮、融合度、分裂都是 Spotlight 自己的叫法，只在 QuickActionBar 的文档里用、就地解释过，不进术语表 |

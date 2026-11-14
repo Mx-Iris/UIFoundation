@@ -21,7 +21,7 @@
 > **§11 is the browse buttons beside the search field on 27.2** — their geometry, the springs that
 > bud them out of the field and draw them back in, what triggers them, and how the merged glass is
 > drawn, with the AppKit counterpart. Consumed by `QuickActionBar` through
-> [`Documentations/Evolutions/draft-quick-action-bar-browse-items.md`](../Documentations/Evolutions/draft-quick-action-bar-browse-items.md).
+> [`Documentations/Evolutions/0039-quick-action-bar-browse-items.md`](../Documentations/Evolutions/0039-quick-action-bar-browse-items.md).
 
 ---
 

@@ -130,7 +130,7 @@ quickActionBar.present(placeholderText: "Search")
 - **Reduce Motion** puts the buttons out or in at once.
 
 Decision record: Evolution
-[`draft-quick-action-bar-browse-items`](Evolutions/draft-quick-action-bar-browse-items.md). How they
+[`0039`](Evolutions/0039-quick-action-bar-browse-items.md). How they
 move is in [§8.5](#85-how-the-browse-buttons-move); Spotlight's numbers, and where in its binary they
 were read, are in [`Spotlight-Panel-Internals.md`](../Researchs/Spotlight-Panel-Internals.md) §11.
 
