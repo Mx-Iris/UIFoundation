@@ -1,9 +1,9 @@
-# Draft - FlippedClipView：让滚动视图的内容从左上角开始
+# 0040 - FlippedClipView：让滚动视图的内容从左上角开始
 
-- **状态**: In Progress
+- **状态**: Implemented
 - **创建日期**: 2026-11-14
 - **最后更新**: 2026-11-14
-- **实现分支 / PR**: `feature/flipped-clip-view`
+- **实现分支 / PR**: `feature/flipped-clip-view`（本地 `--no-ff` 合进 `main`）
 
 ## 摘要
 
@@ -46,3 +46,4 @@ flipped clip view 可以换成这个；不换也不会撞名——模块自己�
 | 2026-11-14 | 创建，直接进入实现 | 示例 App 的演示页打开时停在底部；用户要求把翻转的 clip view 加进库（多处用到），并加一个创建「原点在左上角」的滚动视图的便捷方法，即批准 |
 | 2026-11-14 | 工厂放在 `.box` 下，命名 `makeFlipped()` | 本库约定 AppKit 类型上的扩展都走 `.box`；「flipped」是 AppKit 对「原点在左上角」的叫法，与 `FlippedClipView` 同词便于搜到 |
 | 2026-11-14 | 工厂照搬原 clip view 的背景设置 | 让它与 `Base()` 只差 clip view 这一处，调用方原先对背景的设置不受影响 |
+| 2026-11-14 | Implemented，编号 0040 | 用户要求收尾。实现与方案一致，没有后续项。最终代码上的验证以退出码为准：全 trait `swift build` 与示例 App 构建通过；全 trait 测试分四段跑完，579 个测试全部跑到，失败的只有 main 上本来就挂的 `QuickActionBarPresentationTests` 第 35 行。落地前查过下游：RuntimeViewer、MachOKitUI、PrivateSymbols、StarLight 没有同名类型，XCOrganizer 在自己的 App 模块里声明了一个，模块内的声明优先，不撞名。不另写使用指南或实现说明（理由见「方案」）；flipped 是 AppKit 自己的说法，不进术语表 |
