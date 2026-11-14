@@ -117,6 +117,11 @@ quickActionBar.present(placeholderText: "Search")
 - **A click** calls the item's `action` with the bar and leaves the bar open; call `cancel()` there
   to close it. The search field keeps the keyboard focus. There is no keyboard access to the
   buttons and no selected state: Spotlight's browse modes are not reproduced.
+- **Listing a category from a click.** Push it from the action with `provideResultIdentifiers(_:)`;
+  the results arriving draw the buttons in. With no browse mode, Escape on that still-empty query
+  closes the bar. Search inside the category while the user types, and answer the next empty query
+  with nothing: the results collapse and the buttons come back out. The browse buttons demo
+  ([§7](#7-demo)) works this way.
 - **Size.** A button is a circle 2 points smaller than the collapsed search row — 54 points at the
   default 56 — and takes its diameter plus a 10-point gap from the search field. Four take 256
   points, so a 640-point bar keeps a 384-point field. Nothing caps the count; give the bar the width.
@@ -173,6 +178,18 @@ Traps that fail confusingly rather than loudly:
 the checks only a human can make — among them the browse buttons' animation beside Spotlight's own.
 Its open button reverses a dismissal still in flight with `resumePresentation()` before presenting a
 new bar (see [§4](#4-interrupting-a-dismissal)).
+
+**Quick Action Bar Browse Buttons** (`Demos/QuickActionBarBrowseButtons/`, macOS 26 and later) puts
+the browse buttons to work three ways, each example with a bar and content source of its own:
+
+- **Browsing a category, as Spotlight does** — Applications, Files, Actions and Clipboard, listed the
+  way §5 describes. The applications are the ones installed; the files are made up; the actions run
+  on the demo's window once the bar has gone; the clipboard snippets are only ever written, since
+  reading the clipboard from code makes the system ask the user first.
+- **Acting at once** — two buttons that call `cancel()` and then add a note to a list on the page.
+- **Custom images, replaced while the bar is open** — Finder-coloured dots, which are not template
+  images, so nothing tints them; More Tags and Back assign a new set to `browseItems` from their own
+  actions.
 
 ---
 
