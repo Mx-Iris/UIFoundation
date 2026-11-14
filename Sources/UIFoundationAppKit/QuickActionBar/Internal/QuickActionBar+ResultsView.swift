@@ -51,7 +51,7 @@ extension QuickActionBar.ResultsView {
         addSubview(scrollView)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
 
-        scrollView.contentView = QuickActionBar.FlippedClipView()
+        scrollView.contentView = FlippedClipView()
 
         horizontalView.boxType = .separator
         horizontalView.translatesAutoresizingMaskIntoConstraints = false

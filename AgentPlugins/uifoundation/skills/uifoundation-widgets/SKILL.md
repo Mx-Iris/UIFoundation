@@ -25,7 +25,7 @@ Read the package source rather than guessing. SwiftPM checks it out at
 
 | Looking for | Directory |
 |---|---|
-| Widget subclasses (`Button`, `Label`, `TextField`, `ScrollView`, `TableView`, `OutlineView`, `Divider`, …) and the view bases `LayerBackedView` / `XiblessView` | `Sources/UIFoundationAppKit/Base/`, `…/Text/` |
+| Widget subclasses (`Button`, `Label`, `TextField`, `ScrollView`, `FlippedClipView`, `TableView`, `OutlineView`, `Divider`, …) and the view bases `LayerBackedView` / `XiblessView` | `Sources/UIFoundationAppKit/Base/`, `…/Text/` |
 | Declarative stacks, `Spacer`, `MaxSpacer` | `Sources/UIFoundationShared/View/StackView/` |
 | Toolbar builder and items | `Sources/UIFoundationAppKit/Toolbar/` |
 | Menu builder | `Sources/UIFoundationAppKit/Menu/` |
@@ -60,6 +60,13 @@ private let (scrollView, outlineView): (NSScrollView, OutlineView) =
 // Every one sets documentView and hasVerticalScroller; the single-column ones also set
 // headerView = nil and add the column. AppKit makes the first column added the outline
 // column, so do not set outlineTableColumn again.
+
+// A scroll view whose content starts at the top left, for a document that is not flipped
+// (a stack view, a plain NSView). Works on any scroll view class and returns that class.
+let scrollView = NSScrollView.box.makeFlipped()
+scrollView.documentView = stackView
+// On a scroll view made elsewhere, install the clip view before the document view:
+// existingScrollView.contentView = FlippedClipView()
 
 // Cell reuse — replaces makeView(withIdentifier:owner:) as? T ?? { … }()
 let cellView = tableView.box.makeView(ofClass: EntityTableCellView.self)
@@ -112,6 +119,12 @@ compares every property against the system factory. Do the same for
 scroll view that must paint — a list background, anything with
 `borderType = .bezelBorder` — has to stay an `NSScrollView`, or it renders as a hollow
 well.
+
+**A stack view in a plain scroll view opens at its bottom.** `NSClipView` is flipped only
+when its document view is: a table, an outline or a text view starts at its top, but a stack
+view or a plain `NSView` taller than the scroll view opens at its bottom. Make the scroll
+view with `NSScrollView.box.makeFlipped()`, or give it a `FlippedClipView`, rather than
+scrolling to the top by hand after layout or writing yet another flipped clip view.
 
 **`VStackView` / `HStackView` are `final`.** A stack-shaped widget composes one instead
 of subclassing it: an outer `NSView` holding the stack, pinned edge to edge. Costs one

@@ -95,6 +95,10 @@ if tableView.box.hasValidClickedRow { /* ... */ }
 
 let labels = view.box.subviews(type: NSTextField.self, depth: .max)
 view.box.sendToFront()
+
+// Content starts at the top left even when the document view is not flipped (a stack view):
+// the scroll view comes with a FlippedClipView.
+let scrollView = NSScrollView.box.makeFlipped()
 ```
 
 ### Closure-Based Target-Action
