@@ -127,7 +127,7 @@ error: the library 'UIFoundation' requires macos 10.15, but depends on the produ
 ```
 
 The floor rose to 14 ahead of that AppKitPlus release (Evolution
-[`raise-deployment-target-to-macos-14`](Evolutions/draft-raise-deployment-target-to-macos-14.md)):
+[`0041`](Evolutions/0041-raise-deployment-target-to-macos-14.md)):
 a floor above a dependency's is fine, so AppKitPlus 0.6.0–0.23.0, which require macOS 12, still
 resolve. The "keep the floor down, annotate each declaration" trick that `UIFoundationSettings`
 used while the package deployed below macOS 14 works only for source targets.

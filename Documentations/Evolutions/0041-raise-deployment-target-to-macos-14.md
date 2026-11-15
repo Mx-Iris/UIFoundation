@@ -1,9 +1,9 @@
-# Draft - 最低系统提到 macOS 14
+# 0041 - 最低系统提到 macOS 14
 
-- **状态**: In Progress
+- **状态**: Implemented
 - **创建日期**: 2026-11-15
 - **最后更新**: 2026-11-15
-- **实现分支 / PR**: `feature/raise-deployment-target-to-macos-14`
+- **实现分支 / PR**: `feature/raise-deployment-target-to-macos-14`（本地 `--no-ff` 合进 `main`）
 
 ## 摘要
 
@@ -64,8 +64,9 @@ RuntimeViewer、MachOKitUI、PrivateSymbols、XCOrganizer 和其余依赖本库�
   示例 App 的 `NSApp.activate(ignoringOtherApps:)` 可以直接换成 `NSApp.activate()`，示例包的 `masksToBounds` 可以
   改回 `clipsToBounds`。
 - **Settings 两个 product 要不要并进 umbrella**：原来的理由随本次失效。
-- **下游**：推送 `main` 之前，先把跟 `main` 的 CodeOrganizer、CodeSnippetsSync、NeteaseCloudMusicUploader 的部署目标
-  提到 14，或把它们对本库的依赖钉在提下限之前。本库下次发版时，发布说明的 Breaking 写明最低系统改成 14。
+- **下游**：跟 `main` 的 CodeOrganizer、CodeSnippetsSync、NeteaseCloudMusicUploader 要把部署目标提到 14，或把对本库的
+  依赖钉在提下限之前的版本（如 `0.47.0`），否则下次更新依赖就编不过。本库下次发版时，发布说明的 Breaking 写明最低
+  系统改成 14。
 - `LayerBackedView.swift` 的文档注释还写着 AppKitPlus 的版本下限是 0.2.0，实际早已是 0.6.0，与本次无关。
 
 ## 决策日志
@@ -80,3 +81,4 @@ RuntimeViewer、MachOKitUI、PrivateSymbols、XCOrganizer 和其余依赖本库�
 | 2026-11-15 | 冗余的可用性判断不清理，Settings 不并进 umbrella，不发版 | 都是独立的决定，混进来会让这次改动变大；理由见「方案」的假设 |
 | 2026-11-15 | 自审：7 条发现，修 2 条，2 条误报，3 条这次不修 | 修的是 AGENTS.md 把下限说成「就是 AppKitPlus 的」（它现有的版本只要 12），以及 README、`WelcomePanel.md`、`TextFinder.md` 里写着低于 14 的最低系统；都是文档，没有能写的测试。误报与不修的理由登记在新建的 [`CodeReviewDecisions.md`](../CodeReviewDecisions.md) |
 | 2026-11-15 | 实现完成，待用户看过后收尾 | 全 trait `swift build` 退出码 0，main 上原有的 4 条警告剩 3 条，没有新增；示例 App 从新副本构建通过，解析到 AppKitPlus 0.23.0，按 14.0 编译，代码没有警告；全 trait 测试分四段跑完，579 个测试全部跑到，失败的只有 `QuickActionBarPresentationTests` 第 35 行，在 main 上重跑同样失败。文档随实现更新；不另写使用指南或实现说明，没有新术语 |
+| 2026-11-15 | 落地：编号 0041，状态改 Implemented | 用户看过后收尾，实现与方案一致。验证沿用实现完成时那一次，之后只改过文档。后续项照旧留着。不另写使用指南或实现说明：下限没有签名之外的契约，原因写在 `AppKitPlus.md` 第 3 节和 AGENTS.md；没有新术语；插件里的 skill 不描述最低系统，不用改 |
