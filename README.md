@@ -361,7 +361,7 @@ See [`Documentations/Navigation.md`](Documentations/Navigation.md) for the full 
 
 ### Welcome Panel
 
-Enable the `WelcomePanel` trait for the Xcode-style welcome window — app icon, name and version above a short action list on the left, a recent-project list on the right. macOS 11+:
+Enable the `WelcomePanel` trait for the Xcode-style welcome window — app icon, name and version above a short action list on the left, a recent-project list on the right:
 
 ```swift
 .package(

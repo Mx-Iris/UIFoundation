@@ -28,7 +28,8 @@ SwiftPM 按包图检查二进制 target 的平台要求，比的是本库自己�
   各章节上的 `@available(macOS 14.0, *)` 从此冗余，留着不删。
 - **文档**：AGENTS.md 三处（最低系统；Settings 两个 product 为什么不进 umbrella；示例 App 一条里的部署目标），
   README 的要求一行（还写着早已过时的 10.15），`AppKitPlus.md` 第 3 节，`SettingsWindow.md` 两处，`FilterUI.md`
-  一处，一处测试注释里的部署目标。
+  一处，一处测试注释里的部署目标。自审时补上：README、`WelcomePanel.md`、`TextFinder.md` 里写着低于 14 的组件最低
+  系统去掉；新建已裁决清单 `CodeReviewDecisions.md`，登记进文档索引。
 
 落地步骤：
 
@@ -55,6 +56,18 @@ SwiftPM 按包图检查二进制 target 的平台要求，比的是本库自己�
 
 RuntimeViewer、MachOKitUI、PrivateSymbols、XCOrganizer 和其余依赖本库的项目都在 14 以上，不受影响。
 
+## 后续项
+
+- **清理恒真的可用性判断**：约 340 处 macOS 14 及以下的 `@available` / `#available`，连同只在 14 之前才走的退路——
+  QuickActionBar、SpotlightPanel、QuickActionBar 临时窗口里 `activate(ignoringOtherApps:)` 那一支，MainMenu 的
+  「Preferences…」和 `MainMenu.md` 里的说明，PlaybackSlider 的计时器帧（测试还拿它替代 display link，要一起定）。
+  示例 App 的 `NSApp.activate(ignoringOtherApps:)` 可以直接换成 `NSApp.activate()`，示例包的 `masksToBounds` 可以
+  改回 `clipsToBounds`。
+- **Settings 两个 product 要不要并进 umbrella**：原来的理由随本次失效。
+- **下游**：推送 `main` 之前，先把跟 `main` 的 CodeOrganizer、CodeSnippetsSync、NeteaseCloudMusicUploader 的部署目标
+  提到 14，或把它们对本库的依赖钉在提下限之前。本库下次发版时，发布说明的 Breaking 写明最低系统改成 14。
+- `LayerBackedView.swift` 的文档注释还写着 AppKitPlus 的版本下限是 0.2.0，实际早已是 0.6.0，与本次无关。
+
 ## 决策日志
 
 | 日期 | 决定 | 理由 |
@@ -65,3 +78,5 @@ RuntimeViewer、MachOKitUI、PrivateSymbols、XCOrganizer 和其余依赖本库�
 | 2026-11-15 | 整体提到 14，不把 AppKitPlus 钉在 0.23.x | AppKitPlus 那份提案里用户已选定：依赖它的三个包整体提到 14 |
 | 2026-11-15 | 赶在 AppKitPlus 发版之前提 | 下限高于依赖不会出错；晚于它发版，开着 trait 的使用方一重新解析就编不过 |
 | 2026-11-15 | 冗余的可用性判断不清理，Settings 不并进 umbrella，不发版 | 都是独立的决定，混进来会让这次改动变大；理由见「方案」的假设 |
+| 2026-11-15 | 自审：7 条发现，修 2 条，2 条误报，3 条这次不修 | 修的是 AGENTS.md 把下限说成「就是 AppKitPlus 的」（它现有的版本只要 12），以及 README、`WelcomePanel.md`、`TextFinder.md` 里写着低于 14 的最低系统；都是文档，没有能写的测试。误报与不修的理由登记在新建的 [`CodeReviewDecisions.md`](../CodeReviewDecisions.md) |
+| 2026-11-15 | 实现完成，待用户看过后收尾 | 全 trait `swift build` 退出码 0，main 上原有的 4 条警告剩 3 条，没有新增；示例 App 从新副本构建通过，解析到 AppKitPlus 0.23.0，按 14.0 编译，代码没有警告；全 trait 测试分四段跑完，579 个测试全部跑到，失败的只有 `QuickActionBarPresentationTests` 第 35 行，在 main 上重跑同样失败。文档随实现更新；不另写使用指南或实现说明，没有新术语 |

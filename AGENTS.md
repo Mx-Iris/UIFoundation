@@ -6,9 +6,10 @@ and under active development. Every view and controller is built in code — no 
 
 - Swift tools 6.2, Swift 5 language mode (`swiftLanguageModes: [.v5]`). No linter or formatter;
   style is convention only.
-- Platforms: macOS 14+, iOS 13+, Mac Catalyst 13+, tvOS 13+, visionOS 1+. The macOS floor is
-  AppKitPlus's and holds trait or no trait — [AppKitPlus.md](Documentations/AppKitPlus.md). No
-  watchOS: `AssociatedObject` does not build there.
+- Platforms: macOS 14+, iOS 13+, Mac Catalyst 13+, tvOS 13+, visionOS 1+. The macOS floor follows
+  AppKitPlus — 14 from its release after 0.23.0; the earlier ones need only 12 and still resolve —
+  and holds trait or no trait ([AppKitPlus.md](Documentations/AppKitPlus.md)). No watchOS:
+  `AssociatedObject` does not build there.
 
 ## Project map
 
