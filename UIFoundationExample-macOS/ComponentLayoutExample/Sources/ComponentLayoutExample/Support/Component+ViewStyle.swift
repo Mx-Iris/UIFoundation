@@ -104,9 +104,9 @@ extension Component {
 
     /// Clips subviews to the rounded corners.
     ///
-    /// `NSView.clipsToBounds` exists only from macOS 14, and this package has to
-    /// compile at the example app's own floor, so this writes the layer property
-    /// it wraps.
+    /// Writes the layer property that `NSView.clipsToBounds` wraps. That property
+    /// is macOS 14, and this was written while the example app still deployed to
+    /// macOS 12.
     public func masksToBounds(_ masksToBounds: Bool) -> UpdateComponent<Self> {
         update { view in
             view.wantsLayer = true

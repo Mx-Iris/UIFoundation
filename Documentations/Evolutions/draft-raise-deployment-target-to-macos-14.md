@@ -32,8 +32,8 @@ SwiftPM 按包图检查二进制 target 的平台要求，比的是本库自己�
 
 落地步骤：
 
-1. 本库的下限、`originHash` 与文档。验证：全 trait `swift build`。
-2. 示例 App 与 `ComponentLayoutExample` 的下限，AGENTS.md 示例一条。验证：从新副本构建示例 App。
+1. 本库的下限、`originHash` 与文档（完成）。验证：全 trait `swift build`。
+2. 示例 App 与 `ComponentLayoutExample` 的下限，AGENTS.md 示例一条（完成）。验证：从新副本构建示例 App。
 
 最后跑全 trait 测试（分四段）。
 
