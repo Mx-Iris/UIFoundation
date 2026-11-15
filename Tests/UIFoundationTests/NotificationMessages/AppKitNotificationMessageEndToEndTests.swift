@@ -227,7 +227,7 @@ struct AppKitNotificationMessageEndToEndTests {
 /// other -- `.selectionDidChange` names both `NSTableView`'s message and `NSOutlineView`'s. Passing the
 /// outline view's metatype picks `NSOutlineView`'s, exactly as AppKit's own API does. (Passing an outline
 /// view *instance* is ambiguous, in AppKit's API and in the backport alike, and cannot be shown in a test
-/// that has to compile.) Written as shorthand on purpose; at the tests' macOS 12 deployment target only
+/// that has to compile.) Written as shorthand on purpose; at the tests' macOS 14 deployment target only
 /// the backport's identifiers are available.
 @Suite("Shorthand resolution with a subclass subject")
 @MainActor

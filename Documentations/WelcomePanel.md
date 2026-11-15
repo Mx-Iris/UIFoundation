@@ -5,7 +5,7 @@
 >
 > Ported from [Mx-Iris/WelcomeKit](https://github.com/Mx-Iris/WelcomeKit).
 > Ships behind the opt-in SPM trait `WelcomePanel` (default: off); every source file is wrapped in
-> `#if WelcomePanel && os(macOS)`. macOS 11+ only. Pure AppKit, no private API.
+> `#if WelcomePanel && os(macOS)`. macOS only. Pure AppKit, no private API.
 
 ---
 

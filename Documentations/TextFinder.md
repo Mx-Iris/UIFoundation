@@ -2,7 +2,7 @@
 
 > `NSTextFinder` (find bar / ⌘F) integration for `NSTableView` and
 > `NSOutlineView`, exposing every searchable cell as one contiguous virtual
-> document. macOS 12+, AppKit only.
+> document. AppKit only.
 
 ---
 

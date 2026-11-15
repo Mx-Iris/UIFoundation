@@ -6,9 +6,10 @@ and under active development. Every view and controller is built in code — no 
 
 - Swift tools 6.2, Swift 5 language mode (`swiftLanguageModes: [.v5]`). No linter or formatter;
   style is convention only.
-- Platforms: macOS 12+, iOS 13+, Mac Catalyst 13+, tvOS 13+, visionOS 1+. The macOS floor is
-  AppKitPlus's and holds trait or no trait — [AppKitPlus.md](Documentations/AppKitPlus.md). No
-  watchOS: `AssociatedObject` does not build there.
+- Platforms: macOS 14+, iOS 13+, Mac Catalyst 13+, tvOS 13+, visionOS 1+. The macOS floor follows
+  AppKitPlus — 14 from its release after 0.23.0; the earlier ones need only 12 and still resolve —
+  and holds trait or no trait ([AppKitPlus.md](Documentations/AppKitPlus.md)). No watchOS:
+  `AssociatedObject` does not build there.
 
 ## Project map
 
@@ -34,8 +35,9 @@ AppKitPlus (binary)              linked into UIFoundationAppKit and UIFoundation
 - `UIFoundationAppleInternal` **must not** reach an App Store target (`CABackdropLayer`, `CAFilter`,
   `@_silgen_name` for private CoreGraphics symbols). It is not a product: consumers get it through
   `import UIFoundation` with the trait on.
-- The Settings products and `UIFoundationComponent` stay outside the umbrella — the first to keep
-  macOS 14 off every consumer, the second because `Component` / `Spacer` collide with umbrella names
+- The Settings products and `UIFoundationComponent` stay outside the umbrella — the first a leftover
+  from when the package deployed below macOS 14 (whether to fold them in is undecided), the second
+  because `Component` / `Spacer` collide with umbrella names
   (Evolution [`0024`](Documentations/Evolutions/0024-component-layout-system.md)).
 - `UIFoundationWindowedRows` **must not depend on any other target here** — only on FrameworkToolbox's
   `OSToolbox`, for the logging and signpost macros — so a renderer-agnostic module (MachOKitUICore)
@@ -521,7 +523,7 @@ a file.
 - **The example's `Package.resolved` is git-ignored** (`project.xcworkspace`), so a fresh checkout — a
   worktree, an archive, another machine — resolves the newest AppKitPlus in range while an old
   checkout keeps its pin. AppKitPlus 0.21.0 marks `NSView.animate(withDuration:…)` macOS 15, which the
-  example's macOS 12 target then fails on: guard such calls with `#available`, and build the example
+  example's macOS 14 target then fails on: guard such calls with `#available`, and build the example
   from a fresh copy before trusting a build in your own checkout.
 - **Don't let a demo set the window's minimum width.** Auto Layout treats an `NSHostingView`'s ideal
   width, and a wrapping `NSTextField`'s single-line width, as a hard floor, so the window is pushed

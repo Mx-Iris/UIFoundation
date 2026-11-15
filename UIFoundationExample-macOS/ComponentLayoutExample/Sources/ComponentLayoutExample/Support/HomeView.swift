@@ -11,9 +11,8 @@ import AppKitPlus
 import Observation
 import UIFoundationComponent
 
-// `@Observable` is macOS 14. The package floor stays at the app's own
-// deployment target, so the requirement is expressed here instead -- see
-// Package.swift.
+// `@Observable` is macOS 14, which is the package floor too now; the
+// annotation predates that -- see Package.swift.
 @available(macOS 14.0, *)
 @Observable
 final class HomeViewModel {

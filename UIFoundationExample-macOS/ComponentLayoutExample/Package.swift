@@ -14,13 +14,14 @@ import PackageDescription
 //      target cannot host one.
 let package = Package(
     name: "ComponentLayoutExample",
-    // Deliberately the example app's own deployment target, not the macOS 14
-    // that `@Observable` needs. Raising the floor here would make the app fail
-    // to even `import` this module ("compiling for macOS 12.0, but module has a
-    // minimum deployment target of macOS 14.0"). The same trick UIFoundation's
-    // own `UIFoundationSettings` uses: keep the floor low, annotate the
-    // declarations that need more.
-    platforms: [.macOS(.v12)],
+    // The example app's own deployment target. It can be no lower than
+    // UIFoundation's floor, or this package fails to resolve, and no higher than
+    // the app's, or the app cannot even `import` this module ("compiling for
+    // macOS 12.0, but module has a minimum deployment target of macOS 14.0",
+    // measured while the app deployed to 12). macOS 14 is also what `@Observable`
+    // needs, so the chapters' `@available(macOS 14.0, *)`, written while the
+    // floor was 12, are redundant now.
+    platforms: [.macOS(.v14)],
     products: [
         .library(name: "ComponentLayoutExample", targets: ["ComponentLayoutExample"]),
     ],

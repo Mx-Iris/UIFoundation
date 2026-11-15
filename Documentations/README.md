@@ -126,6 +126,11 @@
   静默不存盘的规则）。**改了它们描述的公开 API，同一提交里更新对应 skill 并升插件版本号**（规则见 `AGENTS.md`）。
   安装方式见 README 的 Agent Plugin 一节，由来见提案 [0028](Evolutions/0028-agent-plugin.md)。
 
+## 代码审查
+
+- [CodeReviewDecisions](CodeReviewDecisions.md) —— 代码审查里判为误报或不修的发现：结论、理由、什么时候重审。
+  **每次审查先对照它**，已裁决、理由仍成立的直接跳过。
+
 ## 术语表
 
 | 文档 | 说明 |

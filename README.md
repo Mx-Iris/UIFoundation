@@ -7,7 +7,7 @@ A Swift package providing foundational UI components and utilities on top of App
 ## Requirements
 
 - Swift 6.2+ (language mode: Swift 5)
-- macOS 10.15+ / iOS 13+ / Mac Catalyst 13+ / tvOS 13+ / visionOS 1+
+- macOS 14+ / iOS 13+ / Mac Catalyst 13+ / tvOS 13+ / visionOS 1+
 
 ## Installation
 
@@ -361,7 +361,7 @@ See [`Documentations/Navigation.md`](Documentations/Navigation.md) for the full 
 
 ### Welcome Panel
 
-Enable the `WelcomePanel` trait for the Xcode-style welcome window — app icon, name and version above a short action list on the left, a recent-project list on the right. macOS 11+:
+Enable the `WelcomePanel` trait for the Xcode-style welcome window — app icon, name and version above a short action list on the left, a recent-project list on the right:
 
 ```swift
 .package(

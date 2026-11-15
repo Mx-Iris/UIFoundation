@@ -14,9 +14,8 @@ import AppKit
 ///   `required init()` -- and `NSView`'s is not one. A closure sidesteps that
 ///   and matches how the example app's own `DemoCatalog` is written.
 /// - Note: macOS 14 because most chapters drive themselves from an
-///   `@Observable` view model, and `HomeView` does too. The example as a whole
-///   is a macOS 14 feature; the package floor stays lower so the host app can
-///   still import it -- see Package.swift.
+///   `@Observable` view model, and `HomeView` does too. The package floor is
+///   macOS 14 as well now, so the annotation is redundant -- see Package.swift.
 @available(macOS 14.0, *)
 public struct Chapter: Equatable {
     /// Shown in the sidebar.

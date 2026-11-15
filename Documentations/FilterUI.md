@@ -67,7 +67,7 @@ that the trait's surface stays pure AppKit.
 `if #available(macOS 11.0, *)` / `if #available(macOS 12.0, *)`, and
 `addFilterButton(systemSymbolName:toolTip:accessibilityDescription:symbolConfiguration:)` on
 `FilterSearchField` is declared `@available(macOS 12.0, *)`. The gating was added to keep the
-umbrella's platform at macOS 10.15+; the package's macOS floor has since risen to 12 (because of
+umbrella's platform at macOS 10.15+; the package's macOS floor has since risen to 14 (because of
 the AppKitPlus dependency), so these checks are now always true on macOS but harmless.
 
 ## 3. Two `FilteringMenu`s: public API and private API
