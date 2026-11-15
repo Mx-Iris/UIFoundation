@@ -118,8 +118,9 @@ window. A module that only reads settings depends on `UIFoundationSettings` and 
 | `UIFoundationSettings` | `SettingsStorage` / `FileSystemSettingsStorage`, `SettingsModel`, `SettingsStore`, `PersistentSettings`. Imports neither AppKit nor SwiftUI. |
 | `UIFoundationSettingsUI` | `SettingsWindowController` / `SettingsWindow`, `SettingsScene`, `SettingsRootView`, `SettingsPage` + `@SettingsPageBuilder`, `SettingsForm`, `SettingsPageIcon`, `SettingsNavigator`, and the `AppSettings` property wrapper. |
 
-Neither module joins the `UIFoundation` umbrella: re-exporting them there would push the macOS 14
-floor onto every consumer of the package. Both add no external dependencies — no
+Neither module joins the `UIFoundation` umbrella. That kept their macOS 14 floor off every consumer
+while the package deployed lower; the package floor is macOS 14 too now, and whether to fold them in
+has not been decided. Both add no external dependencies — no
 dependency-injection framework, no introspection package, no macro package.
 
 `UIFoundationSettingsUI` ships its own `Resources/Localizable.xcstrings`, because it has
@@ -575,9 +576,9 @@ and `Observable`; use the `@Observable` macro so ordinary stored properties part
 tracking. Perform settings access on the main actor, as `SettingsStore`, `AppSettings`, and
 `PersistentSettings.current` do.
 
-**macOS 14+.** `@Observable` sets the floor. The package still deploys to macOS 10.15, so every
-symbol here is `@available(macOS 14, *)`; a host on an older target gates the settings window behind
-`if #available`.
+**macOS 14+.** `@Observable` sets the floor, which is the package's floor too now. Every symbol here
+still carries `@available(macOS 14, *)` from when the package deployed lower; the annotations are
+redundant, and a host needs no `if #available` to reach them.
 
 **Do not name the host's model `AppSettings`.** That name belongs to the property wrapper this module
 exports. Naming the model `Settings` (and aliasing the wrapper) avoids the collision.

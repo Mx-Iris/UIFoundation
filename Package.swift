@@ -47,11 +47,16 @@ let package = Package(
     name: "UIFoundation",
     defaultLocalization: "en",
     platforms: [
-        // AppKit -- macOS 12 is AppKitPlus's own floor. A binary target's platform
-        // requirement is checked on the package graph, so neither `@available` nor
-        // `#if AppKitPlus` can keep this at 10.15 while the trait is available.
-        // See Documentations/Evolutions/0017-appkitplus-layer-backed-view.md.
-        .macOS(.v12),
+        // AppKit -- macOS 14 is AppKitPlus's own floor from the release after 0.23.0:
+        // below macOS 13.3, Swift emits the records of its renamed protocols under
+        // their source names, and casts to them or conformances of them silently fail
+        // (swiftlang/swift#94329). A binary target's platform requirement is checked
+        // on the package graph against this package's own floor, not the app's, so
+        // neither `@available` nor `#if AppKitPlus` can keep this lower while the
+        // trait is available. Raised ahead of that release, which is safe: a floor
+        // above a dependency's is fine. See the Evolution proposals
+        // `appkitplus-layer-backed-view` and `raise-deployment-target-to-macos-14`.
+        .macOS(.v14),
         // UIKit
         .iOS(.v13), .macCatalyst(.v13), .tvOS(.v13), .visionOS(.v1), .watchOS(.v6),
     ],

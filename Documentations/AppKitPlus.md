@@ -114,16 +114,23 @@ the AppKitPlus product under the trait.
 
 ## 3. What it costs, trait on or off
 
-**The package's macOS floor is 12 because of this dependency, whether or not the trait is on.** A
-binary target's platform requirement is checked on the package graph, so neither `@available` nor a
-compilation condition can hold the floor at 10.15 while the trait merely *exists*. Measured:
+**The package's macOS floor is 14 because of this dependency, whether or not the trait is on.**
+AppKitPlus requires macOS 14 from the release after 0.23.0: below macOS 13.3, Swift emits the
+records of its renamed protocols under their source names, and casts to them or conformances of them
+silently fail ([swiftlang/swift#94329](https://github.com/swiftlang/swift/issues/94329)). A binary
+target's platform requirement is checked on the package graph against this package's own floor —
+not the app's — so neither `@available` nor a compilation condition can hold the floor lower while
+the trait merely *exists*. Measured when the floor first rose, from 10.15 to 12:
 
 ```
 error: the library 'UIFoundation' requires macos 10.15, but depends on the product 'AppKitPlus' which requires macos 12.0
 ```
 
-The "keep the floor down, annotate each declaration" trick that `UIFoundationSettings` (macOS 14)
-uses works only for source targets.
+The floor rose to 14 ahead of that AppKitPlus release (Evolution
+[`raise-deployment-target-to-macos-14`](Evolutions/draft-raise-deployment-target-to-macos-14.md)):
+a floor above a dependency's is fine, so AppKitPlus 0.6.0–0.23.0, which require macOS 12, still
+resolve. The "keep the floor down, annotate each declaration" trick that `UIFoundationSettings`
+used while the package deployed below macOS 14 works only for source targets.
 
 **With the trait off, SwiftPM does not fetch AppKitPlus at all** — no `Package.resolved` entry, no
 clone, no download (measured). A default consumer pays nothing beyond the floor.

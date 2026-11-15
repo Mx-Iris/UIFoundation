@@ -7,7 +7,7 @@ A Swift package providing foundational UI components and utilities on top of App
 ## Requirements
 
 - Swift 6.2+ (language mode: Swift 5)
-- macOS 10.15+ / iOS 13+ / Mac Catalyst 13+ / tvOS 13+ / visionOS 1+
+- macOS 14+ / iOS 13+ / Mac Catalyst 13+ / tvOS 13+ / visionOS 1+
 
 ## Installation
 

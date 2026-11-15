@@ -6,7 +6,7 @@ and under active development. Every view and controller is built in code — no 
 
 - Swift tools 6.2, Swift 5 language mode (`swiftLanguageModes: [.v5]`). No linter or formatter;
   style is convention only.
-- Platforms: macOS 12+, iOS 13+, Mac Catalyst 13+, tvOS 13+, visionOS 1+. The macOS floor is
+- Platforms: macOS 14+, iOS 13+, Mac Catalyst 13+, tvOS 13+, visionOS 1+. The macOS floor is
   AppKitPlus's and holds trait or no trait — [AppKitPlus.md](Documentations/AppKitPlus.md). No
   watchOS: `AssociatedObject` does not build there.
 
@@ -34,8 +34,9 @@ AppKitPlus (binary)              linked into UIFoundationAppKit and UIFoundation
 - `UIFoundationAppleInternal` **must not** reach an App Store target (`CABackdropLayer`, `CAFilter`,
   `@_silgen_name` for private CoreGraphics symbols). It is not a product: consumers get it through
   `import UIFoundation` with the trait on.
-- The Settings products and `UIFoundationComponent` stay outside the umbrella — the first to keep
-  macOS 14 off every consumer, the second because `Component` / `Spacer` collide with umbrella names
+- The Settings products and `UIFoundationComponent` stay outside the umbrella — the first a leftover
+  from when the package deployed below macOS 14 (whether to fold them in is undecided), the second
+  because `Component` / `Spacer` collide with umbrella names
   (Evolution [`0024`](Documentations/Evolutions/0024-component-layout-system.md)).
 - `UIFoundationWindowedRows` **must not depend on any other target here** — only on FrameworkToolbox's
   `OSToolbox`, for the logging and signpost macros — so a renderer-agnostic module (MachOKitUICore)
