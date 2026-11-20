@@ -1,11 +1,15 @@
-#if Settings && os(macOS)
+#if Settings && (os(macOS) || os(iOS) || os(visionOS))
 
+#if os(macOS)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 
 /// The icon the settings sidebar draws next to a page title — a rounded tinted
 /// badge, or a bare glyph for ``SettingsPage/Icon/plainSymbol(_:tint:)``.
-@available(macOS 14.0, *)
+@available(macOS 14.0, iOS 17.0, macCatalyst 17.0, visionOS 1.0, *)
 public struct SettingsPageIcon: View {
     private let icon: SettingsPage.Icon
     private let size: CGFloat
@@ -78,11 +82,20 @@ public struct SettingsPageIcon: View {
     /// same name — so a host can ship its own glyph for a name the running
     /// system does not know.
     private static func image(named name: String) -> Image {
-        if NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil {
+        if isSystemSymbol(named: name) {
             Image(systemName: name)
         } else {
             Image(name)
         }
+    }
+
+    /// Whether the running system has an SF Symbol of this name.
+    static func isSystemSymbol(named name: String) -> Bool {
+        #if os(macOS)
+        NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil
+        #else
+        UIImage(systemName: name) != nil
+        #endif
     }
 }
 

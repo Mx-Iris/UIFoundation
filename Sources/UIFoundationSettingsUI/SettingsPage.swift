@@ -1,4 +1,4 @@
-#if Settings && os(macOS)
+#if Settings && (os(macOS) || os(iOS) || os(visionOS))
 
 import SwiftUI
 
@@ -8,7 +8,7 @@ import SwiftUI
 /// SettingsPage("General", symbol: "gearshape") { GeneralPage() }
 /// SettingsPage("Theme", symbol: "paintpalette", tint: .purple) { ThemePage() }
 /// ```
-@available(macOS 14.0, *)
+@available(macOS 14.0, iOS 17.0, macCatalyst 17.0, visionOS 1.0, *)
 public struct SettingsPage: Identifiable {
     /// What the sidebar draws next to a page title.
     ///
@@ -82,7 +82,7 @@ public struct SettingsPage: Identifiable {
 }
 
 /// Builds the settings window's page list.
-@available(macOS 14.0, *)
+@available(macOS 14.0, iOS 17.0, macCatalyst 17.0, visionOS 1.0, *)
 @resultBuilder
 public enum SettingsPageBuilder {
     public static func buildBlock(_ components: [SettingsPage]...) -> [SettingsPage] {
