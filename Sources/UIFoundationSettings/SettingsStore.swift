@@ -1,4 +1,4 @@
-#if Settings && os(macOS)
+#if Settings
 
 import Foundation
 import Observation
@@ -28,7 +28,7 @@ import Observation
 ///     )
 /// }
 /// ```
-@available(macOS 14.0, *)
+@available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
 @MainActor
 @Observable
 public final class SettingsStore<Value: SettingsModel> {
@@ -92,12 +92,42 @@ public final class SettingsStore<Value: SettingsModel> {
         let data: Data
         do {
             data = try await storage.load()
-        } catch FileSystemSettingsStorage.LoadError.noStoredData {
-            return .noStoredData
         } catch {
-            return .failed(error)
+            return Self.outcome(ofFailedLoad: error)
         }
+        return adopt(data)
+    }
 
+    /// Synchronous counterpart of ``load()`` — the same read, finished before
+    /// the call returns. The compiler picks this overload in synchronous
+    /// contexts.
+    ///
+    /// For a host that must have the stored settings in place before it
+    /// returns from a launch callback. On iOS the first scene connects right
+    /// after `application(_:didFinishLaunchingWithOptions:)` returns, and a
+    /// task started there to call the asynchronous ``load()`` may not have run
+    /// by then, so the scene would read the default value.
+    @discardableResult
+    public func load() -> LoadOutcome {
+        let data: Data
+        do {
+            data = try storage.load()
+        } catch {
+            return Self.outcome(ofFailedLoad: error)
+        }
+        return adopt(data)
+    }
+
+    /// Nothing stored is not a failure: the default value simply stays.
+    private static func outcome(ofFailedLoad error: any Error) -> LoadOutcome {
+        if case FileSystemSettingsStorage.LoadError.noStoredData = error {
+            return .noStoredData
+        }
+        return .failed(error)
+    }
+
+    /// Decodes a stored payload and makes it the current value.
+    private func adopt(_ data: Data) -> LoadOutcome {
         do {
             value = try JSONDecoder().decode(Value.self, from: data)
             // Re-arm synchronously before returning. The callback registered on

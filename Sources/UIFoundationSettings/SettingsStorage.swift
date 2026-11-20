@@ -1,4 +1,4 @@
-#if Settings && os(macOS)
+#if Settings
 
 import Foundation
 
@@ -26,7 +26,9 @@ public protocol SettingsStorage: Sendable {
 /// Stores settings as a single JSON file under a per-application directory.
 ///
 /// The default location is
-/// `~/Library/Application Support/<applicationDirectoryName>/Settings.json`.
+/// `<Application Support>/<applicationDirectoryName>/Settings.json`, where
+/// Application Support is `~/Library/Application Support` on macOS and the
+/// app container's `Library/Application Support` on the other platforms.
 /// Writes are atomic, and the enclosing directory is created on first save.
 public struct FileSystemSettingsStorage: SettingsStorage {
     public enum LoadError: Error {
@@ -48,8 +50,9 @@ public struct FileSystemSettingsStorage: SettingsStorage {
         fileName: String = "Settings.json",
         searchPathDirectory: FileManager.SearchPathDirectory = .applicationSupportDirectory
     ) {
-        // Guaranteed non-empty on macOS for the directories this initializer is
-        // meant to be used with.
+        // The user domain has the directories this initializer is meant to be
+        // used with on every Apple platform: under the home folder on macOS,
+        // inside the app container elsewhere.
         let baseDirectory = FileManager.default
             .urls(for: searchPathDirectory, in: .userDomainMask)[0]
             .appendingPathComponent(applicationDirectoryName)

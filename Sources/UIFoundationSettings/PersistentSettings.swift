@@ -1,4 +1,4 @@
-#if Settings && os(macOS)
+#if Settings
 
 import Foundation
 import Observation
@@ -26,7 +26,7 @@ import Observation
 /// - Important: Keep this list in sync with the model's encoded properties. A
 ///   property omitted from the method still encodes during another save, but a
 ///   change to that property alone cannot trigger auto-save.
-@available(macOS 14.0, *)
+@available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
 public protocol SettingsModel: AnyObject, Codable, Observable {
     @MainActor
     func accessPersistedValues()
@@ -36,13 +36,13 @@ public protocol SettingsModel: AnyObject, Codable, Observable {
 ///
 /// The static store lets ``AppSettings`` and non-SwiftUI code reach the same
 /// model without an environment object or dependency container.
-@available(macOS 14.0, *)
+@available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
 public protocol PersistentSettings: SettingsModel {
     @MainActor
     static var store: SettingsStore<Self> { get }
 }
 
-@available(macOS 14.0, *)
+@available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *)
 extension PersistentSettings {
     /// The current settings object — shorthand for `store.value`.
     ///

@@ -1,12 +1,12 @@
-# Draft - 设置存储在所有平台上可用
+# 0042 - 设置存储在所有平台上可用
 
-- **状态**: Accepted
+- **状态**: Implemented
 - **作者**: JH
 - **创建日期**: 2026-11-20
 - **最后更新**: 2026-11-20
 - **所属愿景**: 无（下游 RuntimeViewer 的愿景《iOS 版功能对齐》第二步要用到它）
 - **关联提案**: [0002-reusable-settings-window](0002-reusable-settings-window.md)（设置窗口与 `UIFoundationSettings` 的来历）；下游 RuntimeViewer 的 `draft-settings-storage-on-ios`
-- **实现分支 / PR**: `feature/settings-store-on-all-platforms`
+- **实现分支 / PR**: `feature/settings-store-on-all-platforms`，从 `main` 切出，2026-11-20 本地 `--no-ff` 合进 `main`，随 0.48.0 发布
 - **配套文档**: 无单独文档——改的是现有指南 [`SettingsWindow.md`](../SettingsWindow.md) 的平台说明与「读写设置」一节
 - **网页版**: 同目录同名的 `.html`
 
@@ -208,16 +208,16 @@ public final class SettingsStore<Value: SettingsModel> {
 
 ## 落地步骤
 
-1. **放开平台限定** —— 改动地图前三行的条件与 `@available`
+1. **放开平台限定**（已完成）—— 改动地图前三行的条件与 `@available`
    - 行为：`settingsModuleBuildsForIOSCatalystTVOSWatchOSAndVisionOS`（各平台 `xcodebuild` 编过 `UIFoundationSettings`，开 `Settings` trait）
    - 行为：`existingSettingsStoreTestsPassUnchanged`（macOS 上原有用例照过）
-2. **同步读取** —— `SettingsStore` 与测试
+2. **同步读取**（已完成）—— `SettingsStore` 与测试
    - 行为：`synchronousLoadAdoptsStoredSettings`
    - 行为：`synchronousLoadKeepsDefaultValueWhenNothingIsStored`
    - 行为：`synchronousLoadReportsUndecodableDataAndKeepsStoredBytes`
    - 行为：`synchronousLoadDoesNotWriteTheSettingsStraightBack`
    - 行为：`editAfterSynchronousLoadIsSaved`（读完重新挂上了持久化观察）
-3. **文档与发版** —— 指南、`AGENTS.md`、索引；合进 `main` 后打 `0.48.0`
+3. **文档与发版**（已完成）—— 指南、`AGENTS.md`、索引；合进 `main` 后打 `0.48.0`
    - 行为：`guideDescribesDataLayerAsCrossPlatform`
 
 **收尾时必须判断两件事**（判断结果写进决策日志，不允许沉默跳过）：
@@ -233,3 +233,5 @@ public final class SettingsStore<Value: SettingsModel> {
 | 2026-11-20 | 自定：加同步 `load()` | iOS 宿主要在启动回调返回前读完设置；照 `save()` 已有的同步 / 异步重载成对 |
 | 2026-11-20 | 自定：`UIFoundationSettingsUI` 不在本篇 | 用户定了 RuntimeViewer 这一步只做存储，iOS 设置界面留到之后 |
 | 2026-11-20 | 用户批准，开始实现 | 与 RuntimeViewer 的 `draft-settings-storage-on-ios` 一起批准；本篇先落地并发 0.48.0，RuntimeViewer 再抬下限 |
+| 2026-11-20 | 实现中的调整 | 一、`SettingsStoreTests` 里 15 处 `#available(macOS 14.0, *)` 一并补齐各平台版本，否则测试 target 一旦为其他平台编译就会报可用性错误。二、同步读取的五个用例里，同步测试直接写 `store.load()`，异步测试照同步 `save()` 用例的写法绑定一个同步函数值，免得选到异步重载；变异检查（让同步 `load()` 不读就返回）使其中 4 处断言变红。三、各平台验证：iOS 真机、iOS 模拟器、Mac Catalyst、visionOS 模拟器用 `swift build --target UIFoundationSettings --triple … --sdk …` 交叉编译通过，产物里同步、异步两个 `load()` 都在；tvOS 与 watchOS 上整包编不了——包声明的 tvOS 13 / watchOS 6 低于 Xcode 27 支持的 15 / 9，基线上同样如此，与本篇无关——改用 `swiftc -typecheck -D Settings` 以 tvOS 15、watchOS 9 为目标检查三个源文件，通过。 |
+| 2026-11-20 | Implemented，取号 0042，发 0.48.0 | 合进 `main` 并打 `0.48.0`。验证：数据层两个套件 20 个用例在 macOS 上全过；打开全部 trait 的整包构建通过；各平台的编译验证见上一行。会开窗口的全量测试没在用户正在用的这台 Mac 上跑——本篇只改了数据层，设置窗口的代码与测试都没动。文档判断：契约变化写进了现有的 `SettingsWindow.md`（平台说明、存放位置、非 macOS 宿主何时读写），不另写文章；没有新术语。 |

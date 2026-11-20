@@ -25,7 +25,7 @@ UIFoundation                     umbrella product — @_exported imports the mod
     ├── UIFoundationAppleInternalObjC   private AppKit / Core Animation headers
     └── UIFoundationCarbonInternal      private HIToolbox / NSMenu headers
 
-UIFoundationSettings             `Settings` trait, macOS 14+; model layer
+UIFoundationSettings             `Settings` trait, macOS 14+ / iOS 17+ / tvOS 17+ / watchOS 10+ / visionOS 1+; model layer
 UIFoundationSettingsUI           `Settings` trait, macOS 14+; window layer
 UIFoundationComponent            frame-computing layout system ported from lkzhao/UIComponent
 UIFoundationWindowedRows         data layer for tables of millions of rows; depends on no target here
