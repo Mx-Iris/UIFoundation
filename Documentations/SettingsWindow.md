@@ -5,8 +5,11 @@
 > and a list of pages; saving, debouncing, loading and change notification come with the box.
 >
 > Ships behind the opt-in SPM trait `Settings`, in two modules — `UIFoundationSettings` (the model
-> layer) and `UIFoundationSettingsUI` (the presentation layer). macOS 14+, macOS only. Every source
-> file in both is wrapped in `#if Settings && os(macOS)`.
+> layer) and `UIFoundationSettingsUI` (the presentation layer). The model layer builds on every
+> platform Observation does — macOS 14, iOS 17, Mac Catalyst 17, tvOS 17, watchOS 10, visionOS 1 —
+> and its sources are wrapped in `#if Settings`; the presentation layer is AppKit, macOS 14+ only,
+> wrapped in `#if Settings && os(macOS)`. Off macOS a host gets the store and draws its own settings
+> screen.
 >
 > Extracted from RuntimeViewer's `RuntimeViewerSettings` / `RuntimeViewerSettingsUI`; the decision
 > record is [Evolution 0002](Evolutions/0002-reusable-settings-window.md).
@@ -514,10 +517,11 @@ coalesced into one write; hosts never call save after ordinary edits.
 
 | Concern | Behaviour |
 |---|---|
-| Where | `FileSystemSettingsStorage(applicationDirectoryName:)` → `~/Library/Application Support/<name>/Settings.json`. `init(fileURL:)` writes anywhere else; conform `SettingsStorage` to persist somewhere other than a file. |
+| Where | `FileSystemSettingsStorage(applicationDirectoryName:)` → `<Application Support>/<name>/Settings.json`: `~/Library/Application Support` on macOS, the app container's `Library/Application Support` on the other platforms. `init(fileURL:)` writes anywhere else; conform `SettingsStorage` to persist somewhere other than a file. |
 | When | `autoSaveDelay` after the last change (default 1 s). `save()` writes immediately and cancels the pending write. |
 | Terminating | The synchronous `save()` overload — the same immediate write, finished before the call returns; the compiler picks it in synchronous contexts. Call it from `applicationShouldTerminate(_:)` and reply `.terminateNow`. Do **not** reply `.terminateLater` and `await save()` from a task: when `terminate(_:)` was itself invoked from a main-queue block, AppKit's nested wait-for-reply run loop cannot drain the main queue, the task never runs, and the app can only be force-quit. (`SettingsStorage` requirements come as the same async/sync overload pairs; a synchronous implementation witnesses both.) |
-| Loading | `await store.load()` once at launch. It replaces the object **without** triggering a save, then moves both business and persistence observation to the replacement before returning. |
+| Leaving the foreground (iOS and the other non-macOS platforms) | There is no `applicationShouldTerminate(_:)`, and a suspended app can be killed without another callback. Call the synchronous `save()` on `UIApplication.didEnterBackgroundNotification` and `willTerminateNotification` — the app-level notifications, not a scene's `sceneDidEnterBackground(_:)`, which fires while other scenes may still be in front. |
+| Loading | `await store.load()` once at launch. It replaces the object **without** triggering a save, then moves both business and persistence observation to the replacement before returning. A host that must have the stored settings in place before a launch callback returns calls the synchronous `load()` overload instead — the same read, finished before the call returns. On iOS that is `application(_:didFinishLaunchingWithOptions:)`: the first scene connects right after it returns, possibly before a task started there has run, and would read the default value. |
 | Missing file | Not an error: `load()` returns `.noStoredData` and the default value stays in effect. |
 | Corrupt file | `load()` returns `.failed(error)`, keeps the defaults, and **leaves the stored bytes alone** so a later build can still recover them. |
 
