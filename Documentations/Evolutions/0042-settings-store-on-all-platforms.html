@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Draft - 设置存储在所有平台上可用</title>
+<title>0042 - 设置存储在所有平台上可用</title>
 <style>
 /* Evolution proposal page, shared style (style A, "Apple documentation").
    Copy this whole <style> block verbatim. Page-specific rules, if any, go only
@@ -160,16 +160,16 @@ details[open] > summary { border-bottom: 1px solid var(--separator); }
 <div class="page">
 
 <header class="doc-header">
-  <p class="eyebrow"><span class="crumb">UIFoundation</span><span class="crumb">Evolutions</span><span class="crumb">Draft</span></p>
-  <h1><span class="proposal-number">Draft</span> 设置存储在所有平台上可用</h1>
+  <p class="eyebrow"><span class="crumb">UIFoundation</span><span class="crumb">Evolutions</span><span class="crumb">0042</span></p>
+  <h1><span class="proposal-number">0042</span> 设置存储在所有平台上可用</h1>
   <dl class="meta">
-    <div><dt>状态</dt><dd><span class="status status-accepted">Accepted</span></dd></div>
+    <div><dt>状态</dt><dd><span class="status status-implemented">Implemented</span></dd></div>
     <div><dt>最后更新</dt><dd>2026-11-20</dd></div>
     <div><dt>创建日期</dt><dd>2026-11-20</dd></div>
     <div><dt>作者</dt><dd>JH</dd></div>
     <div><dt>项目类型</dt><dd>库（源码分发）</dd></div>
-    <div><dt>实现分支</dt><dd><code>feature/settings-store-on-all-platforms</code></dd></div>
-    <div><dt>原文</dt><dd><code>draft-settings-store-on-all-platforms.md</code></dd></div>
+    <div><dt>实现分支</dt><dd><code>feature/settings-store-on-all-platforms</code>，从 <code>main</code> 切出，2026-11-20 本地 <code>--no-ff</code> 合进 <code>main</code>，随 0.48.0 发布</dd></div>
+    <div><dt>原文</dt><dd><code>0042-settings-store-on-all-platforms.md</code></dd></div>
   </dl>
 </header>
 
@@ -505,13 +505,13 @@ details[open] > summary { border-bottom: 1px solid var(--separator); }
 <section id="steps">
   <h2>落地步骤</h2>
   <ol>
-    <li><strong>放开平台限定</strong> —— 改动地图前三行的条件与 <code>@available</code>
+    <li><strong>放开平台限定</strong>（已完成）—— 改动地图前三行的条件与 <code>@available</code>
       <ul>
         <li>行为：<code>settingsModuleBuildsForIOSCatalystTVOSWatchOSAndVisionOS</code>（各平台 <code>xcodebuild</code> 编过 <code>UIFoundationSettings</code>，开 <code>Settings</code> trait）</li>
         <li>行为：<code>existingSettingsStoreTestsPassUnchanged</code>（macOS 上原有用例照过）</li>
       </ul>
     </li>
-    <li><strong>同步读取</strong> —— <code>SettingsStore</code> 与测试
+    <li><strong>同步读取</strong>（已完成）—— <code>SettingsStore</code> 与测试
       <ul>
         <li>行为：<code>synchronousLoadAdoptsStoredSettings</code></li>
         <li>行为：<code>synchronousLoadKeepsDefaultValueWhenNothingIsStored</code></li>
@@ -520,7 +520,7 @@ details[open] > summary { border-bottom: 1px solid var(--separator); }
         <li>行为：<code>editAfterSynchronousLoadIsSaved</code>（读完重新挂上了持久化观察）</li>
       </ul>
     </li>
-    <li><strong>文档与发版</strong> —— 指南、<code>AGENTS.md</code>、索引；合进 <code>main</code> 后打 <code>0.48.0</code>
+    <li><strong>文档与发版</strong>（已完成）—— 指南、<code>AGENTS.md</code>、索引；合进 <code>main</code> 后打 <code>0.48.0</code>
       <ul>
         <li>行为：<code>guideDescribesDataLayerAsCrossPlatform</code></li>
       </ul>
@@ -538,7 +538,7 @@ details[open] > summary { border-bottom: 1px solid var(--separator); }
 <section id="log">
   <h2>决策日志</h2>
   <details>
-    <summary>4 条，最近一条：用户批准，开始实现</summary>
+    <summary>6 条，最近一条：Implemented，取号 0042，发 0.48.0</summary>
     <div class="details-body">
       <div class="table-wrap">
       <table>
@@ -548,6 +548,8 @@ details[open] > summary { border-bottom: 1px solid var(--separator); }
           <tr><td class="numeric">2026-11-20</td><td>自定：加同步 <code>load()</code></td><td>iOS 宿主要在启动回调返回前读完设置；照 <code>save()</code> 已有的同步 / 异步重载成对</td></tr>
           <tr><td class="numeric">2026-11-20</td><td>自定：<code>UIFoundationSettingsUI</code> 不在本篇</td><td>用户定了 RuntimeViewer 这一步只做存储，iOS 设置界面留到之后</td></tr>
           <tr><td class="numeric">2026-11-20</td><td>用户批准，开始实现</td><td>与 RuntimeViewer 的 <code>draft-settings-storage-on-ios</code> 一起批准；本篇先落地并发 0.48.0，RuntimeViewer 再抬下限</td></tr>
+          <tr><td class="numeric">2026-11-20</td><td>实现中的调整</td><td>一、<code>SettingsStoreTests</code> 里 15 处 <code>#available(macOS 14.0, *)</code> 一并补齐各平台版本，否则测试 target 一旦为其他平台编译就会报可用性错误。二、同步读取的五个用例里，同步测试直接写 <code>store.load()</code>，异步测试照同步 <code>save()</code> 用例的写法绑定一个同步函数值，免得选到异步重载；变异检查（让同步 <code>load()</code> 不读就返回）使其中 4 处断言变红。三、各平台验证：iOS 真机、iOS 模拟器、Mac Catalyst、visionOS 模拟器用 <code>swift build --target UIFoundationSettings --triple … --sdk …</code> 交叉编译通过，产物里同步、异步两个 <code>load()</code> 都在；tvOS 与 watchOS 上整包编不了——包声明的 tvOS 13 / watchOS 6 低于 Xcode 27 支持的 15 / 9，基线上同样如此，与本篇无关——改用 <code>swiftc -typecheck -D Settings</code> 以 tvOS 15、watchOS 9 为目标检查三个源文件，通过。</td></tr>
+          <tr><td class="numeric">2026-11-20</td><td>Implemented，取号 0042，发 0.48.0</td><td>合进 <code>main</code> 并打 <code>0.48.0</code>。验证：数据层两个套件 20 个用例在 macOS 上全过；打开全部 trait 的整包构建通过；各平台的编译验证见上一行。会开窗口的全量测试没在用户正在用的这台 Mac 上跑——本篇只改了数据层，设置窗口的代码与测试都没动。文档判断：契约变化写进了现有的 <code>SettingsWindow.md</code>（平台说明、存放位置、非 macOS 宿主何时读写），不另写文章；没有新术语。</td></tr>
         </tbody>
       </table>
       </div>
