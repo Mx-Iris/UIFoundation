@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Draft - 设置页面在 iOS 与 visionOS 上可用</title>
+<style>
+/* Evolution proposal page, shared style (style A, "Apple documentation").
+   Copy this whole <style> block verbatim. Page-specific rules, if any, go only
+   in the marked block at the end. Must render in WebKit (Safari, Xcode preview,
+   Quick Look): no JavaScript, no external resources. */
+:root {
+  --background: #ffffff; --foreground: #1d1d1f; --secondary: #6e6e73; --separator: #d2d2d7;
+  --panel: #f5f5f7; --code-background: #f2f2f4; --accent: #0071e3;
+  --added: #1f8a4c; --added-fill: #e3f5ea;
+  --changed: #b26a00; --changed-fill: #fdf0db;
+  --removed: #c62828; --removed-fill: #fbe4e4;
+  --moved: #0066cc; --moved-fill: #e5f0fc;
+  --kept: #6e6e73; --kept-fill: #ececef;
+  --token-keyword: #ad3da4; --token-type: #3900a0; --token-string: #c41a16; --token-number: #1c00cf;
+  --token-comment: #707f8c; --token-macro: #643820;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #1c1c1e; --foreground: #f2f2f7; --secondary: #a1a1a6; --separator: #3a3a3c;
+    --panel: #2c2c2e; --code-background: #2a2a2d; --accent: #4ea1ff;
+    --added: #4cd281; --added-fill: #183826;
+    --changed: #ffb340; --changed-fill: #3d2c10;
+    --removed: #ff6b6b; --removed-fill: #3d1a1a;
+    --moved: #5aa9ff; --moved-fill: #142b45;
+    --kept: #b0b0b5; --kept-fill: #333336;
+    --token-keyword: #fc5fa3; --token-type: #d0a8ff; --token-string: #fc6a5d; --token-number: #d0bf69;
+    --token-comment: #7f8c98; --token-macro: #fd8f3f;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--background); color: var(--foreground);
+  font: 15px/1.65 -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased; }
+.page { max-width: 1080px; margin: 0 auto; padding: 28px 24px 72px; }
+.svg-definitions { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* Header */
+.eyebrow { margin: 0 0 6px; font-size: 13px; color: var(--secondary); }
+.crumb + .crumb::before { content: " / "; }
+h1 { font-size: 28px; line-height: 1.3; letter-spacing: -0.01em; margin: 0 0 12px; }
+h1 code { font-size: 0.8em; }
+.proposal-number { color: var(--secondary); margin-right: 4px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 0; font-size: 13px; color: var(--secondary); }
+.meta div { display: flex; gap: 6px; align-items: baseline; }
+.meta dd { margin: 0; color: var(--foreground); }
+.meta dd code { font-size: 12px; }
+.status { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--kept); background: var(--kept-fill); }
+.status-accepted { color: var(--moved); background: var(--moved-fill); }
+.status-in-progress { color: var(--changed); background: var(--changed-fill); }
+.status-implemented { color: var(--added); background: var(--added-fill); }
+.status-rejected, .status-withdrawn { color: var(--removed); background: var(--removed-fill); }
+
+/* Table of contents */
+.toc { margin: 22px 0 8px; padding: 8px 10px; background: var(--panel); border-radius: 12px; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 4px; }
+.toc li { margin: 0; }
+.toc a { display: inline-block; padding: 3px 11px; border-radius: 999px; color: var(--accent); text-decoration: none; font-size: 14px; }
+.toc a:hover { background: var(--background); }
+
+/* Text */
+section { scroll-margin-top: 16px; }
+h2 { font-size: 21px; margin: 40px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--separator); }
+h3 { font-size: 16px; margin: 22px 0 8px; }
+h4 { font-size: 15px; margin: 18px 0 6px; }
+p { margin: 10px 0; }
+a { color: var(--accent); }
+ul, ol { padding-left: 22px; }
+li { margin: 4px 0; }
+blockquote { margin: 12px 0; padding: 2px 14px; border-left: 3px solid var(--separator); color: var(--secondary); }
+hr { border: none; border-top: 1px solid var(--separator); margin: 24px 0; }
+
+/* Code */
+code { font: 0.86em/1.4 ui-monospace, "SF Mono", Menlo, monospace; background: var(--code-background); padding: 1px 5px; border-radius: 5px; }
+pre { background: var(--code-background); border-radius: 10px; padding: 14px 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; font: 12.5px/1.6 ui-monospace, "SF Mono", Menlo, monospace; }
+pre code { font: inherit; background: none; padding: 0; border-radius: 0; }
+.token-keyword { color: var(--token-keyword); font-weight: 600; }
+.token-type { color: var(--token-type); }
+.token-string { color: var(--token-string); }
+.token-number { color: var(--token-number); }
+.token-comment { color: var(--token-comment); }
+.token-macro { color: var(--token-macro); }
+
+/* Callouts */
+.callout { background: var(--panel); border-left: 4px solid var(--accent); border-radius: 10px; padding: 12px 16px; margin: 14px 0; }
+.callout-note { border-left-color: var(--secondary); }
+.callout-warning { border-left-color: var(--changed); }
+.callout-title { margin: 0 0 6px; font-weight: 600; }
+.callout > :last-child { margin-bottom: 0; }
+.callout ol, .callout ul { margin: 6px 0 0; }
+
+/* Diagrams */
+.legend { list-style: none; padding: 0; margin: 8px 0 12px; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--secondary); }
+.legend li { margin: 0; }
+.swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid; vertical-align: -2px; margin-right: 6px; }
+.swatch-added { background: var(--added-fill); border-color: var(--added); }
+.swatch-changed { background: var(--changed-fill); border-color: var(--changed); }
+.swatch-removed { background: var(--removed-fill); border-color: var(--removed); border-style: dashed; }
+.swatch-moved { background: var(--moved-fill); border-color: var(--moved); }
+.swatch-kept { background: var(--kept-fill); border-color: var(--kept); }
+.figure { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--separator); border-radius: 12px; padding: 12px; margin: 12px 0; }
+.figure svg { display: block; width: 100%; min-width: 760px; height: auto; }
+.figure-narrow svg { min-width: 0; max-width: 640px; margin: 0 auto; }
+.figure-caption { font-size: 13px; color: var(--secondary); margin-top: 8px; }
+svg text { font: 12px ui-monospace, "SF Mono", Menlo, monospace; fill: var(--foreground); }
+svg .group-label { font-size: 13px; font-weight: 700; }
+svg .caption { font-size: 10.5px; fill: var(--secondary); }
+svg .strike { text-decoration: line-through; }
+svg .group { fill: none; stroke: var(--separator); stroke-width: 1.5; stroke-dasharray: 5 4; }
+svg .box-added { fill: var(--added-fill); stroke: var(--added); stroke-width: 1.5; }
+svg .box-changed { fill: var(--changed-fill); stroke: var(--changed); stroke-width: 1.5; }
+svg .box-removed { fill: var(--removed-fill); stroke: var(--removed); stroke-width: 1.5; stroke-dasharray: 4 3; }
+svg .box-moved { fill: var(--moved-fill); stroke: var(--moved); stroke-width: 1.5; }
+svg .box-kept { fill: var(--kept-fill); stroke: var(--kept); stroke-width: 1.2; }
+svg .arrow { fill: none; stroke: var(--secondary); stroke-width: 1.4; marker-end: url(#arrowhead); }
+svg .arrow-weak { stroke-dasharray: 4 3; }
+svg .arrow-removed { stroke: var(--removed); stroke-dasharray: 4 3; }
+svg .arrowhead { fill: var(--secondary); }
+
+/* Tables */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 10px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { border: 1px solid var(--separator); padding: 7px 9px; text-align: left; vertical-align: top; }
+th { background: var(--panel); font-weight: 600; }
+.numeric { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tag { display: inline-block; white-space: nowrap; padding: 0 7px; border-radius: 5px; font-size: 12px; font-weight: 600; color: var(--kept); background: var(--kept-fill); }
+.tag-added { color: var(--added); background: var(--added-fill); }
+.tag-changed { color: var(--changed); background: var(--changed-fill); }
+.tag-removed { color: var(--removed); background: var(--removed-fill); }
+.tag-moved { color: var(--moved); background: var(--moved-fill); }
+
+/* Collapsible sections */
+details { border: 1px solid var(--separator); border-radius: 12px; margin: 12px 0; overflow: hidden; }
+summary { cursor: pointer; list-style: none; padding: 11px 16px; font-weight: 600; background: var(--panel); }
+summary::-webkit-details-marker { display: none; }
+summary::before { content: "›"; display: inline-block; width: 1em; color: var(--secondary); -webkit-transition: -webkit-transform 0.15s; transition: transform 0.15s; }
+details[open] > summary::before { -webkit-transform: rotate(90deg); transform: rotate(90deg); }
+details[open] > summary { border-bottom: 1px solid var(--separator); }
+.details-body { padding: 4px 16px 12px; }
+
+@media (max-width: 640px) {
+  .page { padding: 20px 16px 56px; }
+  h1 { font-size: 23px; }
+}
+
+/* ===== Page-specific styles (only for elements the shared style lacks, e.g. UI mockups) ===== */
+</style>
+</head>
+<body>
+<svg class="svg-definitions" aria-hidden="true" focusable="false">
+  <defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M 0 0 L 10 5 L 0 10 z"/></marker></defs>
+</svg>
+<div class="page">
+
+<header class="doc-header">
+  <p class="eyebrow"><span class="crumb">UIFoundation</span><span class="crumb">Evolutions</span><span class="crumb">Draft</span></p>
+  <h1><span class="proposal-number">Draft</span> 设置页面在 iOS 与 visionOS 上可用</h1>
+  <dl class="meta">
+    <div><dt>状态</dt><dd><span class="status status-accepted">Accepted</span></dd></div>
+    <div><dt>最后更新</dt><dd>2026-11-20</dd></div>
+    <div><dt>创建日期</dt><dd>2026-11-20</dd></div>
+    <div><dt>作者</dt><dd>JH</dd></div>
+    <div><dt>项目类型</dt><dd>库（源码分发）</dd></div>
+    <div><dt>实现分支</dt><dd>待定</dd></div>
+    <div><dt>原文</dt><dd><code>draft-settings-ui-on-ios.md</code></dd></div>
+  </dl>
+</header>
+
+<nav class="toc" aria-label="目录">
+  <ol>
+    <li><a href="#summary">摘要</a></li>
+    <li><a href="#motivation">动机</a></li>
+    <li><a href="#architecture">架构图</a></li>
+    <li><a href="#map">改动地图</a></li>
+    <li><a href="#proposal">提议方案</a></li>
+    <li><a href="#design">详细设计</a></li>
+    <li><a href="#research">前期调研</a></li>
+    <li><a href="#alternatives">替代方案</a></li>
+    <li><a href="#impact">影响</a></li>
+    <li><a href="#evolution">API 演进</a></li>
+    <li><a href="#steps">落地步骤</a></li>
+    <li><a href="#log">决策日志</a></li>
+  </ol>
+</nav>
+
+<main class="content">
+
+<section id="summary">
+  <h2>摘要</h2>
+  <p><code>UIFoundationSettingsUI</code> 里写页面要用的四样东西——<code>AppSettings</code>（把一项设置绑到 SwiftUI 控件的属性包装）、<code>SettingsForm</code>、<code>SettingsPage</code> 与它的 result builder、<code>SettingsPageIcon</code>——放开到 iOS、Mac Catalyst 与 visionOS，同一份 SwiftUI 页面两边都能编；另加一个 iOS 用的宿主：SwiftUI 的 <code>SettingsNavigationStack</code>（页面列表，点进去是页面内容，像系统「设置」App）和包着它、给 UIKit App 弹出用的 <code>SettingsViewController</code>，与 macOS 的 <code>SettingsWindowController</code> 对称。macOS 的设置窗口一行不改。</p>
+  <div class="callout callout-note">
+    <p class="callout-title">关联</p>
+    <ul>
+      <li>所属愿景：无（下游 RuntimeViewer 的愿景《iOS 版功能对齐》要用它做 iOS 设置页）</li>
+      <li>关联提案：<a href="0042-settings-store-on-all-platforms.md">0042-settings-store-on-all-platforms</a>（设置存储已在各平台可用）、<a href="0002-reusable-settings-window.md">0002-reusable-settings-window</a>（设置窗口的来历）；下游 RuntimeViewer 的 <code>draft-settings-screen-on-ios</code></li>
+      <li>配套文档：无单独文档——改现有指南 <a href="../SettingsWindow.md"><code>SettingsWindow.md</code></a></li>
+      <li>网页版：同目录同名的 <code>.html</code></li>
+    </ul>
+  </div>
+</section>
+
+<section id="motivation">
+  <h2>动机</h2>
+  <ul>
+    <li><strong>下游要在 iOS 上复用设置页</strong>：RuntimeViewer 的设置页都是 SwiftUI，但写在 <code>@AppSettings</code> 与 <code>SettingsForm</code> 上，这两样连同 <code>SettingsPage</code> 都包在 <code>#if Settings &amp;&amp; os(macOS)</code> 里（<code>Sources/UIFoundationSettingsUI/AppSettings.swift:1</code>、<code>SettingsForm.swift:1</code>、<code>SettingsPage.swift:1</code>）。它的愿景《iOS 版功能对齐》定了「设置页复用 SwiftUI 页面、宿主换成 UIKit」，不在下游另写一套。</li>
+    <li><strong>这几样本来就不碰 AppKit</strong>：<code>AppSettings</code>、<code>SettingsForm</code>、<code>SettingsPage</code> 只用 SwiftUI 与 <code>UIFoundationSettings</code>；<code>SettingsPageIcon</code> 只有一处用 <code>NSImage(systemSymbolName:)</code> 判断符号是否存在（<code>SettingsPageIcon.swift:80-86</code>）。</li>
+    <li><strong>iOS 没有设置窗口这种东西</strong>：macOS 的宿主是带侧栏的窗口（<code>SettingsWindowController</code>、<code>SettingsRootView</code>、<code>SettingsScene</code>），iOS 的习惯是一张列表、点进去一页；需要一个对应的宿主，下游才不必各自拼。</li>
+  </ul>
+</section>
+
+<section id="architecture">
+  <h2>架构图</h2>
+  <h3>UIFoundationSettingsUI 改了什么</h3>
+  <ul class="legend">
+    <li><i class="swatch swatch-added"></i>新增</li>
+    <li><i class="swatch swatch-changed"></i>修改</li>
+    <li><i class="swatch swatch-kept"></i>不变</li>
+  </ul>
+  <div class="figure">
+  <svg viewBox="0 0 1000 480" role="img" aria-label="What changes in UIFoundationSettingsUI">
+    <rect class="group" x="10" y="10" width="980" height="460" rx="10"/>
+    <text class="group-label" x="22" y="32">UIFoundationSettingsUI (trait Settings)</text>
+
+    <rect class="group" x="24" y="44" width="460" height="236" rx="8"/>
+    <text class="group-label" x="36" y="64">shared: macOS + iOS + Mac Catalyst + visionOS</text>
+    <text class="caption" x="36" y="80">was macOS only</text>
+    <rect class="box-changed" x="38" y="90" width="432" height="40" rx="6"/>
+    <text x="48" y="107">AppSettings&lt;Root, Value&gt;</text><text class="caption" x="48" y="123">property wrapper</text>
+    <rect class="box-changed" x="38" y="138" width="432" height="40" rx="6"/>
+    <text x="48" y="155">SettingsForm</text><text class="caption" x="48" y="171">Form { }.formStyle(.grouped)</text>
+    <rect class="box-changed" x="38" y="186" width="432" height="34" rx="6"/>
+    <text x="48" y="208">SettingsPage / SettingsPageBuilder</text>
+    <rect class="box-changed" x="38" y="228" width="432" height="40" rx="6"/>
+    <text x="48" y="245">SettingsPageIcon</text><text class="caption" x="48" y="261">+ UIImage(systemName:) on UIKit</text>
+
+    <rect class="group" x="24" y="296" width="460" height="160" rx="8"/>
+    <text class="group-label" x="36" y="316">macOS only (unchanged)</text>
+    <rect class="box-kept" x="38" y="328" width="200" height="40" rx="6"/>
+    <text x="48" y="352">SettingsWindowController</text>
+    <rect class="box-kept" x="258" y="328" width="212" height="40" rx="6"/>
+    <text x="268" y="345">SettingsRootView</text><text class="caption" x="268" y="361">sidebar + back/forward</text>
+    <rect class="box-kept" x="258" y="388" width="212" height="40" rx="6"/>
+    <text x="268" y="412">SettingsNavigator</text>
+    <rect class="box-kept" x="38" y="384" width="200" height="60" rx="6"/>
+    <text x="48" y="402">SettingsScene</text><text class="caption" x="48" y="419">SettingsConfiguration,</text><text class="caption" x="48" y="434">SettingsWindowSupport</text>
+    <path class="arrow" d="M 238 348 L 256 348"/>
+    <path class="arrow" d="M 364 368 L 364 386"/>
+
+    <rect class="group" x="504" y="44" width="476" height="412" rx="8"/>
+    <text class="group-label" x="516" y="64">iOS + Mac Catalyst + visionOS (new)</text>
+    <rect class="box-added" x="518" y="76" width="448" height="44" rx="6"/>
+    <text x="528" y="94">SettingsViewController</text><text class="caption" x="528" y="111">open class, UIKit</text>
+    <rect class="box-kept" x="548" y="138" width="418" height="34" rx="6"/>
+    <text x="558" y="160">UIHostingController</text>
+    <rect class="box-added" x="578" y="190" width="388" height="244" rx="6"/>
+    <text x="588" y="210">SettingsNavigationStack</text><text class="caption" x="588" y="226">SwiftUI view</text>
+    <rect class="box-kept" x="592" y="238" width="360" height="30" rx="6"/>
+    <text x="602" y="258">NavigationStack</text>
+    <rect class="box-kept" x="592" y="282" width="360" height="34" rx="6"/>
+    <text x="602" y="304">List: SettingsPageIcon + title</text>
+    <rect class="box-kept" x="592" y="338" width="360" height="34" rx="6"/>
+    <text x="602" y="360">page.content</text>
+    <rect class="box-kept" x="592" y="388" width="160" height="34" rx="6"/>
+    <text x="602" y="410">toolbar: Done</text>
+    <rect class="box-kept" x="784" y="388" width="168" height="34" rx="6"/>
+    <text x="794" y="410">onDone / dismiss</text>
+
+    <path class="arrow" d="M 530 120 L 530 155 L 546 155"/>
+    <path class="arrow" d="M 560 172 L 560 212 L 576 212"/>
+    <path class="arrow" d="M 700 316 L 700 336"/>
+    <text class="caption" x="708" y="331">push</text>
+    <path class="arrow" d="M 752 405 L 782 405"/>
+
+    <path class="arrow arrow-weak" d="M 592 299 L 492 299 L 492 248 L 472 248"/>
+    <path class="arrow arrow-weak" d="M 592 355 L 497 355 L 497 203 L 472 203"/>
+  </svg>
+  </div>
+  <p class="figure-caption">左上四样放开到 iOS、Mac Catalyst 与 visionOS；macOS 的侧栏窗口一组不动；右侧是新的 iOS 宿主。虚线：iOS 列表行画的是共用的 <code>SettingsPageIcon</code>，点进去显示的是共用的 <code>SettingsPage</code> 的内容。</p>
+
+  <h3>UIKit App 打开设置</h3>
+  <ul class="legend">
+    <li><i class="swatch swatch-added"></i>新增</li>
+    <li><i class="swatch swatch-changed"></i>修改</li>
+    <li><i class="swatch swatch-kept"></i>不变</li>
+  </ul>
+  <div class="figure figure-narrow">
+  <svg viewBox="0 0 700 276" role="img" aria-label="A UIKit app opening its settings">
+    <rect class="box-kept" x="10" y="10" width="300" height="34" rx="6"/>
+    <text x="20" y="32">host view controller</text>
+    <rect class="box-added" x="60" y="60" width="440" height="44" rx="6"/>
+    <text x="70" y="78">present(MySettingsViewController())</text>
+    <text class="caption" x="70" y="95">subclass of SettingsViewController, pages given in init</text>
+    <rect class="box-added" x="110" y="120" width="400" height="34" rx="6"/>
+    <text x="120" y="142">SettingsNavigationStack(title:pages:onDone:)</text>
+    <rect class="box-changed" x="160" y="170" width="520" height="44" rx="6"/>
+    <text x="170" y="188">row tap → page.content</text>
+    <text class="caption" x="170" y="205">SettingsForm { … @AppSettings bindings … }</text>
+    <rect class="box-added" x="160" y="230" width="520" height="34" rx="6"/>
+    <text x="170" y="252">Done → SettingsViewController.dismiss(animated: true)</text>
+    <path class="arrow" d="M 30 44 L 30 82 L 58 82"/>
+    <path class="arrow" d="M 80 104 L 80 137 L 108 137"/>
+    <path class="arrow" d="M 130 154 L 130 192 L 158 192"/>
+    <path class="arrow" d="M 130 154 L 130 247 L 158 247"/>
+  </svg>
+  </div>
+  <p class="figure-caption">下游写一个 <code>SettingsViewController</code> 的子类、在初始化器里给出页面，宿主视图控制器弹出它；页面内容仍是 <code>SettingsForm</code> 加 <code>@AppSettings</code> 绑定，「完成」时宿主自己 <code>dismiss</code>。</p>
+</section>
+
+<section id="map">
+  <h2>改动地图</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>文件 / 类型</th><th>动作</th><th>改什么</th><th>为什么</th><th>步骤</th></tr></thead>
+    <tbody>
+      <tr><td><code>Sources/<wbr>UIFoundationSettingsUI/<wbr>AppSettings.swift</code> · <code>AppSettings</code></td><td><span class="tag tag-changed">修改</span></td><td>条件与 <code>@available</code> 放开到 iOS、Catalyst、visionOS</td><td>页面绑定设置用它</td><td class="numeric">1</td></tr>
+      <tr><td><code>Sources/<wbr>UIFoundationSettingsUI/<wbr>SettingsForm.swift</code> · <code>SettingsForm</code></td><td><span class="tag tag-changed">修改</span></td><td>同上</td><td>页面外框用它</td><td class="numeric">1</td></tr>
+      <tr><td><code>Sources/<wbr>UIFoundationSettingsUI/<wbr>SettingsPage.swift</code> · <code>SettingsPage</code>、<code>SettingsPageBuilder</code></td><td><span class="tag tag-changed">修改</span></td><td>同上</td><td>两边的宿主都收页面</td><td class="numeric">1</td></tr>
+      <tr><td><code>Sources/<wbr>UIFoundationSettingsUI/<wbr>SettingsPageIcon.swift</code> · <code>SettingsPageIcon</code></td><td><span class="tag tag-changed">修改</span></td><td>同上；<code>image(named:)</code> 按平台判断符号是否存在</td><td>iOS 列表行也画页面图标</td><td class="numeric">1</td></tr>
+      <tr><td><code>Sources/<wbr>UIFoundationSettingsUI/<wbr>SettingsNavigationStack.swift</code></td><td><span class="tag tag-added">新增</span></td><td>iOS 的页面列表与导航</td><td>iOS 习惯的设置界面</td><td class="numeric">2</td></tr>
+      <tr><td><code>Sources/<wbr>UIFoundationSettingsUI/<wbr>SettingsViewController.swift</code></td><td><span class="tag tag-added">新增</span></td><td>给 UIKit App 弹出的宿主</td><td>与 macOS 的 <code>SettingsWindowController</code> 对称</td><td class="numeric">2</td></tr>
+      <tr><td><code>Documentations/<wbr>SettingsWindow.md</code></td><td><span class="tag tag-changed">修改</span></td><td>平台说明；新增「在 iOS 上」一节</td><td>指南是对外契约</td><td class="numeric">3</td></tr>
+      <tr><td><code>AGENTS.md</code> · 项目地图</td><td><span class="tag tag-changed">修改</span></td><td><code>UIFoundationSettingsUI</code> 一行写两边各有什么</td><td>让 agent 知道</td><td class="numeric">3</td></tr>
+      <tr><td><code>Documentations/<wbr>Evolutions/<wbr>README.md</code></td><td><span class="tag tag-changed">修改</span></td><td>登记本提案</td><td>索引</td><td class="numeric">3</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="proposal">
+  <h2>提议方案</h2>
+  <ol>
+    <li><strong>四样共用的组件放开</strong>：<code>AppSettings.swift</code>、<code>SettingsForm.swift</code>、<code>SettingsPage.swift</code>、<code>SettingsPageIcon.swift</code> 的条件改为 <code>#if Settings &amp;&amp; (os(macOS) || os(iOS) || os(visionOS))</code>（Mac Catalyst 上 <code>os(iOS)</code> 为真），<code>@available</code> 补 <code>iOS 17.0, macCatalyst 17.0, visionOS 1.0</code>；<code>SettingsPageIcon</code> 判断符号是否存在时按平台用 <code>NSImage</code> 或 <code>UIImage</code>。</li>
+    <li><strong>iOS 的宿主</strong>（新文件，<code>#if Settings &amp;&amp; (os(iOS) || os(visionOS))</code>）：
+      <ul>
+        <li><code>SettingsNavigationStack</code>：SwiftUI 视图，<code>NavigationStack</code> 里一张 <code>List</code>，每行是页面图标加标题，点进去显示页面内容，标题栏是页面标题；根页右上角一个「完成」按钮，按下调用传入的 <code>onDone</code>（不传就用环境里的 <code>dismiss</code>）。</li>
+        <li><code>SettingsViewController</code>：<code>open class</code>，把 <code>SettingsNavigationStack</code> 装进一个 <code>UIHostingController</code> 子视图控制器，「完成」时 <code>dismiss(animated:)</code>；初始化器与 macOS 的 <code>SettingsWindowController</code> 同形：<code>init(title:pages:)</code>，页面用 <code>@SettingsPageBuilder</code> 给。</li>
+      </ul>
+    </li>
+    <li><strong>文档</strong>：<code>SettingsWindow.md</code> 的平台说明改为「写页面的组件各平台可用，宿主分平台」，加一节「在 iOS 上」；<code>AGENTS.md</code> 项目地图里 <code>UIFoundationSettingsUI</code> 一行写清两边各有什么。</li>
+  </ol>
+
+  <h3>非目标</h3>
+  <ul>
+    <li><strong>macOS 设置窗口的任何变化</strong>。</li>
+    <li><strong>iPad 上的双栏设置</strong>（左列表右内容）：先一律用单栏的导航栈，iPad 上以 sheet 弹出时同样适用。</li>
+    <li><strong>tvOS 与 watchOS</strong>。</li>
+    <li><strong><code>SettingsNavigator</code> 与 <code>SettingsConfiguration</code> 跨平台</strong>：它们描述的是侧栏窗口，iOS 宿主用不到。</li>
+    <li><strong>把设置模块并进伞模块</strong>。</li>
+  </ul>
+</section>
+
+<section id="design">
+  <h2>详细设计</h2>
+  <details open>
+    <summary><code>SettingsNavigationStack</code> 与 <code>SettingsViewController</code></summary>
+    <div class="details-body">
+<pre><code><span class="token-keyword">#if</span> Settings &amp;&amp; (os(iOS) || os(visionOS))
+<span class="token-keyword">import</span> SwiftUI
+
+<span class="token-comment">/// The settings pages as iOS presents them: a list of pages, each pushing</span>
+<span class="token-comment">/// its content, with a Done button on the list.</span>
+<span class="token-keyword">@available</span>(iOS <span class="token-number">17.0</span>, macCatalyst <span class="token-number">17.0</span>, visionOS <span class="token-number">1.0</span>, *)
+<span class="token-keyword">public struct</span> <span class="token-type">SettingsNavigationStack</span>: <span class="token-type">View</span> {
+    <span class="token-keyword">public init</span>(
+        title: <span class="token-type">String</span> = <span class="token-string">"Settings"</span>,
+        onDone: (() -&gt; <span class="token-type">Void</span>)? = <span class="token-keyword">nil</span>,
+        <span class="token-keyword">@</span><span class="token-type">SettingsPageBuilder</span> pages: () -&gt; [<span class="token-type">SettingsPage</span>]
+    )
+
+    <span class="token-keyword">public var</span> body: <span class="token-keyword">some</span> <span class="token-type">View</span>   <span class="token-comment">// NavigationStack { List(pages) { NavigationLink … } .navigationTitle(title) .toolbar { Done } }</span>
+}
+
+<span class="token-comment">/// Presents the settings pages from a UIKit app — the counterpart of the</span>
+<span class="token-comment">/// macOS `SettingsWindowController`. Subclass it to give the pages once.</span>
+<span class="token-keyword">@available</span>(iOS <span class="token-number">17.0</span>, macCatalyst <span class="token-number">17.0</span>, visionOS <span class="token-number">1.0</span>, *)
+<span class="token-keyword">@MainActor</span>
+<span class="token-keyword">open class</span> <span class="token-type">SettingsViewController</span>: <span class="token-type">UIViewController</span> {
+    <span class="token-keyword">public let</span> pages: [<span class="token-type">SettingsPage</span>]
+
+    <span class="token-keyword">public init</span>(title: <span class="token-type">String</span> = <span class="token-string">"Settings"</span>, <span class="token-keyword">@</span><span class="token-type">SettingsPageBuilder</span> pages: () -&gt; [<span class="token-type">SettingsPage</span>])
+
+    <span class="token-keyword">override open func</span> viewDidLoad()   <span class="token-comment">// embeds UIHostingController(rootView: SettingsNavigationStack(…, onDone: dismiss))</span>
+}
+<span class="token-keyword">#endif</span></code></pre>
+      <ul>
+        <li>列表行：<code>SettingsPageIcon(page.icon, size: 29)</code> 加 <code>Text(page.title)</code>；<code>plainSymbol</code> 图标在 iOS 上画成单色符号，与系统「设置」的彩色方块不同，页面要彩色方块就用 <code>.symbol(_, tint:)</code>。</li>
+        <li><code>SettingsPage.content</code> 已是 <code>@MainActor</code> 的 <code>AnyView</code>，<code>NavigationLink(value: page.id)</code> 配 <code>navigationDestination</code> 取页面。</li>
+        <li>「完成」按钮的文字用模块的本地化资源（已有 <code>Localizable.xcstrings</code>），新增一条 <code>Done</code>。</li>
+      </ul>
+    </div>
+  </details>
+</section>
+
+<section id="research">
+  <h2>前期调研</h2>
+  <details>
+    <summary>可直接放开的</summary>
+    <div class="details-body">
+      <p><code>AppSettings</code>（<code>AppSettings.swift</code>，64 行）用 <code>Root.store.value</code> 与 <code>@Bindable</code>，<code>@Bindable</code> 需要 iOS 17；<code>SettingsForm</code>（32 行）是 <code>Form { }.formStyle(.grouped)</code>，iOS 16 起有；<code>SettingsPage</code> 与 <code>SettingsPageBuilder</code>（117 行）只有 SwiftUI 类型。依赖的 <code>UIFoundationSettings</code> 自 0042 起各平台可用（iOS 17、Catalyst 17、visionOS 1）。</p>
+    </div>
+  </details>
+  <details>
+    <summary>要改一处的</summary>
+    <div class="details-body">
+      <p><code>SettingsPageIcon.image(named:)</code> 判断 SF Symbol 是否存在用的是 <code>NSImage(systemSymbolName:accessibilityDescription:)</code>；UIKit 上的对应是 <code>UIImage(systemName:)</code>。</p>
+    </div>
+  </details>
+  <details>
+    <summary>留在 macOS 的</summary>
+    <div class="details-body">
+      <p><code>SettingsWindowController</code>、<code>SettingsWindowSupport</code>、<code>SettingsRootView</code>、<code>SettingsScene</code>、<code>SettingsConfiguration</code>（窗口尺寸与侧栏）、<code>SettingsNavigator</code>（侧栏的选择与前进后退历史；iOS 上由 <code>NavigationStack</code> 自己管）。</p>
+    </div>
+  </details>
+  <details>
+    <summary>target 结构</summary>
+    <div class="details-body">
+      <p><code>UIFoundationSettingsUI</code> 依赖 <code>UIFoundationSettings</code>，另在 macOS 上依赖 <code>UIFoundationAppKit</code>（<code>Package.swift</code> 的 <code>UIFoundationSettingsUI</code> target），带一个本地化资源包（返回、前进按钮的文字）。其他平台上它现在是空模块。</p>
+    </div>
+  </details>
+  <details>
+    <summary>平台范围</summary>
+    <div class="details-body">
+      <p>Observation 与 <code>@Bindable</code> 要 iOS 17 / Catalyst 17 / visionOS 1；tvOS 与 watchOS 没有这类设置界面的用法，且 Xcode 27 已编不了本包声明的 tvOS 13 / watchOS 6 下限（0042 的决策日志），不纳入。</p>
+    </div>
+  </details>
+  <details>
+    <summary>使用方</summary>
+    <div class="details-body">
+      <p>RuntimeViewer 的 macOS 设置窗口；ReverseEngineeringToolbox、MacKedUpdater、XCOrganizer 都是 macOS App，不受影响。</p>
+    </div>
+  </details>
+</section>
+
+<section id="alternatives">
+  <h2>替代方案考量</h2>
+  <details>
+    <summary>3 个方案，均未采用</summary>
+    <div class="details-body">
+      <ul>
+        <li><strong>只放开组件，不提供 iOS 宿主</strong>：每个下游各写一份列表加导航，形状会各不相同。宿主不到百行，放在库里。</li>
+        <li><strong>iOS 上也做侧栏窗口的样子</strong>（<code>UISplitViewController</code>）：iPhone 上会折叠成导航栈，iPad 上的双栏留作后续。</li>
+        <li><strong><code>SettingsViewController</code> 直接继承 <code>UIHostingController</code></strong>：泛型根视图让子类化很别扭，下游子类还得写出根视图类型；包一层子视图控制器更像 macOS 的 <code>SettingsWindowController</code>。</li>
+      </ul>
+    </div>
+  </details>
+</section>
+
+<section id="impact">
+  <h2>影响</h2>
+  <h3>源码兼容性（source compatibility）</h3>
+  <p><strong>纯新增</strong>。macOS 上的类型、行为都不变；放开的四样在其他平台上原来不存在。</p>
+  <h3>ABI 兼容性（条件项）</h3>
+  <p>不适用 —— 本库以 SPM 源码分发，使用方每次重新编译。</p>
+  <h3>下游影响</h3>
+  <ul>
+    <li>本仓库：<code>UIFoundationSettingsUI</code> 在 iOS、Catalyst、visionOS 上从空模块变成有内容。</li>
+    <li><strong>RuntimeViewer</strong>：iOS 设置页用它（<code>draft-settings-screen-on-ios</code>），下限抬到本次发版。</li>
+    <li><strong>ReverseEngineeringToolbox、MacKedUpdater、XCOrganizer</strong>：只在 macOS 上用，不受影响。</li>
+  </ul>
+  <h3>文档与示例</h3>
+  <p><code>SettingsWindow.md</code>（平台说明、「在 iOS 上」一节）、<code>AGENTS.md</code> 项目地图。iOS 示例 App 不加设置演示。</p>
+</section>
+
+<section id="evolution">
+  <h2>API 演进与废弃策略</h2>
+  <ul>
+    <li>不废弃任何东西；按惯例发次版本 0.49.0。</li>
+  </ul>
+</section>
+
+<section id="steps">
+  <h2>落地步骤</h2>
+  <ol>
+    <li><strong>共用组件放开</strong> —— 改动地图前四行
+      <ul>
+        <li>行为：<code>sharedSettingsComponentsBuildForIOSCatalystAndVisionOS</code>（交叉编译 <code>UIFoundationSettingsUI</code>）</li>
+        <li>行为：<code>existingSettingsTestsPassOnMac</code></li>
+        <li>行为：<code>pageIconFallsBackToAnAssetImageWhenTheSymbolIsUnknown</code>（判断逻辑抽成可测的纯函数，在 macOS 上测）</li>
+      </ul>
+    </li>
+    <li><strong>iOS 宿主</strong> —— <code>SettingsNavigationStack.swift</code>、<code>SettingsViewController.swift</code>、<code>Localizable.xcstrings</code>
+      <ul>
+        <li>行为：<code>settingsViewControllerBuildsForIOSCatalystAndVisionOS</code></li>
+        <li>行为：<code>navigationStackListsThePagesInOrder</code>（页面顺序与 id 的映射抽成可测的部分）</li>
+      </ul>
+    </li>
+    <li><strong>文档与发版</strong> —— 指南、<code>AGENTS.md</code>、索引；合进 <code>main</code> 后打 <code>0.49.0</code></li>
+  </ol>
+  <div class="callout callout-note">
+    <p><strong>收尾时必须判断两件事</strong>（判断结果写进决策日志，不允许沉默跳过）：</p>
+    <ul>
+      <li><strong>要不要配套专题文章</strong> —— 预计不需要：写进现有的 <code>SettingsWindow.md</code>。</li>
+      <li><strong>有没有引入新术语</strong> —— 预计没有。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="log">
+  <h2>决策日志</h2>
+  <details>
+    <summary>4 条，最近一条：自定不含 tvOS 与 watchOS</summary>
+    <div class="details-body">
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>日期</th><th>变更</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="numeric">2026-11-20</td><td>Created as Draft</td><td>RuntimeViewer 要在 iOS 上复用现有的 SwiftUI 设置页，用户选了上游一起放开、不在下游另写</td></tr>
+          <tr><td class="numeric">2026-11-20</td><td>自定：宿主用单栏导航栈，iPad 双栏不做</td><td>iOS 的习惯；双栏留作后续</td></tr>
+          <tr><td class="numeric">2026-11-20</td><td>自定：<code>SettingsViewController</code> 包一层子视图控制器，不继承 <code>UIHostingController</code></td><td>子类化顺手，形状与 macOS 的 <code>SettingsWindowController</code> 对称</td></tr>
+          <tr><td class="numeric">2026-11-20</td><td>自定：不含 tvOS 与 watchOS</td><td>没有用法；本包在这两个平台上的部署下限已低于 Xcode 27 的支持范围</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </details>
+</section>
+
+</main>
+</div>
+</body>
+</html>
