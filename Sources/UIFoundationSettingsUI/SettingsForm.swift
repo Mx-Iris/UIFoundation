@@ -1,4 +1,4 @@
-#if Settings && os(macOS)
+#if Settings && (os(macOS) || os(iOS) || os(visionOS))
 
 import SwiftUI
 
@@ -13,7 +13,7 @@ import SwiftUI
 ///     }
 /// }
 /// ```
-@available(macOS 14.0, *)
+@available(macOS 14.0, iOS 17.0, macCatalyst 17.0, visionOS 1.0, *)
 public struct SettingsForm<Content: View>: View {
     @ViewBuilder private let content: Content
 

@@ -13,6 +13,18 @@
         }
       }
     },
+    "Done" : {
+      "comment" : "Button that closes the settings presented on iOS.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
     "Forward" : {
       "comment" : "Settings window toolbar button that returns to the page visited before going back.",
       "extractionState" : "manual",

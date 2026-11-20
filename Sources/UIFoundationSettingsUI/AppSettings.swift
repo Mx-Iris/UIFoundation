@@ -1,4 +1,4 @@
-#if Settings && os(macOS)
+#if Settings && (os(macOS) || os(iOS) || os(visionOS))
 
 import SwiftUI
 import UIFoundationSettings
@@ -34,7 +34,7 @@ import UIFoundationSettings
 /// SwiftUI observes the property reached by the reference key path. A view
 /// reading `general` is therefore unaffected by a change to `appearance`; it
 /// does not observe one coarse root value.
-@available(macOS 14.0, *)
+@available(macOS 14.0, iOS 17.0, macCatalyst 17.0, visionOS 1.0, *)
 @MainActor
 @propertyWrapper
 public struct AppSettings<Root: PersistentSettings, Value> {
