@@ -1,12 +1,12 @@
-# Draft - 设置页面在 iOS 与 visionOS 上可用
+# 0043 - 设置页面在 iOS 与 visionOS 上可用
 
-- **状态**: Accepted
+- **状态**: Implemented
 - **作者**: JH
 - **创建日期**: 2026-11-20
 - **最后更新**: 2026-11-20
 - **所属愿景**: 无（下游 RuntimeViewer 的愿景《iOS 版功能对齐》要用它做 iOS 设置页）
 - **关联提案**: [0042-settings-store-on-all-platforms](0042-settings-store-on-all-platforms.md)（设置存储已在各平台可用）、[0002-reusable-settings-window](0002-reusable-settings-window.md)（设置窗口的来历）；下游 RuntimeViewer 的 `draft-settings-screen-on-ios`
-- **实现分支 / PR**: `feature/settings-ui-on-ios`
+- **实现分支 / PR**: `feature/settings-ui-on-ios`，从 `main` 切出，2026-11-20 本地 `--no-ff` 合进 `main`，随 0.49.0 发布
 - **配套文档**: 无单独文档——改现有指南 [`SettingsWindow.md`](../SettingsWindow.md)
 - **网页版**: 同目录同名的 `.html`
 
@@ -179,14 +179,14 @@ open class SettingsViewController: UIViewController {
 
 ## 落地步骤
 
-1. **共用组件放开** —— 改动地图前四行
+1. **共用组件放开**（已完成）—— 改动地图前四行
    - 行为：`sharedSettingsComponentsBuildForIOSCatalystAndVisionOS`（交叉编译 `UIFoundationSettingsUI`）
    - 行为：`existingSettingsTestsPassOnMac`
    - 行为：`pageIconFallsBackToAnAssetImageWhenTheSymbolIsUnknown`（判断逻辑抽成可测的纯函数，在 macOS 上测）
-2. **iOS 宿主** —— `SettingsNavigationStack.swift`、`SettingsViewController.swift`、`Localizable.xcstrings`
+2. **iOS 宿主**（已完成）—— `SettingsNavigationStack.swift`、`SettingsViewController.swift`、`Localizable.xcstrings`
    - 行为：`settingsViewControllerBuildsForIOSCatalystAndVisionOS`
    - 行为：`navigationStackListsThePagesInOrder`（页面顺序与 id 的映射抽成可测的部分）
-3. **文档与发版** —— 指南、`AGENTS.md`、索引；合进 `main` 后打 `0.49.0`
+3. **文档与发版**（已完成）—— 指南、`AGENTS.md`、索引；合进 `main` 后打 `0.49.0`
 
 **收尾时必须判断两件事**（判断结果写进决策日志，不允许沉默跳过）：
 
@@ -202,3 +202,5 @@ open class SettingsViewController: UIViewController {
 | 2026-11-20 | 自定：`SettingsViewController` 包一层子视图控制器，不继承 `UIHostingController` | 子类化顺手，形状与 macOS 的 `SettingsWindowController` 对称 |
 | 2026-11-20 | 自定：不含 tvOS 与 watchOS | 没有用法；本包在这两个平台上的部署下限已低于 Xcode 27 的支持范围 |
 | 2026-11-20 | 用户批准，开始实现 | 与 RuntimeViewer 的 `draft-settings-screen-on-ios` 一起批准；本篇先落地并发 0.49.0 |
+| 2026-11-20 | 实现中的调整 | 一、`SettingsPageIcon` 的符号判断抽成内部的 `isSystemSymbol(named:)`，macOS 上测两个分支（`SettingsPageIconTests`）。二、`navigationStackListsThePagesInOrder` 没写：`SettingsNavigationStack` 与 `SettingsViewController` 只在 iOS、visionOS 上编，包的测试只在 macOS 上跑，测不到；它们的验证是四个平台的交叉编译与下游在设备上看。三、`SettingsViewController` 同时把 `title` 设成传入的标题，嵌进别的导航控制器时也有标题。 |
+| 2026-11-20 | Implemented，取号 0043，发 0.49.0 | 验证：macOS 上设置相关四个套件 28 个用例全过；打开全部 trait 的整包构建通过；`UIFoundationSettingsUI` 以 iOS 模拟器、iOS 真机、Mac Catalyst、visionOS 模拟器为目标交叉编译通过，产物里有 `SettingsViewController`。文档判断：写进现有的 `SettingsWindow.md`（开头的平台说明、第 4 节新增「On iOS, Mac Catalyst and visionOS」），`AGENTS.md` 项目地图更新；不另写文章，没有新术语。 |
