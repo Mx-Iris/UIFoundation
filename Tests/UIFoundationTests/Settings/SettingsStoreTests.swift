@@ -1,4 +1,4 @@
-#if Settings && os(macOS)
+#if Settings
 
 import Foundation
 import Observation
@@ -136,7 +136,7 @@ private func waitPastAutoSave() async {
 struct SettingsStoreTests {
     @Test("an observed property ignores an unrelated settings change")
     func propertyObservationIsNarrow() {
-        guard #available(macOS 14.0, *) else { return }
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
         let storage = RecordingStorage()
         let store = SettingsStore(defaultValue: DemoSettings(), storage: storage)
         let changeRecorder = ObservationChangeRecorder()
@@ -156,7 +156,7 @@ struct SettingsStoreTests {
 
     @Test("replacing the settings object notifies existing readers")
     func replacementObservationWorks() {
-        guard #available(macOS 14.0, *) else { return }
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
         let storage = RecordingStorage()
         let store = SettingsStore(defaultValue: DemoSettings(), storage: storage)
         let changeRecorder = ObservationChangeRecorder()
@@ -173,7 +173,7 @@ struct SettingsStoreTests {
 
     @Test("a nested property write triggers a save")
     func nestedWriteSaves() async throws {
-        guard #available(macOS 14.0, *) else { return }
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
         let storage = RecordingStorage()
         let store = SettingsStore(defaultValue: DemoSettings(), storage: storage, autoSaveDelay: autoSaveDelay)
 
@@ -186,7 +186,7 @@ struct SettingsStoreTests {
 
     @Test("a burst of writes collapses into a single save")
     func debounceCollapsesBurst() async throws {
-        guard #available(macOS 14.0, *) else { return }
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
         let storage = RecordingStorage()
         let store = SettingsStore(defaultValue: DemoSettings(), storage: storage, autoSaveDelay: autoSaveDelay)
 
@@ -205,7 +205,7 @@ struct SettingsStoreTests {
 
     @Test("loading stored settings does not write them straight back")
     func loadDoesNotEcho() async throws {
-        guard #available(macOS 14.0, *) else { return }
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
         let storedSettings = DemoSettings(
             general: DemoSettings.General(depth: 11, isEnabled: false),
             title: "stored"
@@ -225,7 +225,7 @@ struct SettingsStoreTests {
 
     @Test("an empty store keeps its default value")
     func emptyStorageKeepsDefaults() async {
-        guard #available(macOS 14.0, *) else { return }
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
         let storage = RecordingStorage()
         let defaultSettings = DemoSettings()
         let store = SettingsStore(defaultValue: defaultSettings, storage: storage, autoSaveDelay: autoSaveDelay)
@@ -240,7 +240,7 @@ struct SettingsStoreTests {
 
     @Test("undecodable data leaves the defaults in place and reports the failure")
     func corruptStorageReportsFailure() async {
-        guard #available(macOS 14.0, *) else { return }
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
         let storage = RecordingStorage(initialData: Data("not json".utf8))
         let defaultSettings = DemoSettings()
         let store = SettingsStore(defaultValue: defaultSettings, storage: storage, autoSaveDelay: autoSaveDelay)
@@ -255,7 +255,7 @@ struct SettingsStoreTests {
 
     @Test("an explicit save writes immediately and cancels deferred work")
     func explicitSaveSupersedesDebounce() async throws {
-        guard #available(macOS 14.0, *) else { return }
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
         let storage = RecordingStorage()
         let store = SettingsStore(defaultValue: DemoSettings(), storage: storage, autoSaveDelay: autoSaveDelay)
 
@@ -272,7 +272,7 @@ struct SettingsStoreTests {
 
     @Test("a synchronous save persists before returning and cancels deferred work")
     func synchronousSaveWritesImmediately() async throws {
-        guard #available(macOS 14.0, *) else { return }
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
         let storage = RecordingStorage()
         let store = SettingsStore(defaultValue: DemoSettings(), storage: storage, autoSaveDelay: autoSaveDelay)
 
@@ -295,7 +295,7 @@ struct SettingsStoreTests {
 
     @Test("mutating settings immediately after a load still saves")
     func writeAfterLoadResumesSaving() async throws {
-        guard #available(macOS 14.0, *) else { return }
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
         let storage = RecordingStorage(initialData: try JSONEncoder().encode(DemoSettings()))
         let store = SettingsStore(defaultValue: DemoSettings(), storage: storage, autoSaveDelay: autoSaveDelay)
 
@@ -306,13 +306,98 @@ struct SettingsStoreTests {
         let persisted = try storage.decodedValue(as: DemoSettings.self)
         #expect(persisted?.general.isEnabled == true)
     }
+
+    // The synchronous load. In a synchronous test `store.load()` is that
+    // overload; the async tests bind a synchronous function value instead,
+    // as the synchronous save test does, because there a plain call would
+    // resolve to the async overload.
+
+    @Test("a synchronous load adopts the stored settings before returning")
+    func synchronousLoadAdoptsStoredSettings() throws {
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
+        let storedSettings = DemoSettings(
+            general: DemoSettings.General(depth: 11, isEnabled: true),
+            title: "stored"
+        )
+        let storage = RecordingStorage(initialData: try JSONEncoder().encode(storedSettings))
+        let store = SettingsStore(defaultValue: DemoSettings(), storage: storage, autoSaveDelay: autoSaveDelay)
+
+        let outcome = store.load()
+
+        if case .loaded = outcome {} else {
+            Issue.record("expected .loaded, got \(outcome)")
+        }
+        #expect(store.value == storedSettings)
+    }
+
+    @Test("a synchronous load keeps the default value when nothing is stored")
+    func synchronousLoadKeepsDefaultValueWhenNothingIsStored() {
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
+        let storage = RecordingStorage()
+        let defaultSettings = DemoSettings()
+        let store = SettingsStore(defaultValue: defaultSettings, storage: storage, autoSaveDelay: autoSaveDelay)
+
+        let outcome = store.load()
+
+        if case .noStoredData = outcome {} else {
+            Issue.record("expected .noStoredData, got \(outcome)")
+        }
+        #expect(store.value === defaultSettings)
+    }
+
+    @Test("a synchronous load reports undecodable data and leaves it stored")
+    func synchronousLoadReportsUndecodableDataAndKeepsStoredBytes() throws {
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
+        let undecodableData = Data("not json".utf8)
+        let storage = RecordingStorage(initialData: undecodableData)
+        let defaultSettings = DemoSettings()
+        let store = SettingsStore(defaultValue: defaultSettings, storage: storage, autoSaveDelay: autoSaveDelay)
+
+        let outcome = store.load()
+
+        if case .failed = outcome {} else {
+            Issue.record("expected .failed, got \(outcome)")
+        }
+        #expect(store.value === defaultSettings)
+        #expect(try storage.load() == undecodableData)
+        #expect(storage.saveCount == 0)
+    }
+
+    @Test("a synchronous load does not write the settings straight back")
+    func synchronousLoadDoesNotWriteTheSettingsStraightBack() async throws {
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
+        let storage = RecordingStorage(initialData: try JSONEncoder().encode(DemoSettings(title: "stored")))
+        let store = SettingsStore(defaultValue: DemoSettings(), storage: storage, autoSaveDelay: autoSaveDelay)
+
+        let loadWithoutSuspending: () -> SettingsStore<DemoSettings>.LoadOutcome = store.load
+        _ = loadWithoutSuspending()
+        await waitPastAutoSave()
+
+        #expect(store.value.title == "stored")
+        #expect(storage.saveCount == 0)
+    }
+
+    @Test("an edit right after a synchronous load is saved")
+    func editAfterSynchronousLoadIsSaved() async throws {
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
+        let storage = RecordingStorage(initialData: try JSONEncoder().encode(DemoSettings()))
+        let store = SettingsStore(defaultValue: DemoSettings(), storage: storage, autoSaveDelay: autoSaveDelay)
+
+        let loadWithoutSuspending: () -> SettingsStore<DemoSettings>.LoadOutcome = store.load
+        _ = loadWithoutSuspending()
+        store.value.general.depth = 42
+
+        #expect(await waitUntil { storage.saveCount == 1 }, "the post-load write was never persisted")
+        let persisted = try storage.decodedValue(as: DemoSettings.self)
+        #expect(persisted?.general.depth == 42)
+    }
 }
 
 @Suite("FileSystemSettingsStorage")
 struct FileSystemSettingsStorageTests {
     @Test("round-trips through a real file")
     func roundTrip() async throws {
-        guard #available(macOS 14.0, *) else { return }
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("UIFoundationSettingsTests-\(UUID().uuidString)")
             .appendingPathComponent("Settings.json")
@@ -330,7 +415,7 @@ struct FileSystemSettingsStorageTests {
 
     @Test("reports missing data rather than an empty payload")
     func missingFile() async {
-        guard #available(macOS 14.0, *) else { return }
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("UIFoundationSettingsTests-\(UUID().uuidString)")
             .appendingPathComponent("Settings.json")
@@ -343,7 +428,7 @@ struct FileSystemSettingsStorageTests {
 
     @Test("round-trips synchronously through a real file")
     func synchronousRoundTrip() throws {
-        guard #available(macOS 14.0, *) else { return }
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("UIFoundationSettingsTests-\(UUID().uuidString)")
             .appendingPathComponent("Settings.json")
@@ -358,7 +443,7 @@ struct FileSystemSettingsStorageTests {
 
     @Test("the synchronous load reports missing data too")
     func synchronousMissingFile() {
-        guard #available(macOS 14.0, *) else { return }
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
         let fileURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("UIFoundationSettingsTests-\(UUID().uuidString)")
             .appendingPathComponent("Settings.json")
@@ -371,7 +456,7 @@ struct FileSystemSettingsStorageTests {
 
     @Test("creates the enclosing directory on first save")
     func createsDirectory() throws {
-        guard #available(macOS 14.0, *) else { return }
+        guard #available(macOS 14.0, iOS 17.0, macCatalyst 17.0, tvOS 17.0, watchOS 10.0, visionOS 1.0, *) else { return }
         let directoryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("UIFoundationSettingsTests-\(UUID().uuidString)")
         let fileURL = directoryURL.appendingPathComponent("Nested/Settings.json")
