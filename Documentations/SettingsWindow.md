@@ -7,9 +7,11 @@
 > Ships behind the opt-in SPM trait `Settings`, in two modules — `UIFoundationSettings` (the model
 > layer) and `UIFoundationSettingsUI` (the presentation layer). The model layer builds on every
 > platform Observation does — macOS 14, iOS 17, Mac Catalyst 17, tvOS 17, watchOS 10, visionOS 1 —
-> and its sources are wrapped in `#if Settings`; the presentation layer is AppKit, macOS 14+ only,
-> wrapped in `#if Settings && os(macOS)`. Off macOS a host gets the store and draws its own settings
-> screen.
+> and its sources are wrapped in `#if Settings`. In the presentation layer, what a page is written
+> with — `AppSettings`, `SettingsForm`, `SettingsPage`, `SettingsPageIcon` — builds on macOS 14, iOS 17,
+> Mac Catalyst 17 and visionOS 1, so one SwiftUI page serves both; the hosts differ: the window on
+> macOS, `SettingsViewController` / `SettingsNavigationStack` on iOS, Mac Catalyst and visionOS
+> ([§ On iOS](#on-ios-mac-catalyst-and-visionos)). tvOS and watchOS get the store only.
 >
 > Extracted from RuntimeViewer's `RuntimeViewerSettings` / `RuntimeViewerSettingsUI`; the decision
 > record is [Evolution 0002](Evolutions/0002-reusable-settings-window.md).
@@ -367,6 +369,25 @@ A symbol name that the running system does not know falls back to an asset catal
 name, so a host can ship a glyph for a symbol introduced in a newer OS.
 
 The library ships **no singleton**. Hold the controller yourself if the app should reuse one window.
+
+### On iOS, Mac Catalyst and visionOS
+
+There is no settings window there: the pages are a list, each row pushing its page, as in the system
+Settings app ([Evolution 0043](Evolutions/0043-settings-ui-on-ios.md)).
+
+- `SettingsViewController` is the UIKit host, shaped like `SettingsWindowController`: subclass it,
+  give the pages in `super.init(title:pages:)`, present an instance. Its Done button dismisses it.
+- `SettingsNavigationStack` is the same list as a SwiftUI view, for a SwiftUI app's sheet. Its Done
+  button calls `onDone`, or dismisses the presentation when that is `nil`.
+- The pages are the macOS ones: `SettingsPage`, `SettingsForm` and `@AppSettings` work unchanged. A
+  page that reaches for AppKit itself (a colour conversion through `NSColor`, an `NSViewRepresentable`)
+  needs a UIKit branch of its own.
+- Rows draw `SettingsPageIcon` at 29 points. A `plainSymbol` icon is a monochrome glyph there; use
+  `.symbol(_, tint:)` for the system Settings app's tinted squares.
+- `SettingsConfiguration`, `SettingsNavigator`, `SettingsScene` and `SettingsRootView` describe the
+  window and stay macOS-only; `NavigationStack` keeps the history on iOS.
+- Nothing saves for you when the app leaves the foreground: see *Leaving the foreground* in
+  [§ 6](#6-persistence).
 
 ---
 
