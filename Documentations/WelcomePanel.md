@@ -85,7 +85,9 @@ Everything is nested under one top-level symbol: `WelcomePanelController.Configu
 style's own default — which for the two labels means the host bundle's `CFBundleName` and
 `CFBundleShortVersionString`, and for the icon means `NSApplication.shared.applicationIconImage`.
 There are exactly three action slots: `primaryAction`, `secondaryAction`, `tertiaryAction`; the nil
-ones are dropped and the rest keep that order.
+ones are dropped and the rest keep that order. `projectListPlaceholderText` is what the right-hand
+list says while it is empty — `nil` keeps "No Recent Projects", which suits an IDE; a host whose list
+holds something else (files, sessions) words it itself. It is read once, when the list is built.
 
 ---
 
@@ -246,11 +248,11 @@ The port is behaviour-for-behaviour identical. What changed is shape and plumbin
 
 ## 7. How this is verified
 
-`Tests/UIFoundationTests/WelcomePanelTests.swift` (18 tests, gated on the trait) pins the style
+`Tests/UIFoundationTests/WelcomePanelTests.swift` (20 tests, gated on the trait) pins the style
 geometry table, the window chrome per style, `allActions` ordering, the three data-source contracts
 from [§4](#4-contracts-a-host-has-to-know), the cells' reuse identifiers, fonts and pill geometry,
-the measured `.xcode26` values (material, corner radius, title font, row offsets, icon glow), and
-that both former gaps stay closed.
+the measured `.xcode26` values (material, corner radius, title font, row offsets, icon glow), the
+empty list's placeholder text, and that both former gaps stay closed.
 
 One of those tests asserts the project list still uses `.sourceList`. That is not decoration:
 measured on macOS 26, `.sourceList` is what supplies the list's 10 pt first-row inset and 16 pt cell

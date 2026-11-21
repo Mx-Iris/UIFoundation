@@ -245,6 +245,32 @@ struct WelcomePanelTests {
         #expect(abs(glowColor.alphaComponent - 0.55) < 0.001)
     }
 
+    @Test("an empty project list says No Recent Projects unless the configuration words it")
+    func projectListPlaceholderTextDefaultsToNoRecentProjects() {
+        guard #available(macOS 11.0, *) else { return }
+
+        let dataSource = StubDataSource()
+        let panel = WelcomePanelController(configuration: .init(style: .xcode26))
+        panel.dataSource = dataSource
+
+        #expect(panel.projectsViewController.placeholderLabel.stringValue == "No Recent Projects")
+        #expect(panel.projectsViewController.placeholderLabel.isHidden == false)
+    }
+
+    @Test("an empty project list shows the configuration's placeholder text")
+    func projectListPlaceholderTextComesFromTheConfiguration() {
+        guard #available(macOS 11.0, *) else { return }
+
+        let dataSource = StubDataSource()
+        let panel = WelcomePanelController(
+            configuration: .init(style: .xcode26, projectListPlaceholderText: "No Recent Files")
+        )
+        panel.dataSource = dataSource
+
+        #expect(panel.projectsViewController.placeholderLabel.stringValue == "No Recent Files")
+        #expect(panel.projectsViewController.placeholderLabel.isHidden == false)
+    }
+
     @Test("the project list is a source list, which is where its insets come from")
     func projectListRunsAsASourceList() {
         guard #available(macOS 11.0, *) else { return }
