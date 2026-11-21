@@ -51,7 +51,7 @@ extension WelcomePanelController {
             }
         }
 
-        lazy var placeholderLabel = NSTextField(labelWithString: "No Recent Projects").then {
+        lazy var placeholderLabel = NSTextField(labelWithString: configuration.projectListPlaceholderText ?? "No Recent Projects").then {
             $0.font = .systemFont(ofSize: 16.5)
             $0.textColor = .secondaryLabelColor
             $0.isHidden = true

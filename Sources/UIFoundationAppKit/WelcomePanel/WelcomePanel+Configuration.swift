@@ -21,6 +21,8 @@ extension WelcomePanelController {
         public var primaryAction: Action?
         public var secondaryAction: Action?
         public var tertiaryAction: Action?
+        /// The text the project list shows while it has no projects. `nil` shows "No Recent Projects".
+        public var projectListPlaceholderText: String?
         public var checkShowOnLaunch: Bool
 
         /// The non-nil actions in primary → secondary → tertiary order.
@@ -41,6 +43,7 @@ extension WelcomePanelController {
             primaryAction: Action? = nil,
             secondaryAction: Action? = nil,
             tertiaryAction: Action? = nil,
+            projectListPlaceholderText: String? = nil,
             checkShowOnLaunch: Bool = true
         ) {
             self.style = style
@@ -55,6 +58,7 @@ extension WelcomePanelController {
             self.primaryAction = primaryAction
             self.secondaryAction = secondaryAction
             self.tertiaryAction = tertiaryAction
+            self.projectListPlaceholderText = projectListPlaceholderText
             self.checkShowOnLaunch = checkShowOnLaunch
         }
     }
