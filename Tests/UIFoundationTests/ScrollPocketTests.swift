@@ -3,7 +3,7 @@
 import AppKit
 import Testing
 import FrameworkToolbox
-import UIFoundationAppleInternal
+@testable import UIFoundationAppleInternal
 
 /// Covers the scroll pocket wrappers on `NSScrollView.box` and `NSView.box.titlebarBackdropGroupName`, and the AppKit
 /// behaviour their documentation states: when the bottom pocket exists, what each pocket's height follows, and which
@@ -248,6 +248,25 @@ struct ScrollPocketTests {
     }
 
     @available(macOS 26.0, *)
+    @Test("A scroll pocket view leaves alone the members macOS 26's pocket lacks")
+    func scrollPocketViewOnMacOS26Pocket() throws {
+        let macOS26Pocket = MacOS26ScrollPocket()
+        let frontPocket = ScrollPocketView(edge: .top, pocketClass: macOS26Pocket.pocketClass)
+        let pocket = try #require(frontPocket.subviews.first as? NSScrollPocket)
+
+        frontPocket.allowsSeparator = true
+        frontPocket.backdropGroupName = "Front"
+
+        #expect(object_getClass(pocket) === macOS26Pocket.pocketClass)
+        #expect(macOS26Pocket.log.messages.isEmpty, "Sent what macOS 26's pocket raises on: \(macOS26Pocket.log.messages)")
+        #expect(frontPocket.allowsSeparator == false)
+        #expect(frontPocket.backdropGroupName == nil)
+        #expect(frontPocket.style == ScrollPocketView.hardStyle)
+        #expect(pocket.edge == NSScrollView.ScrollPocketEdge.top.rawValue)
+        #expect(frontPocket.captureView === pocket.captureView)
+    }
+
+    @available(macOS 26.0, *)
     @Test("A view names no group until one is set, and nil goes back to none")
     func titlebarBackdropGroupNameReadsBack() {
         let view = NSView()
@@ -263,6 +282,59 @@ struct ScrollPocketTests {
 }
 
 // MARK: - Fixture
+
+/// AppKit's pocket as macOS 26.0 to 26.7 have it: without `allowsSeparator` and `backdropGroupName`, both new in
+/// macOS 27 (read off each version's AppKit). The class is made with the Objective-C runtime, as KVO makes its
+/// subclasses, because AppKit writes the pocket in Swift and a Swift subclass of it crashes in AppKit's initializer. It
+/// answers `responds(to:)` and `instancesRespond(to:)` as macOS 26's AppKit does, and logs each message to the missing
+/// members — which raises `unrecognized selector` there — instead of passing it on.
+@available(macOS 26.0, *)
+struct MacOS26ScrollPocket {
+    final class MessageLog {
+        fileprivate(set) var messages: [String] = []
+    }
+
+    private static let selectorNamesMacOS26Lacks: Set<String> = [
+        "allowsSeparator", "setAllowsSeparator:", "backdropGroupName", "setBackdropGroupName:",
+    ]
+
+    let pocketClass: NSScrollPocket.Type
+    /// The messages to the missing members its pockets were sent, in order.
+    let log = MessageLog()
+
+    init() {
+        let className = "UIFoundationTestsMacOS26ScrollPocket" + UUID().uuidString.replacingOccurrences(of: "-", with: "")
+        let subclass: AnyClass = objc_allocateClassPair(NSScrollPocket.self, className, 0)!
+        let respondsLikeMacOS26: @convention(block) (AnyObject, Selector) -> Bool = { _, selector in
+            !Self.selectorNamesMacOS26Lacks.contains(NSStringFromSelector(selector))
+                && class_respondsToSelector(NSScrollPocket.self, selector)
+        }
+        class_addMethod(subclass, #selector(NSObject.responds(to:)), imp_implementationWithBlock(respondsLikeMacOS26), "B@::")
+        class_addMethod(object_getClass(subclass)!, #selector(NSObject.instancesRespond(to:)), imp_implementationWithBlock(respondsLikeMacOS26), "B#::")
+
+        let log = log
+        let allowsSeparatorGetter: @convention(block) (AnyObject) -> Bool = { _ in
+            log.messages.append("allowsSeparator")
+            return false
+        }
+        let allowsSeparatorSetter: @convention(block) (AnyObject, Bool) -> Void = { _, _ in
+            log.messages.append("setAllowsSeparator:")
+        }
+        let backdropGroupNameGetter: @convention(block) (AnyObject) -> NSString? = { _ in
+            log.messages.append("backdropGroupName")
+            return nil
+        }
+        let backdropGroupNameSetter: @convention(block) (AnyObject, NSString?) -> Void = { _, _ in
+            log.messages.append("setBackdropGroupName:")
+        }
+        class_addMethod(subclass, NSSelectorFromString("allowsSeparator"), imp_implementationWithBlock(allowsSeparatorGetter), "B@:")
+        class_addMethod(subclass, NSSelectorFromString("setAllowsSeparator:"), imp_implementationWithBlock(allowsSeparatorSetter), "v@:B")
+        class_addMethod(subclass, NSSelectorFromString("backdropGroupName"), imp_implementationWithBlock(backdropGroupNameGetter), "@@:")
+        class_addMethod(subclass, NSSelectorFromString("setBackdropGroupName:"), imp_implementationWithBlock(backdropGroupNameSetter), "v@:@")
+        objc_registerClassPair(subclass)
+        pocketClass = subclass as! NSScrollPocket.Type
+    }
+}
 
 extension ScrollPocketTests {
     @MainActor

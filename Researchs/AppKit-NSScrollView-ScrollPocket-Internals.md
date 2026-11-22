@@ -211,6 +211,10 @@ occlusion views' capture views at its back. Measured on 27.2, in RuntimeViewer's
 
 - `NSScrollPocket` is exported (AppKit's `.tbd` lists it under `objc-classes`) and `init(frame:)` makes a working one
   outside any scroll view; `_isEnabled` is already true.
+- `allowsSeparator` and `backdropGroupName` are new in macOS 27. The pocket of macOS 26.0 to 26.7 has `edge`, `style`
+  and `captureView`, a private `_showSeparatorsOnHardPocket` where 27 has `allowsSeparator`, and no group name at all
+  (class dumps of each version's shared cache, 2026-11-22); sending either selector there raises `unrecognized
+  selector`.
 - Style 2 draws the hard recipe whatever the pocket's elements: `HardPocketContentBlur`, in the pocket's
   `backdropGroupName`, under `HardPocketBackgroundReplay` at opacity 0.85 in a window that was not key.
 - Style 0 or 1 with no element containers draws nothing: the v8 root layer's opacity is 0. Given the title bar

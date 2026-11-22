@@ -110,4 +110,11 @@ trailingPaneView.box.titlebarBackdropGroupName = "EditorPane-\(trailingPaneID)"
 - **标题栏上一块平的窗口底色，先查分组。** 内容明明滚到了标题栏底下，标题栏的一段却是均匀的底色、毫无纹理时，
   多半是这段和别处共用一个 backdrop 分组、截图早于这段内容的绘制，见上文「用法」最后一段。
 - **私有方法会在小版本之间消失。** `_registeredPocketContainersOnEdge:` 在 27.0 里有、27.2 里没有，直接调用会抛
-  `unrecognized selector`。封装里每个方法都先查 `instancesRespond(to:)`（维护时保持这一点，新加的方法也要查），自己绕过封装直接调私有方法时也要这么做。
+  `unrecognized selector`。封装里每个方法都先查 AppKit 有没有（`instancesRespond(to:)` 或 `responds(to:)`；维护时保持这一点，新加的方法也要查），自己绕过封装直接调私有方法时也要这么做。
+- **macOS 26 的 pocket 少两个成员。** `NSScrollPocket` 的 `allowsSeparator` 和 `backdropGroupName` 是 macOS 27 才加的，
+  26.0 到 26.7 都没有。0.50.0 的 `ScrollPocketView` 初始化时直接设 `allowsSeparator`，在 macOS 26 上一建就抛
+  `unrecognized selector`：RuntimeViewer 3.0.0 beta.10 因此在 macOS 26 上开不了新窗口；异常若在 Swift 任务里抛出，
+  还会让并发运行时留下一份指向已失效栈帧的执行器记录，之后主线程上的隔离检查随机崩溃。0.50.1 起两者都先查
+  `responds(to:)`，在 macOS 26 上分别读回 `false` 和 `nil`、赋值不起作用；`NSScrollPocket.h` 也把它们标成 macOS 27 起
+  可用，编译器会要求 `#available`。macOS 26 上独立 pocket 画不画分隔线由 AppKit 自己决定，没有实测过。
+  `ScrollPocketTests` 用一个照 macOS 26 回答 `responds(to:)` 的 pocket 子类盯着这一点。

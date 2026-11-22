@@ -53,28 +53,30 @@ open class ScrollPocketView: NSView {
         }
     }
 
-    /// Whether a hairline is drawn along the far side of the effect: `false` unless set, as Xcode 27 has it.
+    /// Whether a hairline is drawn along the far side of the effect: `false` unless set, as Xcode 27 has it. AppKit's
+    /// pocket has the switch from macOS 27 on; on macOS 26 this reads `false` and assigning does nothing.
     public var allowsSeparator: Bool {
         get {
-            guard #available(macOS 26.0, *), let pocket else { return false }
+            guard #available(macOS 27.0, *), let pocket, pocket.carriesSeparatorSwitch else { return false }
             return pocket.allowsSeparator
         }
         set {
-            guard #available(macOS 26.0, *), let pocket else { return }
+            guard #available(macOS 27.0, *), let pocket, pocket.carriesSeparatorSwitch else { return }
             pocket.allowsSeparator = newValue
         }
     }
 
     /// The backdrop group the effect blurs what is behind it in, or `nil` — what it starts with — for a group of its
     /// own that AppKit names. Two effects in one group are drawn from one capture, taken when the first of them is
-    /// drawn, so give each its own unless they are meant to share it.
+    /// drawn, so give each its own unless they are meant to share it. AppKit's pocket takes a name from macOS 27 on;
+    /// on macOS 26 this reads `nil` and assigning does nothing.
     public var backdropGroupName: String? {
         get {
-            guard #available(macOS 26.0, *), let pocket else { return nil }
+            guard #available(macOS 27.0, *), let pocket, pocket.carriesBackdropGroupName else { return nil }
             return pocket.backdropGroupName
         }
         set {
-            guard #available(macOS 26.0, *), let pocket else { return }
+            guard #available(macOS 27.0, *), let pocket, pocket.carriesBackdropGroupName else { return }
             pocket.backdropGroupName = newValue
         }
     }
@@ -91,21 +93,19 @@ open class ScrollPocketView: NSView {
 
     public init(edge: NSScrollView.ScrollPocketEdge) {
         self.edge = edge
-        if #available(macOS 26.0, *), let pocketClass = NSClassFromString("NSScrollPocket") as? NSScrollPocket.Type {
-            let pocket = pocketClass.init(frame: .zero)
-            pocket.edge = edge.rawValue
-            pocket.style = Self.hardStyle
-            pocket.allowsSeparator = false
-            pocketView = pocket
-        } else {
-            pocketView = nil
-        }
+        pocketView = Self.makePocketView(edge: edge, pocketClass: NSClassFromString("NSScrollPocket"))
         super.init(frame: .zero)
-        if let pocketView {
-            pocketView.frame = bounds
-            pocketView.autoresizingMask = [.width, .height]
-            addSubview(pocketView)
-        }
+        embedPocketView()
+    }
+
+    /// A view whose pocket is a `pocketClass` instead of AppKit's own, for tests that stand in for AppKit on another
+    /// macOS.
+    @available(macOS 26.0, *)
+    init(edge: NSScrollView.ScrollPocketEdge, pocketClass: NSScrollPocket.Type) {
+        self.edge = edge
+        pocketView = Self.makePocketView(edge: edge, pocketClass: pocketClass)
+        super.init(frame: .zero)
+        embedPocketView()
     }
 
     @available(*, unavailable)
@@ -120,6 +120,39 @@ open class ScrollPocketView: NSView {
     @available(macOS 26.0, *)
     private var pocket: NSScrollPocket? {
         pocketView as? NSScrollPocket
+    }
+
+    private static func makePocketView(edge: NSScrollView.ScrollPocketEdge, pocketClass: AnyClass?) -> NSView? {
+        guard #available(macOS 26.0, *), let pocketClass = pocketClass as? NSScrollPocket.Type else { return nil }
+        let pocket = pocketClass.init(frame: .zero)
+        pocket.edge = edge.rawValue
+        pocket.style = hardStyle
+        if #available(macOS 27.0, *), pocket.carriesSeparatorSwitch {
+            pocket.allowsSeparator = false
+        }
+        return pocket
+    }
+
+    private func embedPocketView() {
+        guard let pocketView else { return }
+        pocketView.frame = bounds
+        pocketView.autoresizingMask = [.width, .height]
+        addSubview(pocketView)
+    }
+}
+
+// The members macOS 27 added to AppKit's pocket. macOS 26.0 to 26.7 lack both, and sending either there raises
+// `unrecognized selector`: inside a Swift task, the exception also leaves the concurrency runtime pointing at a stack
+// frame that is gone, and a later isolation check crashes. Check before every send, as the wrappers on
+// `NSScrollView.box` do.
+@available(macOS 27.0, *)
+private extension NSScrollPocket {
+    var carriesSeparatorSwitch: Bool {
+        responds(to: #selector(getter: allowsSeparator)) && responds(to: #selector(setter: allowsSeparator))
+    }
+
+    var carriesBackdropGroupName: Bool {
+        responds(to: #selector(getter: backdropGroupName)) && responds(to: #selector(setter: backdropGroupName))
     }
 }
 

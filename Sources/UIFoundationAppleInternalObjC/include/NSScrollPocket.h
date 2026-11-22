@@ -21,12 +21,14 @@ API_AVAILABLE(macos(26.0))
 /// trap on macOS 27.2.
 @property (nonatomic) NSInteger style;
 
-/// Whether a hairline is drawn along the far side of the pocket. Xcode 27 turns it off on its own pockets.
-@property (nonatomic) BOOL allowsSeparator;
+/// Whether a hairline is drawn along the far side of the pocket. Xcode 27 turns it off on its own pockets. New in
+/// macOS 27: the pocket of macOS 26.0 to 26.7 has no such property, and sending it raises `unrecognized selector`.
+@property (nonatomic) BOOL allowsSeparator API_AVAILABLE(macos(27.0));
 
 /// The backdrop group the pocket blurs the content behind it in. When `nil`, a pocket with the title bar among its
-/// containers takes the nearest `_titlebarGroupName` up its superview chain, and any other one a name of its own.
-@property (nonatomic, copy, nullable) NSString *backdropGroupName;
+/// containers takes the nearest `_titlebarGroupName` up its superview chain, and any other one a name of its own. New
+/// in macOS 27, like `allowsSeparator`.
+@property (nonatomic, copy, nullable) NSString *backdropGroupName API_AVAILABLE(macos(27.0));
 
 /// A capture-only backdrop the pocket replays the background from. A scroll view puts its pocket's behind its clip view;
 /// the host of a stand-alone pocket puts it behind the content the pocket covers.
