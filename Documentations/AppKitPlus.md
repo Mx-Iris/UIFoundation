@@ -194,7 +194,7 @@ them under the trait** ([6.5](#65-what-0240-added)): the shadow members write th
 `shadowProperties`, which no earlier release has. The floor also keeps the combination that broke
 RuntimeViewer's welcome window out of range: UIFoundation 0.50.1 with AppKitPlus 0.24.0, where the
 renderer kept writing a radius of 0 over the one AppKitPlus had applied. Decision record: Evolution
-`appkitplus-owns-layer-backed-view-appearance`.
+[`0044`](Evolutions/0044-appkitplus-owns-layer-backed-view-appearance.md).
 
 **Keep `Package.resolved`'s AppKitPlus pin on the newest release, not on the floor's.** Until
 2026-11-26 it pinned 0.6.0, so the canaries below never ran against the release that broke them; a
@@ -301,7 +301,7 @@ The collision survey done at the bump, on 0.24.0's shipped headers
 - Evolution [`0018`](Evolutions/0018-layer-backed-view-controller.md) — `LayerBackedViewController`.
 - Evolution [`0024`](Evolutions/0024-component-layout-system.md) — carries the corrected
   `.swiftinterface` survey.
-- Evolution `appkitplus-owns-layer-backed-view-appearance` — the 0.24.0 floor; `LayerBackedView`'s
+- Evolution [`0044`](Evolutions/0044-appkitplus-owns-layer-backed-view-appearance.md) — the 0.24.0 floor; `LayerBackedView`'s
   appearance under the trait.
 - [LayerBackground.md](LayerBackground.md) — the background pipeline `LayerBackedView` is built on
   without the trait.

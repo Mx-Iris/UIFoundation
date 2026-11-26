@@ -1,12 +1,12 @@
-# Draft - 开 AppKitPlus trait 时把 LayerBackedView 的外观交给 AppKitPlus
+# 0044 - 开 AppKitPlus trait 时把 LayerBackedView 的外观交给 AppKitPlus
 
-- **状态**: In Progress
+- **状态**: Implemented
 - **作者**: JH
 - **创建日期**: 2026-11-26
 - **最后更新**: 2026-11-26
 - **所属愿景**: 无
 - **关联提案**: [0017-appkitplus-layer-backed-view](0017-appkitplus-layer-backed-view.md)（`LayerBackedView` 改继承 `NSLayerBackedView` 的来历）；上游 AppKitPlus 的 `0122-layer-backed-view-appearance`（给 `NSLayerBackedView` 加外观成员，其「后续」一节点名要本库配合）
-- **实现分支 / PR**: `feature/appkitplus-layer-appearance`，从 `main` 切出，worktree `.worktrees/UIFoundation-AppKitPlusLayerAppearance`
+- **实现分支 / PR**: `feature/appkitplus-layer-appearance`，从 `main` 切出，2026-11-26 本地 `--no-ff` 合进 `main`，随 0.51.0 发布
 - **配套文档**: 无单独文档——改现有指南 [`LayerBackground.md`](../LayerBackground.md)、[`AppKitPlus.md`](../AppKitPlus.md)、[`WelcomePanel.md`](../WelcomePanel.md)
 - **网页版**: 同目录同名的 `.html`
 
@@ -371,11 +371,13 @@ LayerBackground 演示页。
 4. **文档、skill 与索引**（已完成） —— 改动地图里的文档各行
    - 行为：指南写明 trait 下外观归属、默认值差异与阴影转写
    - 行为：插件版本 1.5.0
-5. **落地与发版** —— 合进 `main`，提案改编号为 Implemented，打 tag `0.51.0`
+5. **落地与发版**（已完成）—— 合进 `main`，提案改编号为 Implemented，打 tag `0.51.0`
    - 行为：RuntimeViewer 抬到 0.51.0 后欢迎窗口恢复圆角（RuntimeViewer 一侧的提交）
 
 ### 后续项
 
+- **RuntimeViewer 抬到 0.51.0**：`RuntimeViewerPackages/Package.swift` 的 UIFoundation 下限改为 `from: "0.51.0"`，三个工作区的锁文件只抬这一个 pin，*Dependency floors* 补一句；之后目视欢迎窗口等用 `LayerBackedView` 的视图。
+- **示例 App 补编一次**：这次因 swift-tree-sitter 的子模块拉不下来没编成，网络恢复后从导出副本按 `AGENTS.md` 的命令再编。
 - **报给 AppKitPlus**：0.24.0 的整圈内描边（视图自己 layer 的 `borderWidth`）在圆角顶边下方几行比同心的内缩轮廓厚 2–6 像素（2×），复现见本库 `LayerBackgroundCornerCurveTests.fullBorderKeepsToTheCornerCurve` 在 trait 下的已知问题。
 
 **收尾时必须判断两件事**：是否需要单独的使用指南或实现说明（预计不需要，契约写进现有三份指南）；是否引入新术语（预计没有）。
@@ -396,3 +398,4 @@ LayerBackground 演示页。
 | 2026-11-26 | 碰撞清点结果 | 按 0.24.0 发布包里的 `Headers/` 比对本库 68 个协议扩展成员名，落在本库视图会继承的类上的只有 `NSLayerBackedView` 那九个；源码树里的 `NSView (Appearance)` 是未公开的项目头文件，不算。结果写进 `AppKitPlus.md` §6.5 |
 | 2026-11-26 | 示例 App 没能构建 | 从导出副本构建示例 App 时，依赖 swift-tree-sitter 的子模块 tree-sitter-swift 拉取中途断开（`fatal: early EOF`，重试同样失败），没进入编译。属网络问题，不在本分支处理；示例 App 用到的阴影四项在 trait 下由新扩展提供，全 trait 构建已覆盖库本身，示例 App 的编译留到收尾前再试 |
 | 2026-11-26 | 实现完成，待用户看过后收尾 | 第 1–4 步完成，在本地合进 `main`、未推送；落地取号、改 Implemented、打 tag `0.51.0` 与 RuntimeViewer 一侧的升级留给收尾 |
+| 2026-11-26 | Implemented，取号 0044 | 合进 `main` 并推送，打 tag `0.51.0`。不另写使用指南或实现说明：调用方契约写进了 `LayerBackground.md` §1.1，维护要点写进了 `AppKitPlus.md` §6.1、§6.5；没有新术语。没做的两项（示例 App 编译、报给 AppKitPlus）与 RuntimeViewer 的升级记为后续项 |

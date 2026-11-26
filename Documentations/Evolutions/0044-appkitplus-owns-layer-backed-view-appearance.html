@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Draft - 开 AppKitPlus trait 时把 LayerBackedView 的外观交给 AppKitPlus</title>
+<title>0044 - 开 AppKitPlus trait 时把 LayerBackedView 的外观交给 AppKitPlus</title>
 <style>
 /* Evolution proposal page, shared style (style A, "Apple documentation").
    Copy this whole <style> block verbatim. Page-specific rules, if any, go only
@@ -160,16 +160,16 @@ details[open] > summary { border-bottom: 1px solid var(--separator); }
 <div class="page">
 
 <header class="doc-header">
-  <p class="eyebrow"><span class="crumb">UIFoundation</span><span class="crumb">Evolutions</span><span class="crumb">Draft</span></p>
-  <h1><span class="proposal-number">Draft</span> 开 AppKitPlus trait 时把 LayerBackedView 的外观交给 AppKitPlus</h1>
+  <p class="eyebrow"><span class="crumb">UIFoundation</span><span class="crumb">Evolutions</span><span class="crumb">0044</span></p>
+  <h1><span class="proposal-number">0044</span> 开 AppKitPlus trait 时把 LayerBackedView 的外观交给 AppKitPlus</h1>
   <dl class="meta">
-    <div><dt>状态</dt><dd><span class="status status-in-progress">In Progress</span></dd></div>
+    <div><dt>状态</dt><dd><span class="status status-implemented">Implemented</span></dd></div>
     <div><dt>最后更新</dt><dd>2026-11-26</dd></div>
     <div><dt>创建日期</dt><dd>2026-11-26</dd></div>
     <div><dt>作者</dt><dd>JH</dd></div>
     <div><dt>项目类型</dt><dd>库（源码分发）</dd></div>
-    <div><dt>实现分支</dt><dd><code>feature/appkitplus-layer-appearance</code>，从 <code>main</code> 切出</dd></div>
-    <div><dt>原文</dt><dd><code>draft-appkitplus-owns-layer-backed-view-appearance.md</code></dd></div>
+    <div><dt>实现分支</dt><dd><code>feature/appkitplus-layer-appearance</code>，从 <code>main</code> 切出，2026-11-26 本地 <code>--no-ff</code> 合进 <code>main</code>，随 0.51.0 发布</dd></div>
+    <div><dt>原文</dt><dd><code>0044-appkitplus-owns-layer-backed-view-appearance.md</code></dd></div>
   </dl>
 </header>
 
@@ -492,11 +492,13 @@ swift test --traits AppKitPlus,WelcomePanel --filter LayerBackedViewBaseClassTes
       <ul><li>行为：全 trait 构建无错误；trait 开关两种的全量测试都通过（开窗口的测试放到用户没在用的那台机器）</li><li>行为：<code>LayerBackgroundCornerCurveTests</code> 两种 trait 下都通过，不过的记录差异报给上游</li><li>行为：AppKitPlus 0.7.0–0.24.0 新增的分类成员与本库声明无静默遮蔽</li><li>行为：示例 App 从导出副本构建通过</li></ul></li>
     <li><strong>文档、skill 与索引（已完成）</strong>
       <ul><li>行为：指南写明 trait 下外观归属、默认值差异与阴影转写；插件版本 1.5.0</li></ul></li>
-    <li><strong>落地与发版</strong>：合进 <code>main</code>，提案改编号为 Implemented，打 tag <code>0.51.0</code>
+    <li><strong>落地与发版（已完成）</strong>：合进 <code>main</code>，提案改编号为 Implemented，打 tag <code>0.51.0</code>
       <ul><li>行为：RuntimeViewer 抬到 0.51.0 后欢迎窗口恢复圆角（RuntimeViewer 一侧的提交）</li></ul></li>
   </ol>
   <h3>后续项</h3>
   <div class="callout callout-warning">
+    <p><strong>RuntimeViewer 抬到 0.51.0</strong>：UIFoundation 下限改为 <code>from: "0.51.0"</code>，三个工作区的锁文件只抬这一个 pin，<em>Dependency floors</em> 补一句；之后目视欢迎窗口等用 <code>LayerBackedView</code> 的视图。</p>
+    <p><strong>示例 App 补编一次</strong>：这次因 swift-tree-sitter 的子模块拉不下来没编成，网络恢复后再编。</p>
     <p><strong>报给 AppKitPlus</strong>：0.24.0 的整圈内描边（视图自己 layer 的 <code>borderWidth</code>）在圆角顶边下方几行比同心的内缩轮廓厚 2–6 像素（2×），复现见本库 <code>LayerBackgroundCornerCurveTests.fullBorderKeepsToTheCornerCurve</code> 在 trait 下的已知问题。</p>
   </div>
 </section>
@@ -504,7 +506,7 @@ swift test --traits AppKitPlus,WelcomePanel --filter LayerBackedViewBaseClassTes
 <section id="log">
   <h2>决策日志</h2>
   <details>
-    <summary>12 条，最近一条：实现完成，待用户看过后收尾</summary>
+    <summary>13 条，最近一条：Implemented，取号 0044</summary>
     <div class="details-body">
       <div class="table-wrap">
       <table>
@@ -522,6 +524,7 @@ swift test --traits AppKitPlus,WelcomePanel --filter LayerBackedViewBaseClassTes
           <tr><td class="numeric">2026-11-26</td><td>碰撞清点结果</td><td>按 0.24.0 发布包的 <code>Headers/</code> 比对，落在本库视图会继承的类上的只有 <code>NSLayerBackedView</code> 那九个成员</td></tr>
           <tr><td class="numeric">2026-11-26</td><td>示例 App 没能构建</td><td>依赖 swift-tree-sitter 的子模块拉取中途断开（<code>fatal: early EOF</code>），没进入编译；属网络问题，留到收尾前再试</td></tr>
           <tr><td class="numeric">2026-11-26</td><td>实现完成，待用户看过后收尾</td><td>第 1–4 步完成，在本地合进 <code>main</code>、未推送；取号、改 Implemented、打 tag 与 RuntimeViewer 一侧的升级留给收尾</td></tr>
+          <tr><td class="numeric">2026-11-26</td><td>Implemented，取号 0044</td><td>合进 <code>main</code> 并推送，打 tag <code>0.51.0</code>。不另写使用指南或实现说明：契约写进 <code>LayerBackground.md</code> §1.1，维护要点写进 <code>AppKitPlus.md</code> §6.1、§6.5；没有新术语。示例 App 编译、报给 AppKitPlus 与 RuntimeViewer 的升级记为后续项</td></tr>
         </tbody>
       </table>
       </div>

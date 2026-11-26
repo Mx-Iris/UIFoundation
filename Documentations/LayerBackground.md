@@ -89,7 +89,7 @@ What differs from the renderer, measured or read off AppKitPlus 0.24.0's headers
 | A full inside border on a rounded corner | concentric with the corner | a few pixels thicker just below the top edge (2–6 px at 2× on a 20 pt radius) |
 
 The last row is a known issue in `LayerBackgroundCornerCurveTests` under the trait, to be fixed in
-AppKitPlus. Decision record: Evolution `appkitplus-owns-layer-backed-view-appearance`.
+AppKitPlus. Decision record: Evolution [`0044`](Evolutions/0044-appkitplus-owns-layer-backed-view-appearance.md).
 
 ## 2. The pipeline on a view you cannot subclass
 
