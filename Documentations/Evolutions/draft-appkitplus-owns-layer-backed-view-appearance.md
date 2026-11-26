@@ -362,13 +362,13 @@ LayerBackground 演示页。
    - 行为：`xcode26WindowContentIsRounded` 通过
    - 行为：`bordersStayOffUntilEdgesAreNamed` 在两种 trait 下都通过
    - 行为：`shadowMembersForwardToShadowProperties` 通过
-3. **全量验证与碰撞清点** —— `LayerBackgroundCornerCurveTests`（只跑）、`AppKitPlus.md` 的清点结果
+3. **全量验证与碰撞清点**（已完成） —— `LayerBackgroundCornerCurveTests`（只跑）、`AppKitPlus.md` 的清点结果
    - 行为：全 trait 构建（`AGENTS.md` 的完整 trait 列表）无错误
    - 行为：trait 关闭与打开的全量测试都通过（开窗口的测试放到不是用户正在用的那台机器上跑），输出以 `Test run with … tests` 结尾
    - 行为：`LayerBackgroundCornerCurveTests` 在两种 trait 下都通过；不过的项记下 AppKitPlus 与 renderer 的差异，报给上游
    - 行为：AppKitPlus 0.7.0–0.24.0 公开头文件新增的分类成员与本库声明无静默遮蔽（按 `AppKitPlus.md` §6.3 的 grep）
    - 行为：示例 App 从导出副本构建通过
-4. **文档、skill 与索引** —— 改动地图里的文档各行
+4. **文档、skill 与索引**（已完成） —— 改动地图里的文档各行
    - 行为：指南写明 trait 下外观归属、默认值差异与阴影转写
    - 行为：插件版本 1.5.0
 5. **落地与发版** —— 合进 `main`，提案改编号为 Implemented，打 tag `0.51.0`
@@ -392,3 +392,7 @@ LayerBackground 演示页。
 | 2026-11-26 | 更正：测试里有一处显式的渲染器边框类型 | 调研时只搜了 `Sources/` 与下游，漏了测试：`LayerBackgroundCornerCurveTests` 的帮手写着 `LayerBackgroundRenderer.BorderLocation`。trait 下原来能编过，是因为协议遵循还在、编译器挑了类型对得上的协议扩展成员；去掉遵循后编不过。只在测试里加按 trait 定的别名 `TileBorderLocation`，不为此给 `LayerBackedView` 加公开的类型别名——没有下游需要 |
 | 2026-11-26 | AppKitPlus 的整圈边框与渲染器有像素差，标为已知问题 | trait 下「a full border keeps to the corner curve」两种曲线都失败：AppKitPlus 0.24.0 把整圈内描边画在视图自己的 layer 上（`NSViewBackingLayer.borderWidth`），渲染出来在 20 点圆角顶边下方的第 4–10 行比内缩轮廓多出 2–6 像素（2×）。按非目标不在本库补，trait 下用 `withKnownIssue` 标记（上游修好后会转红提醒），记为报给 AppKitPlus 的后续项。trait 关闭时照旧严格断言 |
 | 2026-11-26 | 阴影路径按范围比较 | `shadowProperties` 存的是路径副本，`NSBezierPath` 的 `==` 只比身份，测试改比 `bounds` |
+| 2026-11-26 | 全量验证：没有新增失败 | 全 trait 构建（含测试）本机通过。全量测试在 MacBook 上跑（会开窗口），全部 trait 带与不带 AppKitPlus 各一轮：首轮两边都在 MainMenu 测试中途被系统结束（`AGENTS.md` 记过的 macOS 27.2 现象，退出码 0、没有汇总行），改为跳过 MainMenu 补跑整轮、再单独跑 MainMenu。剩下的失败与 `main`（AppKitPlus 0.6.0）同条件对照一致：QuickActionBar「Resuming a dismissal keeps the existing presentation alive」两边都挂；MainMenu「rewriting a special menu through the builder keeps it wired」只在整轮跑时挂、单独跑通过，`main` 整轮也挂；QuickActionBar 浏览按钮那条要真等 0.47 秒，两边各偶发一次。都是既有问题，不在本分支修 |
+| 2026-11-26 | 碰撞清点结果 | 按 0.24.0 发布包里的 `Headers/` 比对本库 68 个协议扩展成员名，落在本库视图会继承的类上的只有 `NSLayerBackedView` 那九个；源码树里的 `NSView (Appearance)` 是未公开的项目头文件，不算。结果写进 `AppKitPlus.md` §6.5 |
+| 2026-11-26 | 示例 App 没能构建 | 从导出副本构建示例 App 时，依赖 swift-tree-sitter 的子模块 tree-sitter-swift 拉取中途断开（`fatal: early EOF`，重试同样失败），没进入编译。属网络问题，不在本分支处理；示例 App 用到的阴影四项在 trait 下由新扩展提供，全 trait 构建已覆盖库本身，示例 App 的编译留到收尾前再试 |
+| 2026-11-26 | 实现完成，待用户看过后收尾 | 第 1–4 步完成，在本地合进 `main`、未推送；落地取号、改 Implemented、打 tag `0.51.0` 与 RuntimeViewer 一侧的升级留给收尾 |
