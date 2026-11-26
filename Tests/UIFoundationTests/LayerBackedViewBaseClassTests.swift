@@ -40,20 +40,70 @@ struct LayerBackedViewBaseClassTests {
         #expect(view.layerContentsRedrawPolicy == .onSetNeedsDisplay)
     }
 
-    /// Canary: `backgroundColor` and `cornerRadius` must still reach `LayerBackgroundRenderer`,
-    /// which is what writes them onto the backing layer from `updateLayer()`.
-    @Test("background rendering still routes through LayerBackgroundRenderer")
-    func backgroundRoutesThroughRenderer() {
+    /// Canary: a background colour and a corner radius set on the view end up on its backing
+    /// layer, and a layer update does not write them back — whoever owns them. Without the trait
+    /// that is `LayerBackgroundRenderer`; with it, AppKitPlus 0.24.0's own members, which took
+    /// these names over and left a renderer that still wrote its defaults (0, nil) onto the layer.
+    @Test("a background colour and a corner radius set on the view reach its layer")
+    func appearanceReachesTheLayer() throws {
         let view = LayerBackedView(frame: NSRect(x: 0, y: 0, width: 40, height: 40))
         view.backgroundColor = .red
         view.cornerRadius = 8
 
         view.updateLayer()
 
-        let layer = try? #require(view.layer)
-        #expect(layer?.backgroundColor == NSColor.red.cgColor)
-        #expect(layer?.cornerRadius == CGFloat(8))
+        let layer = try #require(view.layer)
+        #expect(layer.backgroundColor == NSColor.red.cgColor)
+        #expect(layer.cornerRadius == 8)
     }
+
+    /// A colour and a width alone draw no border until the edges are named, on both sides of the
+    /// trait. AppKitPlus's own default is every edge; `LayerBackedView` keeps the renderer's.
+    @Test("a border colour and width alone draw no border")
+    func bordersStayOffUntilEdgesAreNamed() throws {
+        let view = LayerBackedView(frame: NSRect(x: 0, y: 0, width: 40, height: 40))
+        view.borderColor = .red
+        view.borderWidth = 2
+
+        view.updateLayer()
+        view.layout()
+
+        #expect(view.borderPositions.isEmpty)
+        let layer = try #require(view.layer)
+        #expect(layer.borderWidth == 0)
+        let strokingSublayers = (layer.sublayers ?? []).filter { sublayer in
+            let strokesItsPath = (sublayer as? CAShapeLayer).map { $0.strokeColor != nil && $0.lineWidth > 0 } ?? false
+            return sublayer.borderWidth > 0 || strokesItsPath
+        }
+        #expect(strokingSublayers.isEmpty)
+    }
+
+    #if AppKitPlus && canImport(AppKitPlus)
+    /// With the trait on, the five `shadow*` members write through to `shadowProperties`, which
+    /// owns the view's shadow there; `nil` for the colour draws no shadow.
+    @Test("the shadow members write through to shadowProperties")
+    func shadowMembersForwardToShadowProperties() {
+        let view = LayerBackedView(frame: NSRect(x: 0, y: 0, width: 40, height: 40))
+        let path = NSBezierPath(rect: NSRect(x: 0, y: 0, width: 10, height: 10))
+
+        view.shadowColor = .systemBlue
+        view.shadowOpacity = 0.25
+        view.shadowOffset = CGSize(width: 0, height: -3)
+        view.shadowRadius = 6
+        view.shadowPath = path
+
+        #expect(view.shadowProperties.color == .systemBlue)
+        #expect(view.shadowProperties.opacity == 0.25)
+        #expect(view.shadowProperties.offset == CGSize(width: 0, height: -3))
+        #expect(view.shadowProperties.radius == 6)
+        // `shadowProperties` keeps a copy of the path, and `NSBezierPath` compares by identity.
+        #expect(view.shadowProperties.path?.bounds == path.bounds)
+        #expect(view.shadowPath?.bounds == path.bounds)
+
+        view.shadowColor = nil
+        #expect(view.shadowProperties.color == .clear)
+    }
+    #endif
 
     /// Canary: `NSLayerBackedView` deliberately leaves compression resistance at AppKit's default.
     /// UXKit's `UXView`, which it is ported from, lowers it to 500.

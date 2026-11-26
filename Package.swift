@@ -135,8 +135,12 @@ let package = Package(
     ],
     dependencies: [
         .package(
+            // 0.24.0 gave `NSLayerBackedView` its own appearance members, which take over
+            // `LayerBackedView`'s under the `AppKitPlus` trait; that code path is written against
+            // them. An older release would leave the pipeline both ways. See the Evolution proposal
+            // `appkitplus-owns-layer-backed-view-appearance` and Documentations/AppKitPlus.md.
             url: "https://github.com/AppKitSupportProgram/AppKitPlus-Release",
-            from: "0.6.0",
+            from: "0.24.0",
         ),
         .package(
             // Set USING_LOCAL_DEPENDENCIES=1 to build against a sibling FrameworkToolbox

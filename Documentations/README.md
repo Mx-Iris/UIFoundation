@@ -100,12 +100,14 @@
   后台打开时 `init` 不在主线程（Swift 6 子类因此需要基类的 `nonisolated init()`）；被 `final` 封住的 NSDocument 原有读写方法；
   与 SwiftUI `DocumentGroup` 的三处实测差别；版本浏览器的一处未实测风险。
 - [AppKitPlus](AppKitPlus.md) —— 打开 `AppKitPlus` trait 后会变什么：`LayerBackedView` 与 `LayerBackedViewController`
-  换用 AppKitPlus 的基类、`NSEdgeInsets` 的相等性改由 AppKitPlus 提供，以及为什么不管开不开 trait，macOS 下限都是 12。
+  换用 AppKitPlus 的基类、`LayerBackedView` 的圆角背景边框阴影改由 AppKitPlus 负责（0.24.0 起，因此下限是 0.24.0）、
+  `NSEdgeInsets` 的相等性改由 AppKitPlus 提供，以及为什么不管开不开 trait，macOS 下限都是 14。
   **含一条踩了就连下游一起编不过的契约**：trait 打开时，子类不能声明 AppKitPlus 已经加到该类上的同名属性
   （`center`、`transform`、`layoutMargins` 等），这条限制会随模块传给每个下游。另有升级 AppKitPlus 前的撞名排查
   （查公开头文件，不查 `.swiftinterface`）和版本下限的来历。
 - [LayerBackground](LayerBackground.md) —— `LayerBackedView` 与它背后的图层背景管线（圆角、背景色、边框、阴影），
-  以及怎样把它装到不能继承它的 `NSView` 子类（如 `NSTableCellView`）上。**含一条踩了就静默失效的契约**：
+  以及怎样把它装到不能继承它的 `NSView` 子类（如 `NSTableCellView`）上；开 `AppKitPlus` trait 时 `LayerBackedView`
+  不走这条管线、改用 AppKitPlus 的同名成员，与管线的几处默认值差异也在这里。**含一条踩了就静默失效的契约**：
   本身已有 `backgroundColor` 的类（`NSTextField`、`NSTableView`、`NSScrollView`）不能遵守这个协议，否则协议的属性
   被遮蔽、收不到值。另有 macOS 27.2 上设圆角会自动打开裁剪、连续圆角边框的画法，以及按像素测试时参照物要先裁剪。
 - [QuickActionBar](QuickActionBar.md) —— 从 DSFQuickActionBar 移植的 Spotlight 式浮动操作栏：公开 API、两段式 Escape、搜索框旁的浏览按钮（复刻 Spotlight 的分裂动画）

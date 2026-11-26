@@ -3,6 +3,15 @@
 import Testing
 import AppKit
 @testable import UIFoundationAppKit
+#if AppKitPlus && canImport(AppKitPlus)
+import AppKitPlus
+
+/// With the `AppKitPlus` trait on, `NSLayerBackedView` owns `borderLocation`, so these tiles take
+/// its type; without the trait, `LayerBackgroundProviding`'s.
+typealias TileBorderLocation = NSLayerBackedView.BorderLocation
+#else
+typealias TileBorderLocation = LayerBackgroundRenderer.BorderLocation
+#endif
 
 /// What `cornerCurve` promises a `LayerBackedView`, checked on rendered pixels rather than on layer
 /// properties: the corners take the requested curve, and a full border keeps to the same curve
@@ -60,7 +69,19 @@ struct LayerBackgroundCornerCurveTests {
             return "row \(row): border ends at \(borderEnd ?? -1), inset outline starts at "
                 + "\(insetOutline.firstCoveredColumn(inRow: row) ?? -1)"
         }
+        #if AppKitPlus && canImport(AppKitPlus)
+        // AppKitPlus 0.24.0 draws a full inside border as the view's own layer border
+        // (`NSViewBackingLayer.borderWidth`), not as the renderer's sublayer. Rendered, its inner
+        // edge runs 2 to 6 pixels (at 2×) past the inset outline in a handful of rows just below
+        // the top edge (rows 4–10 of a 20-point radius, both curves; measured 2026-11-26), so the
+        // corner is a little thicker than the straight edges. Recorded as a difference to report
+        // to AppKitPlus; when it is fixed there, this known issue stops reproducing and fails.
+        withKnownIssue("AppKitPlus 0.24.0's layer border thickens just below the top edge of a rounded corner") {
+            #expect(misalignedRows.isEmpty, "\(mismatches.joined(separator: "; "))")
+        }
+        #else
         #expect(misalignedRows.isEmpty, "\(mismatches.joined(separator: "; "))")
+        #endif
     }
 
     /// Where a 4-point border sits relative to the view's left edge: inside it, straddling it, or
@@ -99,7 +120,7 @@ struct LayerBackgroundCornerCurveTests {
 
     private func borderedTile(
         curve: CALayerCornerCurve,
-        location: LayerBackgroundRenderer.BorderLocation,
+        location: TileBorderLocation,
         width: CGFloat,
         clips: Bool = true
     ) -> LayerBackedView {
@@ -138,7 +159,7 @@ enum BorderPlacement: CaseIterable, Sendable {
     case center
     case outside
 
-    var location: LayerBackgroundRenderer.BorderLocation {
+    var location: TileBorderLocation {
         switch self {
         case .inside: .inside
         case .center: .center

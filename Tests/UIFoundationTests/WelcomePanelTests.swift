@@ -38,6 +38,26 @@ struct WelcomePanelTests {
         #expect(WelcomePanelController.Style.xcode26.windowCornerRadius == 20)
     }
 
+    /// The borderless styles get their rounded corners from the content view's layer alone. With
+    /// the `AppKitPlus` trait and AppKitPlus 0.24.0, the radius went to `NSLayerBackedView` and
+    /// `LayerBackgroundRenderer` wrote 0 back over it, so the window turned square.
+    @Test("the xcode26 window's content is rounded and clipped")
+    func xcode26WindowContentIsRounded() throws {
+        guard #available(macOS 11.0, *) else { return }
+
+        let panel = WelcomePanelController(configuration: .init(style: .xcode26))
+        // `WelcomePanelController` marks `window` unavailable; through the base class it is the
+        // same property, and reading it loads the window without putting it on screen.
+        let window = try #require((panel as NSWindowController).window)
+        let contentView = try #require(window.contentView)
+        contentView.layoutSubtreeIfNeeded()
+        contentView.updateLayer()
+
+        let layer = try #require(contentView.layer)
+        #expect(layer.cornerRadius == 20)
+        #expect(layer.masksToBounds)
+    }
+
     @Test("only xcode14 gets window chrome")
     func windowStyleMask() {
         guard #available(macOS 11.0, *) else { return }

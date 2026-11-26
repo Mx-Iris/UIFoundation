@@ -163,7 +163,7 @@ details[open] > summary { border-bottom: 1px solid var(--separator); }
   <p class="eyebrow"><span class="crumb">UIFoundation</span><span class="crumb">Evolutions</span><span class="crumb">Draft</span></p>
   <h1><span class="proposal-number">Draft</span> 开 AppKitPlus trait 时把 LayerBackedView 的外观交给 AppKitPlus</h1>
   <dl class="meta">
-    <div><dt>状态</dt><dd><span class="status status-accepted">Accepted</span></dd></div>
+    <div><dt>状态</dt><dd><span class="status status-in-progress">In Progress</span></dd></div>
     <div><dt>最后更新</dt><dd>2026-11-26</dd></div>
     <div><dt>创建日期</dt><dd>2026-11-26</dd></div>
     <div><dt>作者</dt><dd>JH</dd></div>
@@ -296,7 +296,7 @@ swift test --traits AppKitPlus,WelcomePanel --filter LayerBackedViewBaseClassTes
       <tr><td><code>Sources/UIFoundationAppKit/Base/LayerBackedView+Shadow.swift</code> · <code>extension LayerBackedView</code></td><td><span class="tag tag-added">新增</span></td><td>trait 下的五个阴影属性，转写 <code>shadowProperties</code></td><td>方案 3，源码兼容</td><td class="numeric">2</td></tr>
       <tr><td><code>Tests/UIFoundationTests/LayerBackedViewBaseClassTests.swift</code></td><td><span class="tag tag-changed">修改</span></td><td><code>backgroundRoutesThroughRenderer</code> 改成 <code>appearanceReachesTheLayer</code>；新增 <code>bordersStayOffUntilEdgesAreNamed</code>、<code>shadowMembersForwardToShadowProperties</code>（trait 下）；更新类型注释</td><td>方案 4、5；修复前先变红</td><td class="numeric">1、2</td></tr>
       <tr><td><code>Tests/UIFoundationTests/WelcomePanelTests.swift</code></td><td><span class="tag tag-changed">修改</span></td><td>新增 <code>xcode26WindowContentIsRounded</code>：内容视图 layer 圆角 20、裁剪打开</td><td>用户看到的症状本身的回归测试</td><td class="numeric">1、2</td></tr>
-      <tr><td><code>Tests/UIFoundationTests/LayerBackgroundCornerCurveTests.swift</code></td><td><span class="tag">不改（跑）</span></td><td>在 trait 开关两种下各跑一次像素测试</td><td>对照 AppKitPlus 与 renderer 的画法</td><td class="numeric">3</td></tr>
+      <tr><td><code>Tests/UIFoundationTests/LayerBackgroundCornerCurveTests.swift</code></td><td><span class="tag tag-changed">修改</span></td><td>边框位置的类型改成按 trait 定的别名 <code>TileBorderLocation</code>；trait 下「整圈边框贴合圆角曲线」一条用 <code>withKnownIssue</code> 标出 AppKitPlus 的像素差；两种 trait 下都跑</td><td>去掉协议遵循后原写法在 trait 下编不过；对照 AppKitPlus 与 renderer 的画法</td><td class="numeric">2、3</td></tr>
       <tr><td><code>Documentations/LayerBackground.md</code></td><td><span class="tag tag-changed">修改</span></td><td>新增「AppKitPlus trait 下」一节：外观归属、默认值差异表、阴影转写；更新「依赖遮蔽」段</td><td>指南与行为同批</td><td class="numeric">4</td></tr>
       <tr><td><code>Documentations/AppKitPlus.md</code></td><td><span class="tag tag-changed">修改</span></td><td>§6.1 下限改为 0.24.0 及理由；新增 0.7.0–0.24.0 碰撞清点结果；§2.1 与哨兵说明改写</td><td>同上；bump 前必做的清点要留档</td><td class="numeric">3、4</td></tr>
       <tr><td><code>Documentations/WelcomePanel.md</code></td><td><span class="tag tag-changed">修改</span></td><td>圆角一条补上 trait 下靠 AppKitPlus 的 <code>cornerRadius</code></td><td>同上</td><td class="numeric">4</td></tr>
@@ -397,7 +397,7 @@ swift test --traits AppKitPlus,WelcomePanel --filter LayerBackedViewBaseClassTes
   <details>
     <summary>类型差异与测试</summary>
     <div class="details-body">
-      <p>trait 下 <code>borderPositions</code> 的类型是 <code>NSLayerBackedView.BorderPositions</code>、<code>borderLocation</code> 是 <code>NSLayerBackedView.BorderLocation</code>（今天已经如此）。写 <code>.all</code>、<code>[.top, .bottom]</code>、<code>.center</code> 的调用点两种 trait 下都能编；显式写出 <code>LayerBackgroundRenderer.BorderPositions</code> 的会在 trait 下编不过（已查无此类调用点）。</p>
+      <p>trait 下 <code>borderPositions</code> 的类型是 <code>NSLayerBackedView.BorderPositions</code>、<code>borderLocation</code> 是 <code>NSLayerBackedView.BorderLocation</code>（今天已经如此）。写 <code>.all</code>、<code>[.top, .bottom]</code>、<code>.center</code> 的调用点两种 trait 下都能编；显式写出 <code>LayerBackgroundRenderer.BorderPositions</code> / <code>BorderLocation</code> 的会在 trait 下编不过。本库 <code>Sources/</code> 与所有下游都没有这种写法，唯一的一处在 <code>LayerBackgroundCornerCurveTests</code> 的帮手里，改成按 trait 定的别名 <code>TileBorderLocation</code>。</p>
       <ul>
         <li><code>appearanceReachesTheLayer</code>：设红色背景与 8 点圆角，刷新一次后 layer 的值正确。无窗口测试里怎么触发 AppKit 写回 layer，第 1 步实测后定。</li>
         <li><code>bordersStayOffUntilEdgesAreNamed</code>：只设颜色和宽度，不画边框。</li>
@@ -484,23 +484,27 @@ swift test --traits AppKitPlus,WelcomePanel --filter LayerBackedViewBaseClassTes
 <section id="steps">
   <h2>落地步骤</h2>
   <ol>
-    <li><strong>让问题在本库自己的测试里变红</strong>（<code>Package.swift</code>、<code>Package.resolved</code>、两份测试）
-      <ul><li>行为：<code>appearanceReachesTheLayer</code> 在 trait 打开、AppKitPlus 0.24.0 下失败，trait 关闭下通过</li><li>行为：<code>xcode26WindowContentIsRounded</code> 在 trait 打开下失败</li><li>行为：确定无窗口测试里触发 AppKit 写回 layer 的办法</li></ul></li>
-    <li><strong>把外观交给 AppKitPlus</strong>（<code>LayerBackedView.swift</code>、<code>LayerBackedView+Shadow.swift</code>、两份测试）
+    <li><strong>让问题在本库自己的测试里变红（已完成）</strong>（<code>Package.swift</code>、<code>Package.resolved</code>、两份测试）
+      <ul><li>行为：<code>appearanceReachesTheLayer</code> 在 trait 打开、AppKitPlus 0.24.0 下失败，trait 关闭下通过</li><li>行为：<code>xcode26WindowContentIsRounded</code> 在 trait 打开下失败</li><li>行为：确定无窗口测试里触发 AppKit 写回 layer 的办法（实测：直接调 <code>updateLayer()</code> 即可）</li></ul></li>
+    <li><strong>把外观交给 AppKitPlus（已完成）</strong>（<code>LayerBackedView.swift</code>、<code>LayerBackedView+Shadow.swift</code>、两份测试）
       <ul><li>行为：上述两条在两种 trait 下都通过</li><li>行为：<code>bordersStayOffUntilEdgesAreNamed</code>、<code>shadowMembersForwardToShadowProperties</code> 通过</li></ul></li>
-    <li><strong>全量验证与碰撞清点</strong>
+    <li><strong>全量验证与碰撞清点（已完成）</strong>
       <ul><li>行为：全 trait 构建无错误；trait 开关两种的全量测试都通过（开窗口的测试放到用户没在用的那台机器）</li><li>行为：<code>LayerBackgroundCornerCurveTests</code> 两种 trait 下都通过，不过的记录差异报给上游</li><li>行为：AppKitPlus 0.7.0–0.24.0 新增的分类成员与本库声明无静默遮蔽</li><li>行为：示例 App 从导出副本构建通过</li></ul></li>
-    <li><strong>文档、skill 与索引</strong>
+    <li><strong>文档、skill 与索引（已完成）</strong>
       <ul><li>行为：指南写明 trait 下外观归属、默认值差异与阴影转写；插件版本 1.5.0</li></ul></li>
     <li><strong>落地与发版</strong>：合进 <code>main</code>，提案改编号为 Implemented，打 tag <code>0.51.0</code>
       <ul><li>行为：RuntimeViewer 抬到 0.51.0 后欢迎窗口恢复圆角（RuntimeViewer 一侧的提交）</li></ul></li>
   </ol>
+  <h3>后续项</h3>
+  <div class="callout callout-warning">
+    <p><strong>报给 AppKitPlus</strong>：0.24.0 的整圈内描边（视图自己 layer 的 <code>borderWidth</code>）在圆角顶边下方几行比同心的内缩轮廓厚 2–6 像素（2×），复现见本库 <code>LayerBackgroundCornerCurveTests.fullBorderKeepsToTheCornerCurve</code> 在 trait 下的已知问题。</p>
+  </div>
 </section>
 
 <section id="log">
   <h2>决策日志</h2>
   <details>
-    <summary>5 条，最近一条：Accepted</summary>
+    <summary>12 条，最近一条：实现完成，待用户看过后收尾</summary>
     <div class="details-body">
       <div class="table-wrap">
       <table>
@@ -511,6 +515,13 @@ swift test --traits AppKitPlus,WelcomePanel --filter LayerBackedViewBaseClassTes
           <tr><td class="numeric">2026-11-26</td><td>trait 下去掉协议遵循</td><td>保留遵循会让协议扩展成员静默无效；已查无下游泛型用法</td></tr>
           <tr><td class="numeric">2026-11-26</td><td><code>borderPositions</code> 两种 trait 下都默认空集合</td><td>同一类型的默认值不随 trait 变</td></tr>
           <tr><td class="numeric">2026-11-26</td><td>Accepted</td><td>用户批准，开始实现。约定实现做完只在本地合进 <code>main</code>，不推送、不打 tag，等用户验收</td></tr>
+          <tr><td class="numeric">2026-11-26</td><td>更正：测试里有一处显式的渲染器边框类型</td><td>调研时漏了测试：<code>LayerBackgroundCornerCurveTests</code> 的帮手写着 <code>LayerBackgroundRenderer.BorderLocation</code>，原来靠协议遵循编过。只在测试里加按 trait 定的别名，不给 <code>LayerBackedView</code> 加公开类型别名</td></tr>
+          <tr><td class="numeric">2026-11-26</td><td>AppKitPlus 的整圈边框与渲染器有像素差，标为已知问题</td><td>trait 下两种曲线都在 20 点圆角顶边下方第 4–10 行多出 2–6 像素（2×）；不在本库补，用 <code>withKnownIssue</code> 标记，记为报给 AppKitPlus 的后续项</td></tr>
+          <tr><td class="numeric">2026-11-26</td><td>阴影路径按范围比较</td><td><code>shadowProperties</code> 存的是路径副本，<code>NSBezierPath</code> 的 <code>==</code> 只比身份</td></tr>
+          <tr><td class="numeric">2026-11-26</td><td>全量验证：没有新增失败</td><td>全 trait 构建本机通过；MacBook 上全量测试带与不带 AppKitPlus 各一轮，剩下的三处失败与 <code>main</code> 同条件对照一致，都是既有问题</td></tr>
+          <tr><td class="numeric">2026-11-26</td><td>碰撞清点结果</td><td>按 0.24.0 发布包的 <code>Headers/</code> 比对，落在本库视图会继承的类上的只有 <code>NSLayerBackedView</code> 那九个成员</td></tr>
+          <tr><td class="numeric">2026-11-26</td><td>示例 App 没能构建</td><td>依赖 swift-tree-sitter 的子模块拉取中途断开（<code>fatal: early EOF</code>），没进入编译；属网络问题，留到收尾前再试</td></tr>
+          <tr><td class="numeric">2026-11-26</td><td>实现完成，待用户看过后收尾</td><td>第 1–4 步完成，在本地合进 <code>main</code>、未推送；取号、改 Implemented、打 tag 与 RuntimeViewer 一侧的升级留给收尾</td></tr>
         </tbody>
       </table>
       </div>

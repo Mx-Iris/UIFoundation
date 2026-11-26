@@ -1,6 +1,6 @@
 # Draft - 开 AppKitPlus trait 时把 LayerBackedView 的外观交给 AppKitPlus
 
-- **状态**: Accepted
+- **状态**: In Progress
 - **作者**: JH
 - **创建日期**: 2026-11-26
 - **最后更新**: 2026-11-26
@@ -131,7 +131,7 @@ RuntimeViewer 自己还有 Load Frameworks 的横幅、编辑区窗格的分隔�
 | `Sources/UIFoundationAppKit/Base/LayerBackedView+Shadow.swift` · `extension LayerBackedView` | 新增 | trait 下的五个阴影属性，转写 `shadowProperties` | 方案 3，源码兼容 | 2 |
 | `Tests/UIFoundationTests/LayerBackedViewBaseClassTests.swift` | 修改 | `backgroundRoutesThroughRenderer` 改成 `appearanceReachesTheLayer`（与归属无关）；新增 `bordersStayOffUntilEdgesAreNamed`、`shadowMembersForwardToShadowProperties`（trait 下）；更新类型注释里的历史 | 方案 4、5；修复前先变红 | 1、2 |
 | `Tests/UIFoundationTests/WelcomePanelTests.swift` | 修改 | 新增 `xcode26WindowContentIsRounded`：`.xcode26` 窗口内容视图的 layer 圆角 20、裁剪打开 | 用户看到的症状本身的回归测试 | 1、2 |
-| `Tests/UIFoundationTests/LayerBackgroundCornerCurveTests.swift` | 不改（跑） | 在 trait 开关两种下各跑一次像素测试 | 对照 AppKitPlus 与 renderer 的画法 | 3 |
+| `Tests/UIFoundationTests/LayerBackgroundCornerCurveTests.swift` | 修改 | 边框位置的类型改成按 trait 定的别名 `TileBorderLocation`；trait 下「整圈边框贴合圆角曲线」一条用 `withKnownIssue` 标出 AppKitPlus 的像素差；两种 trait 下都跑 | 去掉协议遵循后原写法在 trait 下编不过；对照 AppKitPlus 与 renderer 的画法 | 2、3 |
 | `Documentations/LayerBackground.md` | 修改 | 新增一节「AppKitPlus trait 下」：谁负责外观、默认值差异表、阴影五项的转写；更新第 123 行一带的「依赖遮蔽」段 | 指南与行为同批 | 4 |
 | `Documentations/AppKitPlus.md` | 修改 | §6.1 下限改为 0.24.0 及理由；新增「0.7.0–0.24.0 新增了什么」的碰撞清点结果；§2.1 与哨兵说明改写 | 同上；bump 前必做的碰撞清点要留档 | 3、4 |
 | `Documentations/WelcomePanel.md` | 修改 | 圆角一条补上 trait 下靠 AppKitPlus 的 `cornerRadius` | 同上 | 4 |
@@ -268,7 +268,7 @@ extension LayerBackedView {
 
 类型上的两处差异（trait 下，今天已经如此，本提案只是写明）：`borderPositions` 的类型是
 `NSLayerBackedView.BorderPositions`、`borderLocation` 是 `NSLayerBackedView.BorderLocation`，写 `.all`、`[.top, .bottom]`、
-`.center` 的调用点两种 trait 下都能编；显式写出 `LayerBackgroundRenderer.BorderPositions` 的会在 trait 下编不过（已查无此类调用点）。
+`.center` 的调用点两种 trait 下都能编；显式写出 `LayerBackgroundRenderer.BorderPositions` / `BorderLocation` 的会在 trait 下编不过。本库 `Sources/` 与所有下游都没有这种写法，唯一的一处在 `LayerBackgroundCornerCurveTests` 的帮手里，改成按 trait 定的别名 `TileBorderLocation`（见决策日志）。
 
 测试（`Tests/UIFoundationTests/`）：
 
@@ -353,26 +353,30 @@ LayerBackground 演示页。
 
 ## 落地步骤
 
-1. **让问题在本库自己的测试里变红** —— `Package.swift`、`Package.resolved`、`LayerBackedViewBaseClassTests`、`WelcomePanelTests`
+1. **让问题在本库自己的测试里变红**（已完成） —— `Package.swift`、`Package.resolved`、`LayerBackedViewBaseClassTests`、`WelcomePanelTests`
    - 行为：`appearanceReachesTheLayer` 在 trait 打开、AppKitPlus 0.24.0 下失败，trait 关闭下通过
    - 行为：`xcode26WindowContentIsRounded` 在 trait 打开下失败（圆角读到 0）
-   - 行为：确定无窗口测试里触发 AppKit 写回 layer 的办法，写进测试注释
-2. **把外观交给 AppKitPlus** —— `LayerBackedView.swift`、`LayerBackedView+Shadow.swift`、两份测试
+   - 行为：确定无窗口测试里触发 AppKit 写回 layer 的办法，写进测试注释（实测：直接调 `updateLayer()` 即可，AppKit 的 `setCornerRadius:` 与 `setBackgroundColor:` 当场写 layer）
+2. **把外观交给 AppKitPlus**（已完成） —— `LayerBackedView.swift`、`LayerBackedView+Shadow.swift`、两份测试
    - 行为：`appearanceReachesTheLayer` 在两种 trait 下都通过
    - 行为：`xcode26WindowContentIsRounded` 通过
    - 行为：`bordersStayOffUntilEdgesAreNamed` 在两种 trait 下都通过
    - 行为：`shadowMembersForwardToShadowProperties` 通过
-3. **全量验证与碰撞清点** —— `LayerBackgroundCornerCurveTests`（只跑）、`AppKitPlus.md` 的清点结果
+3. **全量验证与碰撞清点**（已完成） —— `LayerBackgroundCornerCurveTests`（只跑）、`AppKitPlus.md` 的清点结果
    - 行为：全 trait 构建（`AGENTS.md` 的完整 trait 列表）无错误
    - 行为：trait 关闭与打开的全量测试都通过（开窗口的测试放到不是用户正在用的那台机器上跑），输出以 `Test run with … tests` 结尾
    - 行为：`LayerBackgroundCornerCurveTests` 在两种 trait 下都通过；不过的项记下 AppKitPlus 与 renderer 的差异，报给上游
    - 行为：AppKitPlus 0.7.0–0.24.0 公开头文件新增的分类成员与本库声明无静默遮蔽（按 `AppKitPlus.md` §6.3 的 grep）
    - 行为：示例 App 从导出副本构建通过
-4. **文档、skill 与索引** —— 改动地图里的文档各行
+4. **文档、skill 与索引**（已完成） —— 改动地图里的文档各行
    - 行为：指南写明 trait 下外观归属、默认值差异与阴影转写
    - 行为：插件版本 1.5.0
 5. **落地与发版** —— 合进 `main`，提案改编号为 Implemented，打 tag `0.51.0`
    - 行为：RuntimeViewer 抬到 0.51.0 后欢迎窗口恢复圆角（RuntimeViewer 一侧的提交）
+
+### 后续项
+
+- **报给 AppKitPlus**：0.24.0 的整圈内描边（视图自己 layer 的 `borderWidth`）在圆角顶边下方几行比同心的内缩轮廓厚 2–6 像素（2×），复现见本库 `LayerBackgroundCornerCurveTests.fullBorderKeepsToTheCornerCurve` 在 trait 下的已知问题。
 
 **收尾时必须判断两件事**：是否需要单独的使用指南或实现说明（预计不需要，契约写进现有三份指南）；是否引入新术语（预计没有）。
 
@@ -385,3 +389,10 @@ LayerBackground 演示页。
 | 2026-11-26 | trait 下去掉协议遵循 | 保留遵循会让协议扩展的成员静默无效，正是这次事故的形状；已查无下游泛型用法 |
 | 2026-11-26 | `borderPositions` 两种 trait 下都默认空集合 | 同一类型的默认值不随 trait 变 |
 | 2026-11-26 | Accepted | 用户批准，开始实现。约定实现做完只在本地合进 `main`，不推送、不打 tag，等用户验收 |
+| 2026-11-26 | 更正：测试里有一处显式的渲染器边框类型 | 调研时只搜了 `Sources/` 与下游，漏了测试：`LayerBackgroundCornerCurveTests` 的帮手写着 `LayerBackgroundRenderer.BorderLocation`。trait 下原来能编过，是因为协议遵循还在、编译器挑了类型对得上的协议扩展成员；去掉遵循后编不过。只在测试里加按 trait 定的别名 `TileBorderLocation`，不为此给 `LayerBackedView` 加公开的类型别名——没有下游需要 |
+| 2026-11-26 | AppKitPlus 的整圈边框与渲染器有像素差，标为已知问题 | trait 下「a full border keeps to the corner curve」两种曲线都失败：AppKitPlus 0.24.0 把整圈内描边画在视图自己的 layer 上（`NSViewBackingLayer.borderWidth`），渲染出来在 20 点圆角顶边下方的第 4–10 行比内缩轮廓多出 2–6 像素（2×）。按非目标不在本库补，trait 下用 `withKnownIssue` 标记（上游修好后会转红提醒），记为报给 AppKitPlus 的后续项。trait 关闭时照旧严格断言 |
+| 2026-11-26 | 阴影路径按范围比较 | `shadowProperties` 存的是路径副本，`NSBezierPath` 的 `==` 只比身份，测试改比 `bounds` |
+| 2026-11-26 | 全量验证：没有新增失败 | 全 trait 构建（含测试）本机通过。全量测试在 MacBook 上跑（会开窗口），全部 trait 带与不带 AppKitPlus 各一轮：首轮两边都在 MainMenu 测试中途被系统结束（`AGENTS.md` 记过的 macOS 27.2 现象，退出码 0、没有汇总行），改为跳过 MainMenu 补跑整轮、再单独跑 MainMenu。剩下的失败与 `main`（AppKitPlus 0.6.0）同条件对照一致：QuickActionBar「Resuming a dismissal keeps the existing presentation alive」两边都挂；MainMenu「rewriting a special menu through the builder keeps it wired」只在整轮跑时挂、单独跑通过，`main` 整轮也挂；QuickActionBar 浏览按钮那条要真等 0.47 秒，两边各偶发一次。都是既有问题，不在本分支修 |
+| 2026-11-26 | 碰撞清点结果 | 按 0.24.0 发布包里的 `Headers/` 比对本库 68 个协议扩展成员名，落在本库视图会继承的类上的只有 `NSLayerBackedView` 那九个；源码树里的 `NSView (Appearance)` 是未公开的项目头文件，不算。结果写进 `AppKitPlus.md` §6.5 |
+| 2026-11-26 | 示例 App 没能构建 | 从导出副本构建示例 App 时，依赖 swift-tree-sitter 的子模块 tree-sitter-swift 拉取中途断开（`fatal: early EOF`，重试同样失败），没进入编译。属网络问题，不在本分支处理；示例 App 用到的阴影四项在 trait 下由新扩展提供，全 trait 构建已覆盖库本身，示例 App 的编译留到收尾前再试 |
+| 2026-11-26 | 实现完成，待用户看过后收尾 | 第 1–4 步完成，在本地合进 `main`、未推送；落地取号、改 Implemented、打 tag `0.51.0` 与 RuntimeViewer 一侧的升级留给收尾 |

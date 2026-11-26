@@ -7,7 +7,7 @@ and under active development. Every view and controller is built in code — no 
 - Swift tools 6.2, Swift 5 language mode (`swiftLanguageModes: [.v5]`). No linter or formatter;
   style is convention only.
 - Platforms: macOS 14+, iOS 13+, Mac Catalyst 13+, tvOS 13+, visionOS 1+. The macOS floor follows
-  AppKitPlus — 14 from its release after 0.23.0; the earlier ones need only 12 and still resolve —
+  AppKitPlus — 14, its own floor from 0.24.0, which is also the lowest AppKitPlus this package takes —
   and holds trait or no trait ([AppKitPlus.md](Documentations/AppKitPlus.md)). No watchOS:
   `AssociatedObject` does not build there.
 
@@ -91,9 +91,11 @@ xcodebuild test -scheme UIFoundation-Package -destination 'platform=macOS,varian
   (it prints `Removing …/AppKitPlus-Release`): the dependency exists only under the `AppKitPlus`
   trait, and the update resolves without traits. Check `git status` after every update; if the pin is
   the only change, `git checkout -- Package.resolved` before building.
-  - Passing traits is no way around it: `swift package --traits … update` and
+  - Passing traits to a whole update is no way around it: `swift package --traits … update` and
     `swift package --enable-all-traits update` both fail with `exhausted attempts to resolve the
-    dependencies graph … 'appkitplus-release'` and change nothing (measured).
+    dependencies graph … 'appkitplus-release'` and change nothing (measured). **Naming the package
+    works**: `swift package --traits AppKitPlus update AppKitPlus-Release` moves that one pin and
+    leaves the others (measured 2026-11-26, SwiftPM 6.4), which is how an AppKitPlus bump updates it.
   - Don't rebuild with the trait to put the pin back. Without a pin, resolution takes the newest
     AppKitPlus in range — a silent bump, and a bump needs the collision re-check in
     [AppKitPlus.md](Documentations/AppKitPlus.md).
@@ -142,7 +144,9 @@ No trait:
 
 - **Layer background** — `UIFoundationAppKit/Base/` — [LayerBackground.md](Documentations/LayerBackground.md).
   On macOS 27.2 setting `cornerRadius` turns `clipsToBounds` on, so a rounded host trims its subviews
-  and any `.center` / `.outside` border.
+  and any `.center` / `.outside` border. With the `AppKitPlus` trait `LayerBackedView` takes none of
+  this pipeline — its appearance members are `NSLayerBackedView`'s — so a renderer hooked back into
+  it would write its defaults over AppKitPlus's values.
 - **MainMenu** — `UIFoundationAppKit/Menu/` — [MainMenu.md](Documentations/MainMenu.md). A
   storyboard-free app loses `@main` on its delegate: no delegate is created and no window appears
   unless the entry point is written by hand.
@@ -266,8 +270,10 @@ XiblessViewController<View: NSUIView>            contentView from an @autoclosur
   `@nonobjc` does not help. The restriction reaches every module importing UIFoundation with the
   trait on. Live hazards: `center`, `transform`, `contentMode` on any `NSView`; `layoutMargins`,
   `directionalLayoutMargins`, `preservesSuperviewLayoutMargins`, `insetsLayoutMarginsFromSafeArea`,
-  `layoutMarginsDidChange()` on any `LayerBackedView`. Code that compiles with the trait off can fail
-  with it on. Details in [AppKitPlus.md](Documentations/AppKitPlus.md).
+  `layoutMarginsDidChange()`, and from AppKitPlus 0.24.0 `cornerRadius`, `cornerCurve`,
+  `backgroundColor`, `borderColor`, `borderWidth`, `borderPositions`, `borderLocation`,
+  `borderInsets`, `shadowProperties` on any `LayerBackedView`. Code that compiles with the trait off
+  can fail with it on. Details in [AppKitPlus.md](Documentations/AppKitPlus.md).
 </important>
 
 <important if="you are bumping AppKitPlus, or Package.resolved changed its version">
@@ -278,13 +284,16 @@ and the version-floor history are in [AppKitPlus.md](Documentations/AppKitPlus.m
 </important>
 
 <important if="you are giving a view a background colour, corner radius, border or shadow">
-`LayerBackedView` gets `cornerRadius`, `cornerCurve`, `backgroundColor`, `border*` and `shadow*` from
-`LayerBackgroundProviding`. A view that cannot inherit from it (`NSTableCellView`, a collection
-item's view) conforms to the protocol and calls `attachToSelfIfNeeded()`,
+`LayerBackedView` has `cornerRadius`, `cornerCurve`, `backgroundColor`, `border*` and `shadow*` on
+both sides of the `AppKitPlus` trait, under the same names: from `LayerBackgroundProviding` without it,
+from `NSLayerBackedView` with it (where the `shadow*` five write through to `shadowProperties` and it
+is no `LayerBackgroundProviding`). A view that cannot inherit from it (`NSTableCellView`, a
+collection item's view) conforms to the protocol and calls `attachToSelfIfNeeded()`,
 `updateLayerBackgroundIfNeeded()` and `layoutLayerBackgroundIfNeeded()` itself. Don't conform a class
-that already owns `backgroundColor` (`NSTextField`, `NSTableView`, `NSScrollView`): the protocol's
-property is shadowed and silently receives nothing. Example, corner-curve and clipping traps, and
-pixel testing: [LayerBackground.md](Documentations/LayerBackground.md).
+that already owns `backgroundColor` (`NSTextField`, `NSTableView`, `NSScrollView`, and any AppKitPlus
+layer-backed class): the protocol's property is shadowed and silently receives nothing. Example,
+corner-curve and clipping traps, the trait's differences, and pixel testing:
+[LayerBackground.md](Documentations/LayerBackground.md).
 </important>
 
 <important if="you are writing code shared by AppKit and UIKit">

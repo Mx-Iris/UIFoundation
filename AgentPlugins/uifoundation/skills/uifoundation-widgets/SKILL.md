@@ -189,6 +189,10 @@ name the reason (the `ScrollView` background trap accounts for most of them).
 ## With the `AppKitPlus` trait
 
 With UIFoundation's `AppKitPlus` trait on, `LayerBackedView` and
-`LayerBackedViewController` build on AppKitPlus's layer-backed base classes. For
-AppKitPlus API that UIFoundation does not wrap, see the `appkit-app-modernization` skill
-of the `appkitplus` plugin.
+`LayerBackedViewController` build on AppKitPlus's layer-backed base classes. A
+`LayerBackedView`'s `cornerRadius`, `cornerCurve`, `backgroundColor` and `border*` are
+then `NSLayerBackedView`'s own (AppKitPlus 0.24.0 or later), and its `shadow*` members
+write through to `shadowProperties`: set them as usual, but it is no
+`LayerBackgroundProviding`, and a subclass cannot declare a property of those names.
+For AppKitPlus API that UIFoundation does not wrap, see the `appkit-app-modernization`
+skill of the `appkitplus` plugin.
