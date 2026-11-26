@@ -131,7 +131,7 @@ RuntimeViewer 自己还有 Load Frameworks 的横幅、编辑区窗格的分隔�
 | `Sources/UIFoundationAppKit/Base/LayerBackedView+Shadow.swift` · `extension LayerBackedView` | 新增 | trait 下的五个阴影属性，转写 `shadowProperties` | 方案 3，源码兼容 | 2 |
 | `Tests/UIFoundationTests/LayerBackedViewBaseClassTests.swift` | 修改 | `backgroundRoutesThroughRenderer` 改成 `appearanceReachesTheLayer`（与归属无关）；新增 `bordersStayOffUntilEdgesAreNamed`、`shadowMembersForwardToShadowProperties`（trait 下）；更新类型注释里的历史 | 方案 4、5；修复前先变红 | 1、2 |
 | `Tests/UIFoundationTests/WelcomePanelTests.swift` | 修改 | 新增 `xcode26WindowContentIsRounded`：`.xcode26` 窗口内容视图的 layer 圆角 20、裁剪打开 | 用户看到的症状本身的回归测试 | 1、2 |
-| `Tests/UIFoundationTests/LayerBackgroundCornerCurveTests.swift` | 不改（跑） | 在 trait 开关两种下各跑一次像素测试 | 对照 AppKitPlus 与 renderer 的画法 | 3 |
+| `Tests/UIFoundationTests/LayerBackgroundCornerCurveTests.swift` | 修改 | 边框位置的类型改成按 trait 定的别名 `TileBorderLocation`；trait 下「整圈边框贴合圆角曲线」一条用 `withKnownIssue` 标出 AppKitPlus 的像素差；两种 trait 下都跑 | 去掉协议遵循后原写法在 trait 下编不过；对照 AppKitPlus 与 renderer 的画法 | 2、3 |
 | `Documentations/LayerBackground.md` | 修改 | 新增一节「AppKitPlus trait 下」：谁负责外观、默认值差异表、阴影五项的转写；更新第 123 行一带的「依赖遮蔽」段 | 指南与行为同批 | 4 |
 | `Documentations/AppKitPlus.md` | 修改 | §6.1 下限改为 0.24.0 及理由；新增「0.7.0–0.24.0 新增了什么」的碰撞清点结果；§2.1 与哨兵说明改写 | 同上；bump 前必做的碰撞清点要留档 | 3、4 |
 | `Documentations/WelcomePanel.md` | 修改 | 圆角一条补上 trait 下靠 AppKitPlus 的 `cornerRadius` | 同上 | 4 |
@@ -268,7 +268,7 @@ extension LayerBackedView {
 
 类型上的两处差异（trait 下，今天已经如此，本提案只是写明）：`borderPositions` 的类型是
 `NSLayerBackedView.BorderPositions`、`borderLocation` 是 `NSLayerBackedView.BorderLocation`，写 `.all`、`[.top, .bottom]`、
-`.center` 的调用点两种 trait 下都能编；显式写出 `LayerBackgroundRenderer.BorderPositions` 的会在 trait 下编不过（已查无此类调用点）。
+`.center` 的调用点两种 trait 下都能编；显式写出 `LayerBackgroundRenderer.BorderPositions` / `BorderLocation` 的会在 trait 下编不过。本库 `Sources/` 与所有下游都没有这种写法，唯一的一处在 `LayerBackgroundCornerCurveTests` 的帮手里，改成按 trait 定的别名 `TileBorderLocation`（见决策日志）。
 
 测试（`Tests/UIFoundationTests/`）：
 
@@ -356,8 +356,8 @@ LayerBackground 演示页。
 1. **让问题在本库自己的测试里变红**（已完成） —— `Package.swift`、`Package.resolved`、`LayerBackedViewBaseClassTests`、`WelcomePanelTests`
    - 行为：`appearanceReachesTheLayer` 在 trait 打开、AppKitPlus 0.24.0 下失败，trait 关闭下通过
    - 行为：`xcode26WindowContentIsRounded` 在 trait 打开下失败（圆角读到 0）
-   - 行为：确定无窗口测试里触发 AppKit 写回 layer 的办法，写进测试注释
-2. **把外观交给 AppKitPlus** —— `LayerBackedView.swift`、`LayerBackedView+Shadow.swift`、两份测试
+   - 行为：确定无窗口测试里触发 AppKit 写回 layer 的办法，写进测试注释（实测：直接调 `updateLayer()` 即可，AppKit 的 `setCornerRadius:` 与 `setBackgroundColor:` 当场写 layer）
+2. **把外观交给 AppKitPlus**（已完成） —— `LayerBackedView.swift`、`LayerBackedView+Shadow.swift`、两份测试
    - 行为：`appearanceReachesTheLayer` 在两种 trait 下都通过
    - 行为：`xcode26WindowContentIsRounded` 通过
    - 行为：`bordersStayOffUntilEdgesAreNamed` 在两种 trait 下都通过
@@ -374,6 +374,10 @@ LayerBackground 演示页。
 5. **落地与发版** —— 合进 `main`，提案改编号为 Implemented，打 tag `0.51.0`
    - 行为：RuntimeViewer 抬到 0.51.0 后欢迎窗口恢复圆角（RuntimeViewer 一侧的提交）
 
+### 后续项
+
+- **报给 AppKitPlus**：0.24.0 的整圈内描边（视图自己 layer 的 `borderWidth`）在圆角顶边下方几行比同心的内缩轮廓厚 2–6 像素（2×），复现见本库 `LayerBackgroundCornerCurveTests.fullBorderKeepsToTheCornerCurve` 在 trait 下的已知问题。
+
 **收尾时必须判断两件事**：是否需要单独的使用指南或实现说明（预计不需要，契约写进现有三份指南）；是否引入新术语（预计没有）。
 
 ## 决策日志
@@ -385,3 +389,6 @@ LayerBackground 演示页。
 | 2026-11-26 | trait 下去掉协议遵循 | 保留遵循会让协议扩展的成员静默无效，正是这次事故的形状；已查无下游泛型用法 |
 | 2026-11-26 | `borderPositions` 两种 trait 下都默认空集合 | 同一类型的默认值不随 trait 变 |
 | 2026-11-26 | Accepted | 用户批准，开始实现。约定实现做完只在本地合进 `main`，不推送、不打 tag，等用户验收 |
+| 2026-11-26 | 更正：测试里有一处显式的渲染器边框类型 | 调研时只搜了 `Sources/` 与下游，漏了测试：`LayerBackgroundCornerCurveTests` 的帮手写着 `LayerBackgroundRenderer.BorderLocation`。trait 下原来能编过，是因为协议遵循还在、编译器挑了类型对得上的协议扩展成员；去掉遵循后编不过。只在测试里加按 trait 定的别名 `TileBorderLocation`，不为此给 `LayerBackedView` 加公开的类型别名——没有下游需要 |
+| 2026-11-26 | AppKitPlus 的整圈边框与渲染器有像素差，标为已知问题 | trait 下「a full border keeps to the corner curve」两种曲线都失败：AppKitPlus 0.24.0 把整圈内描边画在视图自己的 layer 上（`NSViewBackingLayer.borderWidth`），渲染出来在 20 点圆角顶边下方的第 4–10 行比内缩轮廓多出 2–6 像素（2×）。按非目标不在本库补，trait 下用 `withKnownIssue` 标记（上游修好后会转红提醒），记为报给 AppKitPlus 的后续项。trait 关闭时照旧严格断言 |
+| 2026-11-26 | 阴影路径按范围比较 | `shadowProperties` 存的是路径副本，`NSBezierPath` 的 `==` 只比身份，测试改比 `bounds` |
