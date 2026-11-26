@@ -40,19 +40,21 @@ struct LayerBackedViewBaseClassTests {
         #expect(view.layerContentsRedrawPolicy == .onSetNeedsDisplay)
     }
 
-    /// Canary: `backgroundColor` and `cornerRadius` must still reach `LayerBackgroundRenderer`,
-    /// which is what writes them onto the backing layer from `updateLayer()`.
-    @Test("background rendering still routes through LayerBackgroundRenderer")
-    func backgroundRoutesThroughRenderer() {
+    /// Canary: a background colour and a corner radius set on the view end up on its backing
+    /// layer, and a layer update does not write them back — whoever owns them. Without the trait
+    /// that is `LayerBackgroundRenderer`; with it, AppKitPlus 0.24.0's own members, which took
+    /// these names over and left a renderer that still wrote its defaults (0, nil) onto the layer.
+    @Test("a background colour and a corner radius set on the view reach its layer")
+    func appearanceReachesTheLayer() throws {
         let view = LayerBackedView(frame: NSRect(x: 0, y: 0, width: 40, height: 40))
         view.backgroundColor = .red
         view.cornerRadius = 8
 
         view.updateLayer()
 
-        let layer = try? #require(view.layer)
-        #expect(layer?.backgroundColor == NSColor.red.cgColor)
-        #expect(layer?.cornerRadius == CGFloat(8))
+        let layer = try #require(view.layer)
+        #expect(layer.backgroundColor == NSColor.red.cgColor)
+        #expect(layer.cornerRadius == 8)
     }
 
     /// Canary: `NSLayerBackedView` deliberately leaves compression resistance at AppKit's default.

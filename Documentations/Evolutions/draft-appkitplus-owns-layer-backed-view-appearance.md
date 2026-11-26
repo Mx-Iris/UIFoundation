@@ -1,6 +1,6 @@
 # Draft - 开 AppKitPlus trait 时把 LayerBackedView 的外观交给 AppKitPlus
 
-- **状态**: Accepted
+- **状态**: In Progress
 - **作者**: JH
 - **创建日期**: 2026-11-26
 - **最后更新**: 2026-11-26
@@ -353,7 +353,7 @@ LayerBackground 演示页。
 
 ## 落地步骤
 
-1. **让问题在本库自己的测试里变红** —— `Package.swift`、`Package.resolved`、`LayerBackedViewBaseClassTests`、`WelcomePanelTests`
+1. **让问题在本库自己的测试里变红**（已完成） —— `Package.swift`、`Package.resolved`、`LayerBackedViewBaseClassTests`、`WelcomePanelTests`
    - 行为：`appearanceReachesTheLayer` 在 trait 打开、AppKitPlus 0.24.0 下失败，trait 关闭下通过
    - 行为：`xcode26WindowContentIsRounded` 在 trait 打开下失败（圆角读到 0）
    - 行为：确定无窗口测试里触发 AppKit 写回 layer 的办法，写进测试注释
