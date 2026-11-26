@@ -227,6 +227,13 @@ The port is behaviour-for-behaviour identical. What changed is shape and plumbin
   anything linked against macOS 14 or later. The rounded container and the pill cells therefore set
   `clipsToBounds = true` themselves. Removing those lines gives square corners on a borderless
   window.
+- **With the `AppKitPlus` trait the radius is `NSLayerBackedView`'s.** The container and the cells
+  are `LayerBackedView`s, whose `cornerRadius` then belongs to AppKitPlus and reaches the layer
+  through AppKit's own corner radius
+  ([LayerBackground.md §1.1](LayerBackground.md#11-with-the-appkitplus-trait)). With AppKitPlus
+  0.24.0 and UIFoundation 0.50.1 the old renderer wrote 0 back over it and the borderless styles
+  turned square; `WelcomePanelTests.xcode26WindowContentIsRounded` checks the window's content
+  layer for exactly that.
 - **The scroll view keeps painting through its layer.** `NSScrollView` already owns a
   `backgroundColor` property, so this one cannot ride `LayerBackgroundProviding` — a
   protocol-extension property of the same name is shadowed by the class one at every call site.

@@ -21,10 +21,11 @@
 - [4. The name-collision contract](#4-the-name-collision-contract)
 - [5. Something AppKitPlus already does for you](#5-something-appkitplus-already-does-for-you)
 - [6. Maintainer notes: bumping AppKitPlus](#6-maintainer-notes-bumping-appkitplus)
-  - [6.1 Why the floor is 0.6.0](#61-why-the-floor-is-060)
+  - [6.1 Why the floor is 0.24.0](#61-why-the-floor-is-0240)
   - [6.2 Re-check the collision surface first](#62-re-check-the-collision-surface-first)
   - [6.3 Survey the headers, not the `.swiftinterface`](#63-survey-the-headers-not-the-swiftinterface)
   - [6.4 What 0.6.0 added](#64-what-060-added)
+  - [6.5 What 0.24.0 added](#65-what-0240-added)
 - [7. Related records](#7-related-records)
 
 ---
@@ -64,8 +65,11 @@ The switch is two public typealiases: `LayerBackedViewBase`
 `NSLayerBackedView` or `NSView`, and `LayerBackedViewControllerBase`
 ([`LayerBackedViewController.swift`](../Sources/UIFoundationAppKit/Controller/LayerBackedViewController.swift))
 is `NSLayerBackedViewController` or `NSViewController`. What `LayerBackedView` itself does — the
-`updateLayer()` path, `setup()`, `firstLayout()`, the background pipeline — is the same either way
-and is described in [LayerBackground.md](LayerBackground.md). The decision record for the view side
+`updateLayer()` path, `setup()`, `firstLayout()` — is the same either way and is described in
+[LayerBackground.md](LayerBackground.md). **Its appearance is not**: with the trait, `cornerRadius`,
+`backgroundColor`, the border members and the shadow belong to `NSLayerBackedView`, and
+`LayerBackedView` neither conforms to `LayerBackgroundProviding` nor runs `LayerBackgroundRenderer`
+([LayerBackground.md §1.1](LayerBackground.md#11-with-the-appkitplus-trait)). The decision record for the view side
 is Evolution [`0017`](Evolutions/0017-appkitplus-layer-backed-view.md).
 
 **The guard is `#if AppKitPlus && canImport(AppKitPlus)`, not the trait alone.** The trait being on
@@ -127,10 +131,11 @@ error: the library 'UIFoundation' requires macos 10.15, but depends on the produ
 ```
 
 The floor rose to 14 ahead of that AppKitPlus release (Evolution
-[`0041`](Evolutions/0041-raise-deployment-target-to-macos-14.md)):
-a floor above a dependency's is fine, so AppKitPlus 0.6.0–0.23.0, which require macOS 12, still
-resolve. The "keep the floor down, annotate each declaration" trick that `UIFoundationSettings`
-used while the package deployed below macOS 14 works only for source targets.
+[`0041`](Evolutions/0041-raise-deployment-target-to-macos-14.md)), while AppKitPlus 0.6.0–0.23.0,
+which require macOS 12, could still resolve. Since AppKitPlus's own floor became 0.24.0
+([6.1](#61-why-the-floor-is-0240)), every release in range requires macOS 14 itself. The "keep the
+floor down, annotate each declaration" trick that `UIFoundationSettings` used while the package
+deployed below macOS 14 works only for source targets.
 
 **With the trait off, SwiftPM does not fetch AppKitPlus at all** — no `Package.resolved` entry, no
 clone, no download (measured). A default consumer pays nothing beyond the floor.
@@ -165,7 +170,10 @@ exactly what that namespace is for. Verified: no `NSView` subclass in `UIFoundat
 `UIFoundationToolbox` declares any of the three.
 
 Since 0.6.0, five more names sit on `NSLayerBackedView` itself, and so on every `LayerBackedView`
-subclass while the trait is on — see [6.4](#64-what-060-added).
+subclass while the trait is on — see [6.4](#64-what-060-added). Since 0.24.0 so do the appearance
+members — `cornerRadius`, `cornerCurve`, `backgroundColor`, `borderColor`, `borderWidth`,
+`borderPositions`, `borderLocation`, `borderInsets` and `shadowProperties` — see
+[6.5](#65-what-0240-added).
 
 ## 5. Something AppKitPlus already does for you
 
@@ -179,13 +187,24 @@ already on.
 
 ## 6. Maintainer notes: bumping AppKitPlus
 
-### 6.1 Why the floor is 0.6.0
+### 6.1 Why the floor is 0.24.0
 
-**The `NSEdgeInsets` conformance in [2.3](#23-nsedgeinsets-equality) first ships in AppKitPlus
-0.6.0** — 0.5.0's `.swiftinterface` has none. Lower the floor again and a trait-on build that
-resolves an older AppKitPlus fails on `Hashable`, for want of `Equatable`.
+**0.24.0 gave `NSLayerBackedView` the appearance members, and `LayerBackedView` is written against
+them under the trait** ([6.5](#65-what-0240-added)): the shadow members write through to
+`shadowProperties`, which no earlier release has. The floor also keeps the combination that broke
+RuntimeViewer's welcome window out of range: UIFoundation 0.50.1 with AppKitPlus 0.24.0, where the
+renderer kept writing a radius of 0 over the one AppKitPlus had applied. Decision record: Evolution
+`appkitplus-owns-layer-backed-view-appearance`.
 
-The two releases that earlier raises of the floor excluded both failed **silently**:
+**Keep `Package.resolved`'s AppKitPlus pin on the newest release, not on the floor's.** Until
+2026-11-26 it pinned 0.6.0, so the canaries below never ran against the release that broke them; a
+downstream app resolved 0.24.0 first. `swift package --traits AppKitPlus update AppKitPlus-Release`
+moves it (measured; see the `AGENTS.md` note on `swift package update`).
+
+Earlier floors, for the record. **The `NSEdgeInsets` conformance in
+[2.3](#23-nsedgeinsets-equality) first ships in AppKitPlus 0.6.0** — 0.5.0's `.swiftinterface` has
+none — and a trait-on build that resolved an older AppKitPlus failed on `Hashable`, for want of
+`Equatable`. The two releases that earlier raises of the floor excluded both failed **silently**:
 
 - **Through 0.1.6**, an `NSView (Appearance)` category declared `backgroundColor`, which shadows
   `LayerBackgroundProviding`'s property of the same name. The renderer simply stops receiving the
@@ -195,8 +214,9 @@ The two releases that earlier raises of the floor excluded both failed **silentl
 - **Through 0.2.0**, `NSCollectionViewItem` / `NSTableCellView` carried an extension property named
   `contentView`; 0.2.1 renamed it `configurationContentView`.
 
-`LayerBackedViewBaseClassTests` keeps a canary on the first two (the `backgroundColor` shadowing and
-the compression resistance).
+`LayerBackedViewBaseClassTests` keeps a canary on the first two: `appearanceReachesTheLayer` checks
+that a background colour and a corner radius set on a `LayerBackedView` end up on its layer whoever
+owns them, and another pins the compression resistance. Both run with the trait on and off.
 
 ### 6.2 Re-check the collision surface first
 
@@ -249,6 +269,31 @@ at the bump).
 helpers). Both still compile without ambiguity in the full-trait build, tests included, and neither
 is public, so neither reaches a consumer.
 
+### 6.5 What 0.24.0 added
+
+**The appearance members on `NSLayerBackedView`** (0.24.0, AppKitPlus Evolution 0122) are the one
+addition from 0.7.0 to 0.24.0 that the survey below found shadowing a declaration here: the nine
+listed in [4](#4-the-name-collision-contract). They are the names `LayerBackgroundProviding` uses,
+and an Objective-C class member wins the name lookup over a protocol extension, so the protocol's
+copies silently received nothing on a `LayerBackedView`. Handled by leaving them to AppKitPlus under
+the trait ([LayerBackground.md §1.1](LayerBackground.md#11-with-the-appkitplus-trait)).
+
+The collision survey done at the bump, on 0.24.0's shipped headers
+(`AppKitPlus.framework/Versions/A/Headers` in the release `.xcframework`):
+
+- Every member that a protocol extension here declares on an `NSView`-, `NSTableView`- or
+  `NSObject`-bound protocol (68 names: `LayerBackgroundProviding`, `ViewProtocol`, `TableViewProtocol`,
+  `TargetActionProvider`, `StackViewComponent`, …) was looked up as a property or a method in those
+  headers. The only hits on a class this package's views inherit from are the nine above. The others
+  sit on unrelated types — content configurations, `NSBarButtonItem`, `NSDragPreview`, the view
+  interactions, `NSEffectView`, `NSModernDrawer`, `NSLabel` — none of which a class here subclasses.
+- The full-trait build, tests included, compiles: no member here overrides or redeclares one of
+  AppKitPlus's.
+- **Survey the shipped headers, not the source tree.** AppKitPlus's sources carry an
+  `NSView (Appearance)` interface declaring `backgroundColor` and `cornerRadius` on every `NSView`,
+  but it is a project header — not in the framework's `Headers/` and not imported by the umbrella —
+  so no client sees it. A grep of the source tree reports it as a collision on every view.
+
 ## 7. Related records
 
 - Evolution [`0017`](Evolutions/0017-appkitplus-layer-backed-view.md) — `LayerBackedView` on
@@ -256,4 +301,7 @@ is public, so neither reaches a consumer.
 - Evolution [`0018`](Evolutions/0018-layer-backed-view-controller.md) — `LayerBackedViewController`.
 - Evolution [`0024`](Evolutions/0024-component-layout-system.md) — carries the corrected
   `.swiftinterface` survey.
-- [LayerBackground.md](LayerBackground.md) — the background pipeline `LayerBackedView` is built on.
+- Evolution `appkitplus-owns-layer-backed-view-appearance` — the 0.24.0 floor; `LayerBackedView`'s
+  appearance under the trait.
+- [LayerBackground.md](LayerBackground.md) — the background pipeline `LayerBackedView` is built on
+  without the trait.

@@ -5,13 +5,16 @@
 > pipeline can be attached to any `NSView` subclass that cannot inherit from `LayerBackedView`.
 >
 > Ships in `UIFoundationAppKit` (`Sources/UIFoundationAppKit/Base/`), no trait. macOS only. With the
-> `AppKitPlus` trait on, `LayerBackedView`'s superclass changes — see [AppKitPlus.md](AppKitPlus.md).
+> `AppKitPlus` trait on, `LayerBackedView`'s superclass changes and its appearance members are
+> AppKitPlus's, not this pipeline's — see [1.1](#11-with-the-appkitplus-trait) and
+> [AppKitPlus.md](AppKitPlus.md).
 
 ---
 
 ## Contents
 
 - [1. `LayerBackedView`](#1-layerbackedview)
+  - [1.1 With the `AppKitPlus` trait](#11-with-the-appkitplus-trait)
 - [2. The pipeline on a view you cannot subclass](#2-the-pipeline-on-a-view-you-cannot-subclass)
 - [3. The three pieces](#3-the-three-pieces)
 - [4. Contracts and traps](#4-contracts-and-traps)
@@ -34,8 +37,9 @@ in code with no xib or storyboard.
 - **It renders through the layer.** `wantsUpdateLayer` is `true` and drawing happens in
   `updateLayer()`, not `draw(_:)`. `wantsLayer` is on. (In the code, `wantsUpdateLayer` returns
   `isLayerBackingEnabled`, which `LayerBackedView` answers `true`.)
-- **It conforms to `LayerBackgroundProviding`**, and gets `cornerRadius` / `backgroundColor` /
-  `border*` / `shadow*` / `shadowPath` from there (sections 2 and 3).
+- **Without the `AppKitPlus` trait it conforms to `LayerBackgroundProviding`**, and gets
+  `cornerRadius` / `backgroundColor` / `border*` / `shadow*` / `shadowPath` from there (sections 2
+  and 3). With the trait, the same names come from `NSLayerBackedView` instead (1.1).
 - **`setup()`** is the subclass override point for initialization. It is called from both
   `init(frame:)` and `init?(coder:)`.
 - **`firstLayout()`** is called exactly once, on the first `layout()`, which makes it the place for
@@ -45,6 +49,47 @@ in code with no xib or storyboard.
   that later calls invoke — where older notes describe it as `lazy var _firstLayout: Void`.)
 
 A subclass overrides `setup()` / `firstLayout()` only; the background pipeline is wired for it.
+
+### 1.1 With the `AppKitPlus` trait
+
+**With the trait on, `LayerBackedView`'s appearance belongs to AppKitPlus, and this pipeline is not
+used at all.** Its superclass is then `NSLayerBackedView`, which since AppKitPlus 0.24.0 has
+`cornerRadius`, `cornerCurve`, `backgroundColor`, `borderColor`, `borderWidth`, `borderPositions`,
+`borderLocation`, `borderInsets` and `shadowProperties` of its own. An Objective-C class member wins
+the name lookup over a protocol extension, so a conformance would have received nothing: under
+AppKitPlus 0.24.0 with UIFoundation 0.50.1 every radius and background set on a `LayerBackedView` went
+to AppKitPlus while `LayerBackgroundRenderer` still wrote its defaults (radius 0, no background) onto
+the layer on each update — RuntimeViewer's welcome window lost its rounded corners that way. So, with
+the trait:
+
+- `LayerBackedView` does **not** conform to `LayerBackgroundProviding` and attaches no renderer;
+  `updateLayer()` and `layout()` only call `super`. It cannot be passed where a
+  `LayerBackgroundProviding` is expected, and has no `attachToSelfIfNeeded()` /
+  `updateLayerBackgroundIfNeeded()` / `layoutLayerBackgroundIfNeeded()`.
+- The names stay the same, so code that sets them compiles either way. The two border types are
+  AppKitPlus's (`NSLayerBackedView.BorderPositions`, `NSLayerBackedView.BorderLocation`): `.all`,
+  `[.top, .bottom]` and `.inside` / `.center` / `.outside` read the same, but a value typed as
+  `LayerBackgroundRenderer.BorderPositions` or `.BorderLocation` does not compile.
+- **`borderPositions` still defaults to empty.** AppKitPlus's own default is every edge;
+  `LayerBackedView` sets `[]` in its initializers so that a colour and a width alone draw no border,
+  as without the trait.
+- **The five `shadow*` members write through to `shadowProperties`**
+  ([`LayerBackedView+Shadow.swift`](../Sources/UIFoundationAppKit/Base/LayerBackedView+Shadow.swift));
+  `shadowColor = nil` stores `.clear`. New code under the trait can set `shadowProperties` directly.
+- Clipping is AppKit's own `clipsToBounds`, as without the trait (4.4).
+
+What differs from the renderer, measured or read off AppKitPlus 0.24.0's headers:
+
+| | Without the trait (renderer) | With the trait (AppKitPlus) |
+|---|---|---|
+| `shadowColor` unset | `nil` | black (`shadowProperties.color`) |
+| `shadowOffset` / `shadowRadius` unset | `(0, -3)` / `3` | zero / `0` |
+| Clipping with a shadow | follows `clipsToBounds` | AppKit turns it off while a shadow shows |
+| Insets of a border along some edges | the difference of top and bottom shifts the side edges | each edge takes its own inset |
+| A full inside border on a rounded corner | concentric with the corner | a few pixels thicker just below the top edge (2–6 px at 2× on a 20 pt radius) |
+
+The last row is a known issue in `LayerBackgroundCornerCurveTests` under the trait, to be fixed in
+AppKitPlus. Decision record: Evolution `appkitplus-owns-layer-backed-view-appearance`.
 
 ## 2. The pipeline on a view you cannot subclass
 
@@ -108,8 +153,9 @@ pipeline. The protocol extension provides:
   conformer's `updateLayer()` / `layout()` overrides. Both are no-ops when `isLayerBackingEnabled`
   is `false`.
 
-**`LayerBackedView`** conforms to `LayerBackgroundProviding` and wires `attachToSelfIfNeeded()` /
-`updateLayerBackgroundIfNeeded()` / `layoutLayerBackgroundIfNeeded()` automatically.
+**`LayerBackedView`**, without the `AppKitPlus` trait, conforms to `LayerBackgroundProviding` and
+wires `attachToSelfIfNeeded()` / `updateLayerBackgroundIfNeeded()` / `layoutLayerBackgroundIfNeeded()`
+automatically. With the trait it uses none of the three pieces (1.1).
 
 ## 4. Contracts and traps
 
@@ -120,8 +166,11 @@ collides with the protocol's default. Don't conform those classes; they were nev
 this pipeline. (`NSScrollView` is another such class; `WelcomePanelController`'s
 `BackgroundScrollView` overrides its `backgroundColor` instead of conforming.)
 
-The same shadowing can come from a dependency: AppKitPlus up to 0.1.6 added a `backgroundColor` to
-every `NSView` and silently cut the renderer off — see [AppKitPlus.md](AppKitPlus.md#61-why-the-floor-is-060).
+The same shadowing can come from a dependency. AppKitPlus up to 0.1.6 added a `backgroundColor` to
+every `NSView` and silently cut the renderer off; 0.24.0 gave `NSLayerBackedView` the whole set of
+appearance members, which is why `LayerBackedView` leaves them to AppKitPlus under its trait (1.1) —
+see [AppKitPlus.md](AppKitPlus.md#61-why-the-floor-is-0240). A class of your own that inherits from
+an AppKitPlus layer-backed class must not conform either.
 
 ### 4.2 `shadow` does not fan out by itself
 
