@@ -88,7 +88,12 @@ final class LauncherBrowseExample: NSObject {
         let symbolName: String
     }
 
-    let quickActionBar = QuickActionBar()
+    let quickActionBar = QuickActionBar(configuration: .init(
+        placeholderText: "Search applications, files, actions and snippets",
+        width: 640,
+        resultsHeight: 420,
+        showsKeyboardShortcuts: true
+    ))
 
     /// The category the last click opened. Searched until the query is empty again.
     private var browsedCategory: Category?
@@ -137,10 +142,6 @@ final class LauncherBrowseExample: NSObject {
         pendingAction = nil
         quickActionBar.present(
             parentWindow: window,
-            placeholderText: "Search applications, files, actions and snippets",
-            width: 640,
-            height: 420,
-            showKeyboardShortcuts: true,
             didClose: { [weak self] in
                 self?.performPendingAction()
             }

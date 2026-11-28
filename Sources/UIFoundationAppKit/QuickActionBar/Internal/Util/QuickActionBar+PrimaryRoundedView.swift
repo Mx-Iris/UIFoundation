@@ -21,6 +21,9 @@ extension QuickActionBar {
 
         let contentView = NSView()
 
+        /// The platter's corner radius: the glass's on macOS 26 and later, this view's layer's before.
+        let cornerRadius: CGFloat
+
         /// macOS 26 and later: the platter's glass, with room for the browse buttons.
         @available(macOS 26.0, *)
         var glassPlatterView: GlassPlatterView? {
@@ -29,14 +32,15 @@ extension QuickActionBar {
 
         private var glassPlatterViewStorage: NSView?
 
-        override init(frame frameRect: NSRect) {
-            super.init(frame: frameRect)
+        init(cornerRadius: CGFloat) {
+            self.cornerRadius = cornerRadius
+            super.init(frame: .zero)
             self.setup()
         }
 
+        @available(*, unavailable)
         required init?(coder: NSCoder) {
-            super.init(coder: coder)
-            self.setup()
+            fatalError("init(coder:) has not been implemented")
         }
 
         private func setup() {
@@ -44,7 +48,7 @@ extension QuickActionBar {
             self.translatesAutoresizingMaskIntoConstraints = false
 
             if #available(macOS 26.0, *) {
-                let glassPlatterView = QuickActionBar.GlassPlatterView(platterContentView: contentView)
+                let glassPlatterView = QuickActionBar.GlassPlatterView(platterContentView: contentView, cornerRadius: cornerRadius)
                 glassPlatterView.translatesAutoresizingMaskIntoConstraints = false
                 addSubview(glassPlatterView)
                 NSLayoutConstraint.activate([
@@ -87,7 +91,7 @@ extension QuickActionBar {
         override func updateLayer() {
             if #unavailable(macOS 26.0) {
                 let baseLayer = self.layer!
-                baseLayer.cornerRadius = 10
+                baseLayer.cornerRadius = cornerRadius
                 baseLayer.backgroundColor = NSColor.windowBackgroundColor.cgColor
                 // Match the Spotlight panel style.
                 let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua

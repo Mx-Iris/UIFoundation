@@ -243,10 +243,10 @@ extension QuickActionBarPresentationTests {
         contentSource: BrowseButtonContentSource? = nil
     ) -> QuickActionBar {
         _ = NSApplication.shared
-        let actionBar = QuickActionBar()
+        let actionBar = QuickActionBar(configuration: .init(width: 640, resultsHeight: 240))
         actionBar.contentSource = contentSource
         actionBar.browseItems = browseItems
-        actionBar.present(width: 640, height: 240)
+        actionBar.present()
         return actionBar
     }
 

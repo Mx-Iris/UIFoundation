@@ -14,6 +14,7 @@
 
 - [1. Getting started](#1-getting-started)
 - [2. Public API](#2-public-api)
+  - [2.1 Configuration](#21-configuration)
 - [3. Escape: clear first, then close](#3-escape-clear-first-then-close)
 - [4. Interrupting a dismissal](#4-interrupting-a-dismissal)
 - [5. Browse buttons](#5-browse-buttons)
@@ -51,7 +52,8 @@ Then present a bar and answer its searches:
 ```swift
 let bar = QuickActionBar()
 bar.contentSource = self
-bar.present(placeholderText: "Search…")
+bar.configuration.placeholderText = "Search…"
+bar.present()
 ```
 
 There is no SwiftUI bridge. Upstream shipped an `NSViewRepresentable`; it was intentionally not
@@ -61,7 +63,13 @@ ported, and only the AppKit controller is provided.
 
 | Symbol | Notes |
 | --- | --- |
-| `QuickActionBar` | The controller (upstream's `DSFQuickActionBar`). |
+| `QuickActionBar` | The controller (upstream's `DSFQuickActionBar`). `init(configuration:)` takes a `Configuration`; `QuickActionBar()` uses the defaults. |
+| `QuickActionBar.configuration` | How the bar looks and behaves. See [§2.1](#21-configuration). |
+| `QuickActionBar.Configuration` | Placeholder, search image, width, results height, corner radius, keyboard shortcuts, whether the panel can become main, and the click count that activates a row. |
+| `QuickActionBar.present(parentWindow:initialSearchText:didClose:)` | Presents the bar with a copy of `configuration`. |
+| `QuickActionBar.present(parentWindow:placeholderText:searchImage:initialSearchText:width:height:showKeyboardShortcuts:canBecomeMainWindow:didClose:)` | **Deprecated.** Writes its arguments into `configuration`, then calls the method above. |
+| `QuickActionBar.requiredClickCount` | **Deprecated.** Reads and writes `configuration.requiredClickCount`. |
+| `QuickActionBar.rowHeight` | **Deprecated.** Has no effect: result rows size themselves to their content. |
 | `QuickActionBar.resumePresentation()` | Reverses a dismissal that is still animating. See [§4](#4-interrupting-a-dismissal). |
 | `QuickActionBar.browseItems` | Round buttons beside the search field; none by default. See [§5](#5-browse-buttons). |
 | `QuickActionBar.BrowseItem` | One browse button: `title`, `image` and an `action` called with the bar. |
@@ -71,6 +79,50 @@ ported, and only the AppKit controller is provided.
 | `QuickActionBar.createARGB32Image(width:height:drawBlock:)` | Static helper; was upstream's free function `CreateARGB32`. |
 | `QuickActionBar.scaleImageProportionally(_:to:)` | Static helper; was upstream's free function `scaleImageProportionally`. |
 | `QuickActionBar.usingEffectiveAppearance(of:_:)` | Static helper; replaces upstream's `UsingEffectiveAppearance(ofWindow:)`. |
+
+### 2.1 Configuration
+
+Everything a host sets about the bar's look and behaviour is one value, `QuickActionBar.Configuration`,
+stored on the bar. `present` takes only what changes from one opening to the next: the window to
+centre in, the initial query and the close callback.
+
+```swift
+let bar = QuickActionBar(configuration: .init(
+    placeholderText: "Open Quickly",
+    width: 640,
+    resultsHeight: 320,
+    cornerRadius: 12
+))
+bar.contentSource = self
+bar.present(parentWindow: window)
+```
+
+| Field | Default | Notes |
+|---|---|---|
+| `placeholderText` | `"Quick Actions"` | |
+| `searchImage` | `QuickActionBar.DefaultImage` | Any other image is scaled proportionally to fit 64 points, keeping `isTemplate`. |
+| `width` | `nil` | `nil` takes a quarter of the main screen's width, measured at `present`. |
+| `resultsHeight` | `nil` | The results list below the search field, not the whole bar. `nil` takes a quarter of the main screen's height. |
+| `cornerRadius` | `Configuration.defaultCornerRadius` | 28 points on macOS 26 and later, 10 before. See below. |
+| `showsKeyboardShortcuts` | `false` | ↩ and ⌘1–⌘9 beside the first ten rows. |
+| `canBecomeMainWindow` | `true` | |
+| `requiredClickCount` | `.double` | |
+
+- **Read once per presentation.** `present` keeps a copy of `configuration` until the bar closes;
+  a change made while it is open, `requiredClickCount` included, applies to the next presentation.
+  `browseItems` is not part of the configuration and does change an open bar ([§5](#5-browse-buttons)).
+- **The corner radius.** The default, 28 points, is half of the collapsed bar's 56-point height —
+  Spotlight's capsule — and the platter keeps it as the results make it taller. On macOS 26 and later
+  it is the platter glass's `cornerRadius`; before 26 it is the bar's own layer's, which is also the
+  blur's mask. The value goes to either unchanged: nothing clamps a radius above half the height.
+  The browse buttons stay circles whatever it is.
+- **The deprecated nine-parameter `present`** writes six of its arguments into `configuration` —
+  every one of them, with its default when the argument is omitted — and leaves `cornerRadius` and
+  `requiredClickCount` alone. A host mixing the two styles gets whatever the last old-style call
+  wrote. `present()` with no arguments resolves to the new method.
+
+Decision record: Evolution
+[`draft-quick-action-bar-configuration`](Evolutions/draft-quick-action-bar-configuration.md).
 
 ## 3. Escape: clear first, then close
 
@@ -106,7 +158,8 @@ quickActionBar.browseItems = [
     },
     // …
 ]
-quickActionBar.present(placeholderText: "Search")
+quickActionBar.configuration.placeholderText = "Search"
+quickActionBar.present()
 ```
 
 - **When they are out.** They bud out of the search field 0.47 seconds after the bar's first frame
@@ -172,8 +225,8 @@ Traps that fail confusingly rather than loudly:
 
 ## 7. Demo
 
-**Quick Action Bar** in the example app (`QuickActionBarDemoViewController`) exercises every option
-`present(…)` takes, zero to four of Spotlight's browse buttons, headings the list cannot select, the
+**Quick Action Bar** in the example app (`QuickActionBarDemoViewController`) exercises every field
+of the bar's `configuration` — the corner radius on a slider of its own — zero to four of Spotlight's browse buttons, headings the list cannot select, the
 ↩ / ⌘1–⌘9 shortcuts, and a search slowed down to show stale answers being dropped. It also lists
 the checks only a human can make — among them the browse buttons' animation beside Spotlight's own.
 Its open button reverses a dismissal still in flight with `resumePresentation()` before presenting a
@@ -224,6 +277,8 @@ the browse buttons to work three ways, each example with a bar and content sourc
 - **The resize uses Spotlight's spring** — see [§8.3](#83-the-springs).
 - **Browse buttons** — not in upstream; see [§5](#5-browse-buttons) and
   [§8.5](#85-how-the-browse-buttons-move).
+- **Appearance lives in a `Configuration` stored on the bar**, with a configurable corner radius;
+  upstream passed it all to `present(…)` and fixed the radius — see [§2.1](#21-configuration).
 
 ### 8.2 Why Escape lives only in `cancelOperation(_:)`
 

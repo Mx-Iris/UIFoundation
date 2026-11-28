@@ -248,9 +248,13 @@ Enable the `QuickActionBar` trait to present a Spotlight-style search panel:
 ```
 
 ```swift
-let actionBar = QuickActionBar()
+let actionBar = QuickActionBar(configuration: .init(
+    placeholderText: "Search",
+    width: 640,
+    cornerRadius: 12
+))
 actionBar.contentSource = self
-actionBar.present(placeholderText: "Search")
+actionBar.present(parentWindow: window)
 
 actionBar.cancel()
 
@@ -258,6 +262,8 @@ if actionBar.resumePresentation() {
     // An in-progress dismissal was reversed without recreating the panel.
 }
 ```
+
+The bar's look and behaviour live in `configuration` — placeholder, search image, width, results height, corner radius, keyboard shortcuts and the click count that activates a row — and each `present` uses a copy of it, so a change made while the bar is open applies the next time. The corner radius defaults to 28 points on macOS 26 and later, half of the collapsed bar's height. The older `present(parentWindow:placeholderText:…)` still works, deprecated.
 
 `resumePresentation()` returns `true` only while the existing panel is dismissing. Its fade and transform animations continue from their current presentation values, allowing repeated shortcut presses to reverse the transition smoothly.
 

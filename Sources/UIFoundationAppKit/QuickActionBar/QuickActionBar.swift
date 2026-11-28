@@ -40,13 +40,24 @@ public final class QuickActionBar {
         case double
     }
 
+    /// How the bar looks and behaves.
+    ///
+    /// Read when the bar is presented; a change made while it is open applies to the next
+    /// presentation.
+    public var configuration: Configuration
+
     /// The number of clicks required to activate a row in the results view.
-    public var requiredClickCount: RequiredClickCount = .double
+    @available(*, deprecated, message: "Set configuration.requiredClickCount instead.")
+    public var requiredClickCount: RequiredClickCount {
+        get { configuration.requiredClickCount }
+        set { configuration.requiredClickCount = newValue }
+    }
 
     /// The content source for the bar.
     public weak var contentSource: QuickActionBarContentSource?
 
-    /// Row height used when automatic row heights are not available.
+    /// Has no effect: result rows size themselves to their content.
+    @available(*, deprecated, message: "Has no effect: result rows size themselves automatically.")
     public var rowHeight: CGFloat = 36
 
     /// Round buttons beside the search field, the way macOS 26 Spotlight shows Applications,
@@ -72,7 +83,15 @@ public final class QuickActionBar {
     }
 
     /// Create a `QuickActionBar` instance.
-    public init() {}
+    ///
+    /// - Parameter configuration: how the bar looks and behaves; the defaults when omitted
+    public init(configuration: Configuration = Configuration()) {
+        self.configuration = configuration
+        self.presentedConfiguration = configuration
+    }
+
+    /// The configuration of the current presentation, or of the last one once the bar has closed.
+    internal private(set) var presentedConfiguration: Configuration
 
     internal weak var quickActionBarWindow: QuickActionBar.Window?
     internal var quickBarController: NSWindowController?
@@ -95,39 +114,32 @@ public extension QuickActionBar {
 }
 
 public extension QuickActionBar {
-    /// Present a `QuickActionBar`.
+    /// Present a `QuickActionBar` with the current ``configuration``.
+    ///
+    /// The bar keeps a copy of ``configuration`` until it closes, so a change made while it is open
+    /// applies to the next presentation.
     ///
     /// - Parameters:
     ///   - parentWindow: the window to center the quick action bar in, or nil to center on screen
-    ///   - placeholderText: the placeholder text to display in the search field
-    ///   - searchImage: the image to use as the search image. If nil, uses the default magnifying glass image
     ///   - initialSearchText: the text to initially populate the search field with
-    ///   - width: the width of the quick action bar to display
-    ///   - height: the height of the quick action bar to display
-    ///   - showKeyboardShortcuts: display keyboard shortcuts for the first 10 entries
-    ///   - canBecomeMainWindow: whether the panel can become main
-    ///   - didClose: A callback to indicate that the quick action bar has closed
+    ///   - didClose: called once the quick action bar has closed
     func present(
         parentWindow: NSWindow? = nil,
-        placeholderText: String? = QuickActionBar.DefaultPlaceholderString,
-        searchImage: NSImage? = nil,
         initialSearchText: String? = nil,
-        width: CGFloat = (NSScreen.main?.frame.width ?? (QuickActionBar.DefaultWidth * 4)) / 4.0,
-        height: CGFloat = (NSScreen.main?.frame.height ?? (QuickActionBar.DefaultHeight * 4)) / 4.0,
-        showKeyboardShortcuts: Bool = false,
-        canBecomeMainWindow: Bool = true,
         didClose: (() -> Void)? = nil
     ) {
-        self.width = width
-        self.height = height
+        presentedConfiguration = configuration
+        let mainScreenFrame = NSScreen.main?.frame
+        self.width = presentedConfiguration.width
+            ?? (mainScreenFrame?.width ?? QuickActionBar.DefaultWidth * 4) / 4
+        self.height = presentedConfiguration.resultsHeight
+            ?? (mainScreenFrame?.height ?? QuickActionBar.DefaultHeight * 4) / 4
         self.searchImage = {
-            if let searchImage = searchImage {
-                let scaled = QuickActionBar.scaleImageProportionally(searchImage, to: 64)
-                scaled?.isTemplate = searchImage.isTemplate
-                return scaled
-            } else {
-                return Self.DefaultImage
-            }
+            let configuredImage = presentedConfiguration.searchImage
+            guard configuredImage !== Self.DefaultImage else { return configuredImage }
+            let scaledImage = QuickActionBar.scaleImageProportionally(configuredImage, to: 64)
+            scaledImage?.isTemplate = configuredImage.isTemplate
+            return scaledImage
         }()
         let originRect: CGRect
         if let parentWindow = parentWindow {
@@ -146,11 +158,15 @@ public extension QuickActionBar {
         self.quickActionBarWindow = quickBarWindow
 
         quickBarWindow.quickActionBar = self
-        quickBarWindow.showKeyboardShortcuts = showKeyboardShortcuts
+        quickBarWindow.showKeyboardShortcuts = presentedConfiguration.showsKeyboardShortcuts
 
         // Set a temporary frame for setup (need a valid size for layout).
         quickBarWindow.setFrame(CGRect(x: 0, y: 0, width: barWidth + pad * 2, height: 200), display: false)
-        quickBarWindow.setup(parentWindow: parentWindow, initialSearchText: initialSearchText)
+        quickBarWindow.setup(
+            parentWindow: parentWindow,
+            initialSearchText: initialSearchText,
+            cornerRadius: presentedConfiguration.cornerRadius
+        )
 
         // Calculate the collapsed content height to size the initial window.
         let collapsedContentHeight = quickBarWindow.collapsedContentHeight()
@@ -161,8 +177,8 @@ public extension QuickActionBar {
         let originY = originRect.origin.y + ((originRect.height - collapsedContentHeight) / 1.3)
         let posRect = CGRect(x: originX - pad, y: originY - pad, width: barWidth + pad * 2, height: windowHeight)
         quickBarWindow.setFrame(posRect, display: true)
-        quickBarWindow.currentCanBecomeMainWindow = canBecomeMainWindow
-        quickBarWindow.placeholderText = placeholderText ?? ""
+        quickBarWindow.currentCanBecomeMainWindow = presentedConfiguration.canBecomeMainWindow
+        quickBarWindow.placeholderText = presentedConfiguration.placeholderText
 
         quickBarWindow.didDetectClose = { [weak self, weak quickBarWindow] in
             guard
@@ -190,6 +206,44 @@ public extension QuickActionBar {
 
         quickBarWindow.presentWithAnimation()
         quickBarWindow.startBrowseButtonsPresentationDelay()
+    }
+
+    /// Present a `QuickActionBar`, writing the appearance arguments into ``configuration`` first.
+    ///
+    /// This overwrites the six configuration fields it has arguments for — every one of them, with
+    /// its default when the argument is omitted — and leaves ``Configuration/cornerRadius`` and
+    /// ``Configuration/requiredClickCount`` as they are.
+    ///
+    /// - Parameters:
+    ///   - parentWindow: the window to center the quick action bar in, or nil to center on screen
+    ///   - placeholderText: the placeholder text to display in the search field
+    ///   - searchImage: the image to use as the search image. If nil, uses the default magnifying glass image
+    ///   - initialSearchText: the text to initially populate the search field with
+    ///   - width: the width of the quick action bar to display
+    ///   - height: the height of the results list below the search field
+    ///   - showKeyboardShortcuts: display keyboard shortcuts for the first 10 entries
+    ///   - canBecomeMainWindow: whether the panel can become main
+    ///   - didClose: A callback to indicate that the quick action bar has closed
+    @available(*, deprecated, message: "Set the appearance on configuration, then call present(parentWindow:initialSearchText:didClose:).")
+    @_disfavoredOverload
+    func present(
+        parentWindow: NSWindow? = nil,
+        placeholderText: String? = QuickActionBar.DefaultPlaceholderString,
+        searchImage: NSImage? = nil,
+        initialSearchText: String? = nil,
+        width: CGFloat = (NSScreen.main?.frame.width ?? (QuickActionBar.DefaultWidth * 4)) / 4.0,
+        height: CGFloat = (NSScreen.main?.frame.height ?? (QuickActionBar.DefaultHeight * 4)) / 4.0,
+        showKeyboardShortcuts: Bool = false,
+        canBecomeMainWindow: Bool = true,
+        didClose: (() -> Void)? = nil
+    ) {
+        configuration.placeholderText = placeholderText ?? ""
+        configuration.searchImage = searchImage ?? QuickActionBar.DefaultImage
+        configuration.width = width
+        configuration.resultsHeight = height
+        configuration.showsKeyboardShortcuts = showKeyboardShortcuts
+        configuration.canBecomeMainWindow = canBecomeMainWindow
+        present(parentWindow: parentWindow, initialSearchText: initialSearchText, didClose: didClose)
     }
 }
 
