@@ -31,7 +31,7 @@
    宿主想让操作栏和自己窗口的圆角一致（比如做成 Xcode「Open Quickly」那样的小圆角），只能改库。
 2. **`present` 参数太多。** `present(parentWindow:placeholderText:searchImage:initialSearchText:width:height:showKeyboardShortcuts:canBecomeMainWindow:didClose:)`
    已有九个参数（`Sources/UIFoundationAppKit/QuickActionBar/QuickActionBar.swift:110`），再追加
-   `cornerRadius` 就是十个。其中七个是「这个 bar 长什么样」，每次打开都不变，却每次都要重新传：
+   `cornerRadius` 就是十个。其中六个是「这个 bar 长什么样」，每次打开都不变，却每次都要重新传：
    示例 App 与三个下游 App 的调用点都在重复同一组值。
 3. **设置散在两处。** 同属行为设置的 `requiredClickCount` 是实例属性（`QuickActionBar.swift:44`），
    `showKeyboardShortcuts`、`canBecomeMainWindow` 却是 `present` 参数，宿主得记住哪个在哪。
@@ -73,14 +73,15 @@
   - XCOrganizer `XCOrganizer/QuickOpen/QuickOpenPresenter.swift:58`：`present(parentWindow:placeholderText:width:height:)`
   - StarLight `StarLight/Main/MainActionBarController.swift:133`：`present(placeholderText:width:height:) { … }`
   - RuntimeViewer `RuntimeViewerUsingAppKit/…/SidebarRuntimeObjectListViewController.swift:73`：
-    九个参数里的七个加尾随闭包。
+    九个参数里的六个加尾随闭包。
 
   三处都传了新 `present` 没有的参数，所以重载决议只会落到旧方法上，照常编译。
-- **尚未验证、实现时实测**
-  - 推测：`@_disfavoredOverload` 能让 `present()`、`present(parentWindow:)`、`present { }` 这类两个重载
-    都能匹配的调用落到新方法。落地步骤 2 用测试钉住（见该步骤的行为清单）。
-  - 推测：`NSGlassEffectView.cornerRadius` 超过底板高度一半时的表现（是否被截到胶囊形）。不影响 API，
-    实现时在示例 App 里看一眼并写进指南。
+- **实现时实测的两条**
+  - `present()` 落到新方法：已由测试 `presentWithoutArgumentsUsesTheConfiguredPlaceholder` 钉住。
+    临时去掉 `@_disfavoredOverload` 再跑，结果相同、不报歧义——编译器本就偏向用到默认参数更少的重载，
+    所以这个标注是保险，不是必需（macOS 27.2、Swift 6.4 实测）。
+  - `NSGlassEffectView.cornerRadius` 超过底板高度一半时的观感：**未查看**。那需要在示例 App 里交互式看界面，
+    用户没有要求；实现只把值原样交出去，不做截断，指南照此写。
 
 ## 提议方案
 
@@ -96,7 +97,7 @@
    `platterGlassView.cornerRadius`，更早的系统设给 `PrimaryRoundedView` 的图层。删掉
    `GlassPlatterView.platterCornerRadius` 与写死的 10。
 5. 旧 API 保留并标废弃：
-   - 九参数 `present`：`@available(*, deprecated, message:)` + `@_disfavoredOverload`，把七个外观参数写进
+   - 九参数 `present`：`@available(*, deprecated, message:)` + `@_disfavoredOverload`，把六个外观参数写进
      `configuration`，再调新 `present`。
    - `requiredClickCount`：转发到 `configuration.requiredClickCount`。
    - `rowHeight`：标废弃、注明不起作用，存储照旧保留，不接进任何地方。
@@ -121,7 +122,7 @@
 | `Sources/UIFoundationAppKit/QuickActionBar/QuickActionBar.swift` · `QuickActionBar` | 修改 | 加 `configuration`、`init(configuration:)`、内部快照 `presentedConfiguration`；`requiredClickCount` 改为废弃的转发属性；`rowHeight` 标废弃 | 配置存在 bar 上 | 1 |
 | `Sources/UIFoundationAppKit/QuickActionBar/QuickActionBar.swift` · `present(parentWindow:initialSearchText:didClose:)` | 新增 | 拍快照，由快照解出 `width` / `height` / `searchImage`，其余流程照旧 | 新的打开入口 | 2 |
 | `Sources/UIFoundationAppKit/QuickActionBar/QuickActionBar.swift` · 九参数 `present` | 修改 | 标 `deprecated` + `@_disfavoredOverload`，写进 `configuration` 后调新 `present` | 下游不改照常编译 | 2 |
-| `Sources/UIFoundationAppKit/QuickActionBar/Internal/QuickActionBar+ResultsView.swift` · `ResultsView` | 修改 | 点击判断改读 `presentedConfiguration.requiredClickCount` | 快照规则 | 2 |
+| `Sources/UIFoundationAppKit/QuickActionBar/Internal/QuickActionBar+ResultsView.swift` · `ResultsView` | 修改 | 点击判断改读 `presentedConfiguration.requiredClickCount`；删掉唯一读 `rowHeight` 的 `#available(macOS 10.13, *)` 死分支 | 快照规则；`rowHeight` 废弃 | 1、2 |
 | `Sources/UIFoundationAppKit/QuickActionBar/Internal/QuickActionBar+Window.swift` · `Window.setup` | 修改 | 加 `cornerRadius:` 参数，传给 `PrimaryRoundedView` | 圆角往下传 | 3 |
 | `Sources/UIFoundationAppKit/QuickActionBar/Internal/Util/QuickActionBar+PrimaryRoundedView.swift` · `PrimaryRoundedView` | 修改 | `init(cornerRadius:)`；26 以前的 `updateLayer()` 用它代替 10；26+ 传给 `GlassPlatterView` | 两条系统路径都可配 | 3 |
 | `Sources/UIFoundationAppKit/QuickActionBar/Internal/QuickActionBar+GlassPlatterView.swift` · `GlassPlatterView` | 修改 | `init(platterContentView:cornerRadius:)`；删 `static let platterCornerRadius` | 去掉写死的 28 | 3 |
@@ -413,9 +414,10 @@ macOS 26+ 上 `PrimaryRoundedView` 仍不设图层圆角（理由见调研里的
 
 - `QuickActionBar()` 仍可用（`init(configuration:)` 带默认参数）。
 - 九参数 `present` 照旧可调：传了新 `present` 没有的参数（`placeholderText`、`width` 等）的调用只有旧方法匹配。
-- 两者都能匹配的调用（`present()`、`present(parentWindow:)`、`present { }`）由 `@_disfavoredOverload`
-  交给新方法。这一点必须成立：宿主先设了 `configuration.placeholderText` 等再调 `present()`，若落到旧方法，
-  它会用自己的默认参数把这些字段写回默认值。落地步骤 2 用测试钉住。
+- 两者都能匹配的调用（`present()`、`present(parentWindow:)`、`present { }`）落到新方法。这一点必须成立：
+  宿主先设了 `configuration.placeholderText` 等再调 `present()`，若落到旧方法，它会用自己的默认参数把这些
+  字段写回默认值。测试 `presentWithoutArgumentsUsesTheConfiguredPlaceholder` 钉住；实测编译器本就这样选，
+  `@_disfavoredOverload` 只是保险。
 - `requiredClickCount`、`rowHeight` 读写照旧，多一条废弃警告。
 
 改前 / 改后：
@@ -490,10 +492,10 @@ actionBar.present(parentWindow: window)
    - 行为：`browseButtonsStayCirclesWithACustomCornerRadius`（设 12、四个按钮，玻璃圆半径仍是直径一半）
    - macOS 26 以前的路径本机（27.2）测不到，只能读代码确认；在决策日志里记一笔。
 
-4. **示例、文档、收尾** —— 第 11–15 行
+4. **示例、文档、收尾**（已完成）—— 第 11–15 行
    - 示例 App 加圆角滑块（0–40，初值 `defaultCornerRadius`），构建示例 App。
-   - 全 trait 构建；`swift test --traits QuickActionBar`，按原始退出码判断，并确认输出以 `Test run with … tests` 结尾。
-   - 在示例 App 里看一眼圆角大于 28 时的表现，写进指南（调研里的第二条推测）。
+   - 全 trait 构建；全 trait 测试按项目记忆分四段跑（呈现测试、PlaybackSlider、SettingsNavigationControls、其余），按原始退出码判断，并确认每段都有 `Test run with … tests` 汇总行。
+   - 圆角大于 28 时的观感未在示例 App 里看（需要交互式查看，用户没有要求）。
 
 **收尾时必须判断两件事**（判断结果写进决策日志，不允许沉默跳过）：
 
@@ -512,3 +514,4 @@ actionBar.present(parentWindow: window)
 | 2026-11-28 | 第 2 步完成 | 宽度测试改为断言窗口宽度（512 + 2 × 40），不再断言玻璃底板宽度，各系统通用。点击数测试用 `Bool` 参数而非 `RequiredClickCount`：后者不是 `Sendable`，作测试参数会报隔离警告，不为测试给公开类型加遵循。结果表没有 target，测试把单击 action 直接发给 `ResultsView`（窗口在测试进程里不会成为 key，nil target 走不到它）。变异检查：`ResultsView` 改读实时配置时，点击数测试的两个参数都失败。 |
 | 2026-11-28 | `@_disfavoredOverload` 实测不是必需 | 临时去掉它，`present()` 仍落到新方法、不报歧义（编译器本就偏向用到默认参数更少的重载）。保留它作为保险，指南不再说它是新方法胜出的原因。 |
 | 2026-11-28 | 第 3 步完成，第 4 步的示例与文档同批 | 项目要求指南与行为同一个提交，圆角接通与示例、指南、README 一起提交。圆角大于 28 时的观感没有在示例 App 里看：那需要交互式查看界面，用户没有要求；指南只写「值原样交给玻璃与图层，不做截断」。 |
+| 2026-11-28 | 实现完成，待用户看过后收尾 | 全 trait 构建通过，本次文件无警告；全 trait 测试分四段跑完，每段都有汇总行（23、41、7、534 个，另有 WindowedRows 47 个），唯一失败是 `QuickActionBarPresentationTests.swift:35`，在 main 上单独跑同样失败，属基线旧问题。示例 App 从工作树副本构建通过。文档判断：契约写进 `QuickActionBar.md` 新增的 §2.1，不另写专题文章；没有新术语；`AgentPlugins` 的两个 skill 不涉及 QuickActionBar，不改、不升版本号；根 `CLAUDE.md` 的 QuickActionBar 索引行只写测试陷阱，不变。 |

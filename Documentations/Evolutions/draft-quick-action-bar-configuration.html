@@ -163,7 +163,7 @@ details[open] > summary { border-bottom: 1px solid var(--separator); }
   <p class="eyebrow"><span class="crumb">UIFoundation</span><span class="crumb">Evolutions</span><span class="crumb">Draft</span></p>
   <h1><span class="proposal-number">Draft</span> <code>QuickActionBar.Configuration</code>：收拢外观参数，圆角可自定义</h1>
   <dl class="meta">
-    <div><dt>状态</dt><dd><span class="status status-accepted">Accepted</span></dd></div>
+    <div><dt>状态</dt><dd><span class="status status-in-progress">In Progress</span></dd></div>
     <div><dt>最后更新</dt><dd>2026-11-28</dd></div>
     <div><dt>项目类型</dt><dd>库</dd></div>
     <div><dt>原文</dt><dd><code>draft-quick-action-bar-configuration.md</code></dd></div>
@@ -273,7 +273,7 @@ details[open] > summary { border-bottom: 1px solid var(--separator); }
       <tr><td><code>QuickActionBar/QuickActionBar.swift</code> · <code>QuickActionBar</code></td><td><span class="tag tag-changed">修改</span></td><td>加 <code>configuration</code>、<code>init(configuration:)</code>、内部快照 <code>presentedConfiguration</code>；<code>requiredClickCount</code> 改为废弃的转发属性；<code>rowHeight</code> 标废弃</td><td>配置存在 bar 上</td><td class="numeric">1</td></tr>
       <tr><td><code>QuickActionBar.swift</code> · 新 <code>present</code></td><td><span class="tag tag-added">新增</span></td><td>拍快照，由快照解出宽、高、搜索图，其余流程照旧</td><td>新的打开入口</td><td class="numeric">2</td></tr>
       <tr><td><code>QuickActionBar.swift</code> · 九参数 <code>present</code></td><td><span class="tag tag-changed">修改</span></td><td>标 <code>deprecated</code> + <code>@_disfavoredOverload</code>，写进配置后调新 <code>present</code></td><td>下游不改照常编译</td><td class="numeric">2</td></tr>
-      <tr><td><code>Internal/QuickActionBar+ResultsView.swift</code> · <code>ResultsView</code></td><td><span class="tag tag-changed">修改</span></td><td>点击判断改读 <code>presentedConfiguration.requiredClickCount</code></td><td>快照规则</td><td class="numeric">2</td></tr>
+      <tr><td><code>Internal/QuickActionBar+ResultsView.swift</code> · <code>ResultsView</code></td><td><span class="tag tag-changed">修改</span></td><td>点击判断改读 <code>presentedConfiguration.requiredClickCount</code>；删掉唯一读 <code>rowHeight</code> 的 <code>#available(macOS 10.13, *)</code> 死分支</td><td>快照规则；<code>rowHeight</code> 废弃</td><td class="numeric">1、2</td></tr>
       <tr><td><code>Internal/QuickActionBar+Window.swift</code> · <code>Window.setup</code></td><td><span class="tag tag-changed">修改</span></td><td>加 <code>cornerRadius:</code> 参数，传给 <code>PrimaryRoundedView</code></td><td>圆角往下传</td><td class="numeric">3</td></tr>
       <tr><td><code>Internal/Util/QuickActionBar+PrimaryRoundedView.swift</code></td><td><span class="tag tag-changed">修改</span></td><td><code>init(cornerRadius:)</code>；26 以前的 <code>updateLayer()</code> 用它代替 10；26+ 传给 <code>GlassPlatterView</code></td><td>两条系统路径都可配</td><td class="numeric">3</td></tr>
       <tr><td><code>Internal/QuickActionBar+GlassPlatterView.swift</code></td><td><span class="tag tag-changed">修改</span></td><td><code>init(platterContentView:cornerRadius:)</code>；删 <code>static let platterCornerRadius</code></td><td>去掉写死的 28</td><td class="numeric">3</td></tr>
@@ -412,10 +412,10 @@ details[open] > summary { border-bottom: 1px solid var(--separator); }
         <li>下游：XCOrganizer <code>QuickOpenPresenter.swift:58</code>、StarLight <code>MainActionBarController.swift:133</code>、RuntimeViewer <code>SidebarRuntimeObjectListViewController.swift:73</code>，三处都传了新 <code>present</code> 没有的参数，只会落到旧方法。</li>
       </ul>
       <div class="callout callout-warning">
-        <p class="callout-title">尚未验证、实现时实测</p>
+        <p class="callout-title">实现时实测的两条</p>
         <ul>
-          <li><code>@_disfavoredOverload</code> 让两个重载都能匹配的调用落到新方法——落地步骤 2 用测试钉住。</li>
-          <li><code>NSGlassEffectView.cornerRadius</code> 超过底板高度一半时的表现——实现时在示例 App 里看并写进指南。</li>
+          <li><code>present()</code> 落到新方法，已由测试钉住；临时去掉 <code>@_disfavoredOverload</code> 结果相同、不报歧义，所以它是保险而非必需（macOS 27.2、Swift 6.4）。</li>
+          <li>圆角超过底板高度一半时的观感<strong>未查看</strong>：需要交互式看界面，用户没有要求；实现把值原样交出去，不做截断。</li>
         </ul>
       </div>
     </div>
@@ -465,28 +465,33 @@ actionBar.present(parentWindow: window)</code></pre>
 <section id="steps">
   <h2>落地步骤</h2>
   <ol start="0">
-    <li><strong>提案入库</strong>：索引登记一行 <code>draft</code>。</li>
-    <li><strong>Configuration 与存储</strong>：<code>defaultConfigurationKeepsPresentDefaults</code>、<code>defaultCornerRadiusIs28PointsOnMacOS26</code>、<code>initializerStoresTheGivenConfiguration</code>、<code>deprecatedRequiredClickCountForwardsToConfiguration</code>。</li>
-    <li><strong>新旧 <code>present</code></strong>：<code>presentWithoutArgumentsUsesTheConfiguredPlaceholder</code>（证明新方法胜出）、<code>deprecatedPresentWritesItsArgumentsIntoTheConfiguration</code>、<code>deprecatedPresentLeavesCornerRadiusAlone</code>、<code>configurationChangedWhilePresentedAppliesToTheNextPresentation</code>、<code>configuredWidthSizesThePlatter</code>、<code>rowClickUsesThePresentedClickCount</code>（不发真实点击）；现有三个测试文件改用配置。</li>
-    <li><strong>圆角接通</strong>：<code>defaultCornerRadiusReachesThePlatterGlass</code>、<code>configuredCornerRadiusReachesThePlatterGlass</code>、<code>browseButtonsStayCirclesWithACustomCornerRadius</code>；26 以前的路径本机测不到，只读代码确认。</li>
-    <li><strong>示例、文档、收尾</strong>：演示页加圆角滑块并构建示例 App；全 trait 构建；<code>swift test --traits QuickActionBar</code> 按原始退出码判断，并确认输出以汇总行结尾；看一眼圆角大于 28 的表现写进指南。</li>
+    <li><strong>提案入库</strong>（已完成）：索引登记一行 <code>draft</code>。</li>
+    <li><strong>Configuration 与存储</strong>（已完成）：<code>defaultConfigurationKeepsPresentDefaults</code>、<code>defaultCornerRadiusIs28PointsOnMacOS26</code>、<code>initializerStoresTheGivenConfiguration</code>、<code>deprecatedRequiredClickCountForwardsToConfiguration</code>。</li>
+    <li><strong>新旧 <code>present</code></strong>（已完成）：<code>presentWithoutArgumentsUsesTheConfiguredPlaceholder</code>、<code>deprecatedPresentWritesItsArgumentsIntoTheConfiguration</code>、<code>deprecatedPresentLeavesCornerRadiusAlone</code>、<code>configurationChangedWhilePresentedAppliesToTheNextPresentation</code>、<code>configuredWidthSizesTheBar</code>、<code>rowClickUsesThePresentedClickCount</code>（不发真实点击）；现有三个测试文件改用配置。</li>
+    <li><strong>圆角接通</strong>（已完成）：<code>defaultCornerRadiusReachesThePlatterGlass</code>、<code>configuredCornerRadiusReachesThePlatterGlass</code>、<code>browseButtonsStayCirclesWithACustomCornerRadius</code>；26 以前的路径本机测不到，只读代码确认。</li>
+    <li><strong>示例、文档、收尾</strong>（已完成）：演示页加圆角滑块，示例 App 从工作树副本构建通过；全 trait 构建通过；全 trait 测试分四段跑完、每段有汇总行，唯一失败是 main 上本来就挂的 <code>QuickActionBarPresentationTests.swift:35</code>。</li>
   </ol>
-  <p>预计不需要新的专题文章（契约写进 <code>QuickActionBar.md</code> 新小节），也不引入新术语；收尾时在决策日志里确认。</p>
+  <p>不需要新的专题文章（契约写进 <code>QuickActionBar.md</code> 的 §2.1），没有新术语；agent 插件的 skill 与根 <code>CLAUDE.md</code> 不受影响。</p>
 </section>
 
 <section id="log">
   <h2>决策日志</h2>
   <details>
-    <summary>4 条，最近一条：用户批准，开始实现</summary>
+    <summary>9 条，最近一条：实现完成，待用户看过后收尾</summary>
     <div class="details-body">
       <div class="table-wrap">
       <table>
         <thead><tr><th>日期</th><th>变更</th><th>说明</th></tr></thead>
         <tbody>
-          <tr><td class="numeric">2026-11-28</td><td>Created as Draft</td><td>底板圆角在两条系统路径上都写死，宿主无法自定义；<code>present</code> 已有九个参数，不宜再加。</td></tr>
-          <tr><td class="numeric">2026-11-28</td><td>配置存在 bar 上</td><td>用户批准：照 <code>SpotlightPanel</code> 的形状，<code>present</code> 只留每次打开才变的参数。</td></tr>
+          <tr><td class="numeric">2026-11-28</td><td>Created as Draft</td><td>QuickActionBar 底板圆角在两条系统路径上都写死，宿主无法自定义；<code>present</code> 已有九个参数，不宜再加。</td></tr>
+          <tr><td class="numeric">2026-11-28</td><td>配置存在 bar 上</td><td>用户批准：照 <code>SpotlightPanel</code> 的形状，<code>configuration</code> 属性 + <code>init(configuration:)</code>，<code>present</code> 只留每次打开才变的参数。</td></tr>
           <tr><td class="numeric">2026-11-28</td><td>旧 <code>present</code> 标废弃保留</td><td>用户批准：不破坏三个下游 App，按轻量档走；删除留到下游迁完以后。</td></tr>
           <tr><td class="numeric">2026-11-28</td><td>Accepted</td><td>用户批准，开始实现。</td></tr>
+          <tr><td class="numeric">2026-11-28</td><td>In Progress：第 1 步完成</td><td><code>ResultsView</code> 里 <code>#available(macOS 10.13, *)</code> 的 <code>else</code> 分支（唯一读 <code>rowHeight</code> 的地方）随 <code>rowHeight</code> 废弃一并删掉：本库最低 macOS 14，它从不执行。点击判断这一步先改读 <code>configuration</code>，第 2 步换成快照。</td></tr>
+          <tr><td class="numeric">2026-11-28</td><td>第 2 步完成</td><td>宽度测试改为断言窗口宽度（512 + 2 × 40），不再断言玻璃底板宽度，各系统通用。点击数测试用 <code>Bool</code> 参数而非 <code>RequiredClickCount</code>：后者不是 <code>Sendable</code>，作测试参数会报隔离警告，不为测试给公开类型加遵循。结果表没有 target，测试把单击 action 直接发给 <code>ResultsView</code>（窗口在测试进程里不会成为 key，nil target 走不到它）。变异检查：<code>ResultsView</code> 改读实时配置时，点击数测试的两个参数都失败。</td></tr>
+          <tr><td class="numeric">2026-11-28</td><td><code>@_disfavoredOverload</code> 实测不是必需</td><td>临时去掉它，<code>present()</code> 仍落到新方法、不报歧义（编译器本就偏向用到默认参数更少的重载）。保留它作为保险，指南不再说它是新方法胜出的原因。</td></tr>
+          <tr><td class="numeric">2026-11-28</td><td>第 3 步完成，第 4 步的示例与文档同批</td><td>项目要求指南与行为同一个提交，圆角接通与示例、指南、README 一起提交。圆角大于 28 时的观感没有在示例 App 里看：那需要交互式查看界面，用户没有要求；指南只写「值原样交给玻璃与图层，不做截断」。</td></tr>
+          <tr><td class="numeric">2026-11-28</td><td>实现完成，待用户看过后收尾</td><td>全 trait 构建通过，本次文件无警告；全 trait 测试分四段跑完，每段都有汇总行（23、41、7、534 个，另有 WindowedRows 47 个），唯一失败是 <code>QuickActionBarPresentationTests.swift:35</code>，在 main 上单独跑同样失败，属基线旧问题。示例 App 从工作树副本构建通过。文档判断：契约写进 <code>QuickActionBar.md</code> 新增的 §2.1，不另写专题文章；没有新术语；<code>AgentPlugins</code> 的两个 skill 不涉及 QuickActionBar，不改、不升版本号；根 <code>CLAUDE.md</code> 的 QuickActionBar 索引行只写测试陷阱，不变。</td></tr>
         </tbody>
       </table>
       </div>
