@@ -2,7 +2,7 @@
 //  QuickActionBar+Configuration.swift
 //  UIFoundation
 //
-//  Decision record: Documentations/Evolutions/draft-quick-action-bar-configuration.md
+//  Decision record: Documentations/Evolutions/0045-quick-action-bar-configuration.md
 //
 
 #if QuickActionBar && os(macOS)

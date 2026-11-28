@@ -122,7 +122,7 @@ bar.present(parentWindow: window)
   wrote. `present()` with no arguments resolves to the new method.
 
 Decision record: Evolution
-[`draft-quick-action-bar-configuration`](Evolutions/draft-quick-action-bar-configuration.md).
+[`0045`](Evolutions/0045-quick-action-bar-configuration.md).
 
 ## 3. Escape: clear first, then close
 

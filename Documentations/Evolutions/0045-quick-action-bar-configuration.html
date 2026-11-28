@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Draft - QuickActionBar.Configuration：收拢外观参数，圆角可自定义</title>
+<title>0045 - QuickActionBar.Configuration：收拢外观参数，圆角可自定义</title>
 <style>
 /* Evolution proposal page, shared style (style A, "Apple documentation").
    Copy this whole <style> block verbatim. Page-specific rules, if any, go only
@@ -160,13 +160,13 @@ details[open] > summary { border-bottom: 1px solid var(--separator); }
 <div class="page">
 
 <header class="doc-header">
-  <p class="eyebrow"><span class="crumb">UIFoundation</span><span class="crumb">Evolutions</span><span class="crumb">Draft</span></p>
-  <h1><span class="proposal-number">Draft</span> <code>QuickActionBar.Configuration</code>：收拢外观参数，圆角可自定义</h1>
+  <p class="eyebrow"><span class="crumb">UIFoundation</span><span class="crumb">Evolutions</span><span class="crumb">0045</span></p>
+  <h1><span class="proposal-number">0045</span> <code>QuickActionBar.Configuration</code>：收拢外观参数，圆角可自定义</h1>
   <dl class="meta">
-    <div><dt>状态</dt><dd><span class="status status-in-progress">In Progress</span></dd></div>
+    <div><dt>状态</dt><dd><span class="status status-implemented">Implemented</span></dd></div>
     <div><dt>最后更新</dt><dd>2026-11-28</dd></div>
     <div><dt>项目类型</dt><dd>库</dd></div>
-    <div><dt>原文</dt><dd><code>draft-quick-action-bar-configuration.md</code></dd></div>
+    <div><dt>原文</dt><dd><code>0045-quick-action-bar-configuration.md</code></dd></div>
   </dl>
 </header>
 
@@ -477,7 +477,7 @@ actionBar.present(parentWindow: window)</code></pre>
 <section id="log">
   <h2>决策日志</h2>
   <details>
-    <summary>9 条，最近一条：实现完成，待用户看过后收尾</summary>
+    <summary>10 条，最近一条：Implemented</summary>
     <div class="details-body">
       <div class="table-wrap">
       <table>
@@ -492,6 +492,7 @@ actionBar.present(parentWindow: window)</code></pre>
           <tr><td class="numeric">2026-11-28</td><td><code>@_disfavoredOverload</code> 实测不是必需</td><td>临时去掉它，<code>present()</code> 仍落到新方法、不报歧义（编译器本就偏向用到默认参数更少的重载）。保留它作为保险，指南不再说它是新方法胜出的原因。</td></tr>
           <tr><td class="numeric">2026-11-28</td><td>第 3 步完成，第 4 步的示例与文档同批</td><td>项目要求指南与行为同一个提交，圆角接通与示例、指南、README 一起提交。圆角大于 28 时的观感没有在示例 App 里看：那需要交互式查看界面，用户没有要求；指南只写「值原样交给玻璃与图层，不做截断」。</td></tr>
           <tr><td class="numeric">2026-11-28</td><td>实现完成，待用户看过后收尾</td><td>全 trait 构建通过，本次文件无警告；全 trait 测试分四段跑完，每段都有汇总行（23、41、7、534 个，另有 WindowedRows 47 个），唯一失败是 <code>QuickActionBarPresentationTests.swift:35</code>，在 main 上单独跑同样失败，属基线旧问题。示例 App 从工作树副本构建通过。文档判断：契约写进 <code>QuickActionBar.md</code> 新增的 §2.1，不另写专题文章；没有新术语；<code>AgentPlugins</code> 的两个 skill 不涉及 QuickActionBar，不改、不升版本号；根 <code>CLAUDE.md</code> 的 QuickActionBar 索引行只写测试陷阱，不变。</td></tr>
+          <tr><td class="numeric">2026-11-28</td><td>Implemented</td><td>用户看过后正式收尾：合入 <code>main</code>，取号 0045。偏离方案之处与文档判断见以上各行，没有未做的后续项（圆角大于 28 时的观感仍未查看）。</td></tr>
         </tbody>
       </table>
       </div>

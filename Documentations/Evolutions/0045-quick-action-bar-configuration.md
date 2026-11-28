@@ -1,12 +1,12 @@
-# Draft - QuickActionBar.Configuration：收拢外观参数，圆角可自定义
+# 0045 - QuickActionBar.Configuration：收拢外观参数，圆角可自定义
 
-- **状态**: In Progress
+- **状态**: Implemented
 - **作者**: JH
 - **创建日期**: 2026-11-28
 - **最后更新**: 2026-11-28
 - **所属愿景**: 无
 - **关联提案**: [0039](0039-quick-action-bar-browse-items.md)（浏览按钮，定下了 macOS 26+ 的玻璃底板结构）、[0006](0006-settings-window-configuration.md)（同类的 Configuration 收拢先例）、[0021](0021-spotlight-panel-replica.md)（`SpotlightPanel.Configuration`，本提案照抄它的形状）
-- **实现分支 / PR**: `feature/quick-action-bar-configuration`
+- **实现分支 / PR**: `feature/quick-action-bar-configuration`，已合入 `main`
 - **配套文档**: [`QuickActionBar.md`](../QuickActionBar.md)（同批更新，不另写新指南）
 - **网页版**: 同目录同名的 `.html`
 
@@ -515,3 +515,4 @@ actionBar.present(parentWindow: window)
 | 2026-11-28 | `@_disfavoredOverload` 实测不是必需 | 临时去掉它，`present()` 仍落到新方法、不报歧义（编译器本就偏向用到默认参数更少的重载）。保留它作为保险，指南不再说它是新方法胜出的原因。 |
 | 2026-11-28 | 第 3 步完成，第 4 步的示例与文档同批 | 项目要求指南与行为同一个提交，圆角接通与示例、指南、README 一起提交。圆角大于 28 时的观感没有在示例 App 里看：那需要交互式查看界面，用户没有要求；指南只写「值原样交给玻璃与图层，不做截断」。 |
 | 2026-11-28 | 实现完成，待用户看过后收尾 | 全 trait 构建通过，本次文件无警告；全 trait 测试分四段跑完，每段都有汇总行（23、41、7、534 个，另有 WindowedRows 47 个），唯一失败是 `QuickActionBarPresentationTests.swift:35`，在 main 上单独跑同样失败，属基线旧问题。示例 App 从工作树副本构建通过。文档判断：契约写进 `QuickActionBar.md` 新增的 §2.1，不另写专题文章；没有新术语；`AgentPlugins` 的两个 skill 不涉及 QuickActionBar，不改、不升版本号；根 `CLAUDE.md` 的 QuickActionBar 索引行只写测试陷阱，不变。 |
+| 2026-11-28 | Implemented | 用户看过后正式收尾：合入 `main`，取号 0045。偏离方案之处与文档判断见以上各行，没有未做的后续项（圆角大于 28 时的观感仍未查看）。 |
