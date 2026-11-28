@@ -90,11 +90,7 @@ extension QuickActionBar.ResultsView {
         tableView.backgroundColor = NSColor.clear
         tableView.intercellSpacing = NSSize(width: 0, height: 5)
 
-        if #available(macOS 10.13, *) {
-            tableView.usesAutomaticRowHeights = true
-        } else {
-            tableView.rowHeight = quickActionBar.rowHeight
-        }
+        tableView.usesAutomaticRowHeights = true
 
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("searchresult"))
         tableView.addTableColumn(column)
@@ -206,7 +202,7 @@ extension QuickActionBar.ResultsView: NSTableViewDelegate, NSTableViewDataSource
 
 extension QuickActionBar.ResultsView {
     @objc private func didClickRow() {
-        if quickActionBar.requiredClickCount == .single {
+        if quickActionBar.configuration.requiredClickCount == .single {
             rowAction()
         }
     }

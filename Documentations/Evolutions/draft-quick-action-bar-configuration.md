@@ -1,6 +1,6 @@
 # Draft - QuickActionBar.Configuration：收拢外观参数，圆角可自定义
 
-- **状态**: Accepted
+- **状态**: In Progress
 - **作者**: JH
 - **创建日期**: 2026-11-28
 - **最后更新**: 2026-11-28
@@ -467,7 +467,7 @@ actionBar.present(parentWindow: window)
 
 0. **提案入库** —— `Documentations/Evolutions/README.md` 登记一行 `draft`。
 
-1. **Configuration 与存储** —— 改动地图第 1、2 行，测试文件的默认值部分
+1. **Configuration 与存储**（已完成）—— 改动地图第 1、2 行，测试文件的默认值部分
    - 行为：`defaultConfigurationKeepsPresentDefaults`（占位文字 "Quick Actions"、默认图、宽高为 nil、
      不显示快捷键、能成为主窗口、双击激活）
    - 行为：`defaultCornerRadiusIs28PointsOnMacOS26`
@@ -508,3 +508,4 @@ actionBar.present(parentWindow: window)
 | 2026-11-28 | 配置存在 bar 上 | 用户批准：照 `SpotlightPanel` 的形状，`configuration` 属性 + `init(configuration:)`，`present` 只留每次打开才变的参数。 |
 | 2026-11-28 | 旧 `present` 标废弃保留 | 用户批准：不破坏三个下游 App，按轻量档走；删除留到下游迁完以后。 |
 | 2026-11-28 | Accepted | 用户批准，开始实现。 |
+| 2026-11-28 | In Progress：第 1 步完成 | `ResultsView` 里 `#available(macOS 10.13, *)` 的 `else` 分支（唯一读 `rowHeight` 的地方）随 `rowHeight` 废弃一并删掉：本库最低 macOS 14，它从不执行。点击判断这一步先改读 `configuration`，第 2 步换成快照。 |

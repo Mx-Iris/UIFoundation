@@ -40,13 +40,24 @@ public final class QuickActionBar {
         case double
     }
 
+    /// How the bar looks and behaves.
+    ///
+    /// Read when the bar is presented; a change made while it is open applies to the next
+    /// presentation.
+    public var configuration: Configuration
+
     /// The number of clicks required to activate a row in the results view.
-    public var requiredClickCount: RequiredClickCount = .double
+    @available(*, deprecated, message: "Set configuration.requiredClickCount instead.")
+    public var requiredClickCount: RequiredClickCount {
+        get { configuration.requiredClickCount }
+        set { configuration.requiredClickCount = newValue }
+    }
 
     /// The content source for the bar.
     public weak var contentSource: QuickActionBarContentSource?
 
-    /// Row height used when automatic row heights are not available.
+    /// Has no effect: result rows size themselves to their content.
+    @available(*, deprecated, message: "Has no effect: result rows size themselves automatically.")
     public var rowHeight: CGFloat = 36
 
     /// Round buttons beside the search field, the way macOS 26 Spotlight shows Applications,
@@ -72,7 +83,15 @@ public final class QuickActionBar {
     }
 
     /// Create a `QuickActionBar` instance.
-    public init() {}
+    ///
+    /// - Parameter configuration: how the bar looks and behaves; the defaults when omitted
+    public init(configuration: Configuration = Configuration()) {
+        self.configuration = configuration
+        self.presentedConfiguration = configuration
+    }
+
+    /// The configuration of the current presentation, or of the last one once the bar has closed.
+    internal private(set) var presentedConfiguration: Configuration
 
     internal weak var quickActionBarWindow: QuickActionBar.Window?
     internal var quickBarController: NSWindowController?
