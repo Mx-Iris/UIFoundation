@@ -190,6 +190,57 @@ extension QuickActionBarPresentationTests {
         #expect(actionBar.configuration.requiredClickCount == .single)
     }
 
+    @Test("The default corner radius reaches the platter's glass")
+    func defaultCornerRadiusReachesThePlatterGlass() throws {
+        guard #available(macOS 26.0, *), NSScreen.main != nil else { return }
+
+        _ = NSApplication.shared
+        let actionBar = QuickActionBar(configuration: .init(width: 480, resultsHeight: 240))
+        actionBar.present()
+        defer { actionBar.cancel() }
+
+        let window = try #require(actionBar.quickActionBarWindow)
+        let glassPlatterView = try #require(window.primaryView?.glassPlatterView)
+        #expect(glassPlatterView.platterGlass.cornerRadius == 28)
+    }
+
+    @Test("A configured corner radius reaches the platter's glass")
+    func configuredCornerRadiusReachesThePlatterGlass() throws {
+        guard #available(macOS 26.0, *), NSScreen.main != nil else { return }
+
+        _ = NSApplication.shared
+        let actionBar = QuickActionBar(configuration: .init(width: 480, resultsHeight: 240, cornerRadius: 12))
+        actionBar.present()
+        defer { actionBar.cancel() }
+
+        let window = try #require(actionBar.quickActionBarWindow)
+        let glassPlatterView = try #require(window.primaryView?.glassPlatterView)
+        #expect(glassPlatterView.platterGlass.cornerRadius == 12)
+    }
+
+    @Test("Browse buttons stay circles under a custom corner radius")
+    func browseButtonsStayCirclesWithACustomCornerRadius() throws {
+        guard #available(macOS 26.0, *), NSScreen.main != nil else { return }
+
+        _ = NSApplication.shared
+        let actionBar = QuickActionBar(configuration: .init(width: 640, resultsHeight: 240, cornerRadius: 12))
+        actionBar.browseItems = ["Applications", "Files", "Actions", "Clipboard"].map { title in
+            QuickActionBar.BrowseItem(title: title, image: NSImage(size: NSSize(width: 22, height: 22))) { _ in }
+        }
+        actionBar.present()
+        defer { actionBar.cancel() }
+
+        let window = try #require(actionBar.quickActionBarWindow)
+        let glassPlatterView = try #require(window.primaryView?.glassPlatterView)
+        window.finishBrowseButtonsPresentationDelay()
+        #expect(glassPlatterView.isShowingBrowseButtons)
+        glassPlatterView.finishBrowseButtonAnimations()
+
+        #expect(glassPlatterView.platterGlass.cornerRadius == 12)
+        #expect(glassPlatterView.browseButtonGlasses.count == 4)
+        #expect(glassPlatterView.browseButtonGlasses.allSatisfy { abs($0.frame.width - 54) < 0.01 && abs($0.cornerRadius - 27) < 0.01 })
+    }
+
     // MARK: - Helpers
 
     private static func firstDescendant<View: NSView>(ofType viewType: View.Type, in rootView: NSView) -> View? {

@@ -14,7 +14,11 @@ import UIFoundation
 /// assigns the next set to `browseItems` from its own action: the bar draws the buttons on screen
 /// back into the search field and lets the new ones bud out. Back does the same in reverse.
 final class TagsBrowseExample: NSObject {
-    let quickActionBar = QuickActionBar()
+    let quickActionBar = QuickActionBar(configuration: .init(
+        placeholderText: "Search tagged documents",
+        width: 640,
+        resultsHeight: 360
+    ))
 
     /// The tag the last click opened. Searched until the query is empty again.
     private var browsedTag: BrowseExampleTag?
@@ -34,12 +38,7 @@ final class TagsBrowseExample: NSObject {
         }
         browsedTag = nil
         quickActionBar.browseItems = firstSetOfBrowseItems()
-        quickActionBar.present(
-            parentWindow: window,
-            placeholderText: "Search tagged documents",
-            width: 640,
-            height: 360
-        )
+        quickActionBar.present(parentWindow: window)
     }
 
     // MARK: - Browse items

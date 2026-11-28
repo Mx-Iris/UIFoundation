@@ -9,7 +9,7 @@ import UIFoundation
 /// A playground for `QuickActionBar` — the Spotlight-style command bar ported from
 /// DSFQuickActionBar.
 ///
-/// Every option `present(…)` takes adjusts live, and the search can be slowed down on purpose to
+/// Every option of the bar's `configuration` adjusts live, and the search can be slowed down on purpose to
 /// show the asynchronous path: the spinner, and answers for a query the user has already typed
 /// past being dropped. Results come from a fixed list of fake commands, since the bar never
 /// searches anything itself.
@@ -77,6 +77,16 @@ final class QuickActionBarDemoViewController: NSViewController {
 
     private let resultsHeightSlider = NSSlider(value: 320, minValue: 160, maxValue: 600, target: nil, action: nil)
     private let resultsHeightValueField = NSTextField(labelWithString: "")
+
+    /// Starts at the system's default — 28 points on macOS 26 and later, half of the collapsed bar.
+    private let cornerRadiusSlider = NSSlider(
+        value: Double(QuickActionBar.Configuration.defaultCornerRadius),
+        minValue: 0,
+        maxValue: 40,
+        target: nil,
+        action: nil
+    )
+    private let cornerRadiusValueField = NSTextField(labelWithString: "")
 
     private let placeholderTextField = NSTextField(string: "Search commands")
 
@@ -171,6 +181,7 @@ final class QuickActionBarDemoViewController: NSViewController {
         let presentationSection = makeSection(title: "Presentation", rows: [
             makeRow(label: "Bar width", control: barWidthSlider, value: barWidthValueField),
             makeRow(label: "Results height", control: resultsHeightSlider, value: resultsHeightValueField),
+            makeRow(label: "Corner radius", control: cornerRadiusSlider, value: cornerRadiusValueField),
             makeRow(label: "Browse buttons", control: browseButtonCountPopUpButton),
             makeRow(label: "Placeholder", control: placeholderTextField),
             centersOnWindowCheckbox,
@@ -373,7 +384,7 @@ final class QuickActionBarDemoViewController: NSViewController {
     }
 
     private func wireUpControls() {
-        for slider in [barWidthSlider, resultsHeightSlider, searchLatencySlider] {
+        for slider in [barWidthSlider, resultsHeightSlider, cornerRadiusSlider, searchLatencySlider] {
             slider.target = self
             slider.action = #selector(controlDidChange)
             slider.isContinuous = true
@@ -387,6 +398,7 @@ final class QuickActionBarDemoViewController: NSViewController {
     private func reloadValueFields() {
         barWidthValueField.stringValue = String(format: "%.0f", barWidthSlider.doubleValue)
         resultsHeightValueField.stringValue = String(format: "%.0f", resultsHeightSlider.doubleValue)
+        cornerRadiusValueField.stringValue = String(format: "%.0f", cornerRadiusSlider.doubleValue.rounded())
         searchLatencyValueField.stringValue = searchLatency == 0
             ? "at once"
             : String(format: "%.2f s", searchLatency)
@@ -423,16 +435,21 @@ final class QuickActionBarDemoViewController: NSViewController {
     }
 
     private func presentBar(initialSearchText: String?) {
-        quickActionBar.requiredClickCount = activatesOnSingleClickCheckbox.state == .on ? .single : .double
+        quickActionBar.configuration = QuickActionBar.Configuration(
+            placeholderText: placeholderTextField.stringValue,
+            searchImage: usesCustomSearchImageCheckbox.state == .on
+                ? customSearchImage ?? QuickActionBar.DefaultImage
+                : QuickActionBar.DefaultImage,
+            width: CGFloat(barWidthSlider.doubleValue),
+            resultsHeight: CGFloat(resultsHeightSlider.doubleValue),
+            cornerRadius: CGFloat(cornerRadiusSlider.doubleValue.rounded()),
+            showsKeyboardShortcuts: showsKeyboardShortcutsCheckbox.state == .on,
+            requiredClickCount: activatesOnSingleClickCheckbox.state == .on ? .single : .double
+        )
         quickActionBar.browseItems = makeBrowseItems(count: browseButtonCountPopUpButton.indexOfSelectedItem)
         quickActionBar.present(
             parentWindow: centersOnWindowCheckbox.state == .on ? view.window : nil,
-            placeholderText: placeholderTextField.stringValue,
-            searchImage: usesCustomSearchImageCheckbox.state == .on ? customSearchImage : nil,
             initialSearchText: initialSearchText,
-            width: CGFloat(barWidthSlider.doubleValue),
-            height: CGFloat(resultsHeightSlider.doubleValue),
-            showKeyboardShortcuts: showsKeyboardShortcutsCheckbox.state == .on,
             didClose: { [weak self] in
                 self?.appendToEventLog("didClose")
             }

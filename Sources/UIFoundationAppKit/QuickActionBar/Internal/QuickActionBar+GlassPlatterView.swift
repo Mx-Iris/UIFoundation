@@ -38,10 +38,6 @@ extension QuickActionBar {
         /// Called whenever the browse buttons come to rest, out or back in the field.
         var browseButtonsDidSettle: (() -> Void)?
 
-        /// The platter's corner radius: half of Spotlight's 56 pt collapsed height, kept when
-        /// the results make the platter taller.
-        static let platterCornerRadius: CGFloat = 28
-
         private let glassContainerView = NSGlassEffectContainerView()
         private let glassLayoutView = FlippedContainerView()
         private let platterGlassView = NSGlassEffectView()
@@ -66,8 +62,13 @@ extension QuickActionBar {
         /// Identifies the list the current buttons were made from; `nil` when there are none.
         private(set) var displayedBrowseItemsIdentifier: Int?
 
-        init(platterContentView: NSView) {
+        /// The platter's corner radius, kept when the results make the platter taller. The
+        /// default, `Configuration.defaultCornerRadius`, is half of Spotlight's 56 pt collapsed height.
+        private let platterCornerRadius: CGFloat
+
+        init(platterContentView: NSView, cornerRadius: CGFloat) {
             self.platterContentView = platterContentView
+            self.platterCornerRadius = cornerRadius
             super.init(frame: .zero)
             setup()
         }
@@ -85,7 +86,7 @@ extension QuickActionBar {
             glassContainerView.contentView = glassLayoutView
             addSubview(glassContainerView)
 
-            platterGlassView.cornerRadius = Self.platterCornerRadius
+            platterGlassView.cornerRadius = platterCornerRadius
             platterGlassView.contentView = platterContentView
             platterGlassView.translatesAutoresizingMaskIntoConstraints = false
             glassLayoutView.addSubview(platterGlassView)

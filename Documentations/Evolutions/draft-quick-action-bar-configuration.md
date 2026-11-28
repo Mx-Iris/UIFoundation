@@ -484,7 +484,7 @@ actionBar.present(parentWindow: window)
    - 行为：`rowClickUsesThePresentedClickCount`（用 `sendAction` 或单元格的跟踪方法，不发真实点击）
    - 现有三个测试文件改用 `configuration`；调废弃 API 的测试函数标 `@available(*, deprecated)` 以免警告。
 
-3. **圆角接通** —— 第 6、7、8 行
+3. **圆角接通**（已完成）—— 第 6、7、8 行
    - 行为：`defaultCornerRadiusReachesThePlatterGlass`（26+：`platterGlass.cornerRadius == 28`）
    - 行为：`configuredCornerRadiusReachesThePlatterGlass`（26+：设 12 → 12）
    - 行为：`browseButtonsStayCirclesWithACustomCornerRadius`（设 12、四个按钮，玻璃圆半径仍是直径一半）
@@ -509,4 +509,6 @@ actionBar.present(parentWindow: window)
 | 2026-11-28 | 旧 `present` 标废弃保留 | 用户批准：不破坏三个下游 App，按轻量档走；删除留到下游迁完以后。 |
 | 2026-11-28 | Accepted | 用户批准，开始实现。 |
 | 2026-11-28 | In Progress：第 1 步完成 | `ResultsView` 里 `#available(macOS 10.13, *)` 的 `else` 分支（唯一读 `rowHeight` 的地方）随 `rowHeight` 废弃一并删掉：本库最低 macOS 14，它从不执行。点击判断这一步先改读 `configuration`，第 2 步换成快照。 |
-| 2026-11-28 | 第 2 步完成 | 宽度测试改为断言窗口宽度（512 + 2 × 40），不再断言玻璃底板宽度，各系统通用。点击数测试用 `Bool` 参数而非 `RequiredClickCount`：后者不是 `Sendable`，作测试参数会报隔离警告，不为测试给公开类型加遵循。结果表没有 target，测试把单击 action 直接发给 `ResultsView`（窗口在测试进程里不会成为 key，nil target 走不到它）。两项变异检查：改读实时配置时点击数测试两个参数都失败。 |
+| 2026-11-28 | 第 2 步完成 | 宽度测试改为断言窗口宽度（512 + 2 × 40），不再断言玻璃底板宽度，各系统通用。点击数测试用 `Bool` 参数而非 `RequiredClickCount`：后者不是 `Sendable`，作测试参数会报隔离警告，不为测试给公开类型加遵循。结果表没有 target，测试把单击 action 直接发给 `ResultsView`（窗口在测试进程里不会成为 key，nil target 走不到它）。变异检查：`ResultsView` 改读实时配置时，点击数测试的两个参数都失败。 |
+| 2026-11-28 | `@_disfavoredOverload` 实测不是必需 | 临时去掉它，`present()` 仍落到新方法、不报歧义（编译器本就偏向用到默认参数更少的重载）。保留它作为保险，指南不再说它是新方法胜出的原因。 |
+| 2026-11-28 | 第 3 步完成，第 4 步的示例与文档同批 | 项目要求指南与行为同一个提交，圆角接通与示例、指南、README 一起提交。圆角大于 28 时的观感没有在示例 App 里看：那需要交互式查看界面，用户没有要求；指南只写「值原样交给玻璃与图层，不做截断」。 |

@@ -22,7 +22,11 @@ final class NotesBrowseExample: NSObject {
         let kind: Kind
     }
 
-    let quickActionBar = QuickActionBar()
+    let quickActionBar = QuickActionBar(configuration: .init(
+        placeholderText: "Search notes",
+        width: 520,
+        resultsHeight: 260
+    ))
 
     private(set) var notes: [Note] = [
         Note(title: "Groceries", kind: .checklist),
@@ -67,12 +71,7 @@ final class NotesBrowseExample: NSObject {
         if quickActionBar.resumePresentation() {
             return
         }
-        quickActionBar.present(
-            parentWindow: window,
-            placeholderText: "Search notes",
-            width: 520,
-            height: 260
-        )
+        quickActionBar.present(parentWindow: window)
     }
 
     /// Appends a note named like Notes names a new one: the plain name first, then numbered.

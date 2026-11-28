@@ -197,7 +197,7 @@ extension QuickActionBar.Window {
 }
 
 extension QuickActionBar.Window {
-    internal func setup(parentWindow: NSWindow? = nil, initialSearchText: String?) {
+    internal func setup(parentWindow: NSWindow? = nil, initialSearchText: String?, cornerRadius: CGFloat) {
         autorecalculatesKeyViewLoop = true
 
         // Adopt the effective appearance of the parent window during setup.
@@ -208,7 +208,7 @@ extension QuickActionBar.Window {
             container.wantsLayer = true
             self.contentView = container
 
-            let content = QuickActionBar.PrimaryRoundedView()
+            let content = QuickActionBar.PrimaryRoundedView(cornerRadius: cornerRadius)
             content.translatesAutoresizingMaskIntoConstraints = false
             container.addSubview(content)
             self.primaryView = content

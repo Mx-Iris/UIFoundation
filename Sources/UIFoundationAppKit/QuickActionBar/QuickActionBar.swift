@@ -162,7 +162,11 @@ public extension QuickActionBar {
 
         // Set a temporary frame for setup (need a valid size for layout).
         quickBarWindow.setFrame(CGRect(x: 0, y: 0, width: barWidth + pad * 2, height: 200), display: false)
-        quickBarWindow.setup(parentWindow: parentWindow, initialSearchText: initialSearchText)
+        quickBarWindow.setup(
+            parentWindow: parentWindow,
+            initialSearchText: initialSearchText,
+            cornerRadius: presentedConfiguration.cornerRadius
+        )
 
         // Calculate the collapsed content height to size the initial window.
         let collapsedContentHeight = quickBarWindow.collapsedContentHeight()
