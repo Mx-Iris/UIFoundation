@@ -80,9 +80,9 @@ extension QuickActionBarPresentationTests {
         initialSearchText: String?
     ) -> QuickActionBar {
         _ = NSApplication.shared
-        let actionBar = QuickActionBar()
+        let actionBar = QuickActionBar(configuration: .init(width: 480, resultsHeight: 240))
         actionBar.contentSource = contentSource
-        actionBar.present(initialSearchText: initialSearchText, width: 480, height: 240)
+        actionBar.present(initialSearchText: initialSearchText)
         return actionBar
     }
 }

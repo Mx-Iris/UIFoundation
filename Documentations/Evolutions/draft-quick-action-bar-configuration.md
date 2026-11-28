@@ -474,13 +474,13 @@ actionBar.present(parentWindow: window)
    - 行为：`initializerStoresTheGivenConfiguration`
    - 行为：`deprecatedRequiredClickCountForwardsToConfiguration`
 
-2. **新 `present` 与旧 `present` 的转发** —— 第 3、4、5、10 行
+2. **新 `present` 与旧 `present` 的转发**（已完成）—— 第 3、4、5、10 行
    - 行为：`presentWithoutArgumentsUsesTheConfiguredPlaceholder`（先设 `configuration.placeholderText`，
      再调 `present()`，窗口显示的是设的值——证明新方法胜出）
    - 行为：`deprecatedPresentWritesItsArgumentsIntoTheConfiguration`
    - 行为：`deprecatedPresentLeavesCornerRadiusAlone`
    - 行为：`configurationChangedWhilePresentedAppliesToTheNextPresentation`
-   - 行为：`configuredWidthSizesThePlatter`（640 → 底板宽 640）
+   - 行为：`configuredWidthSizesTheBar`（512 → 窗口宽 592，含两侧各 40 pt 动画余量；不依赖 macOS 26 的玻璃底板，各系统都能测）
    - 行为：`rowClickUsesThePresentedClickCount`（用 `sendAction` 或单元格的跟踪方法，不发真实点击）
    - 现有三个测试文件改用 `configuration`；调废弃 API 的测试函数标 `@available(*, deprecated)` 以免警告。
 
@@ -509,3 +509,4 @@ actionBar.present(parentWindow: window)
 | 2026-11-28 | 旧 `present` 标废弃保留 | 用户批准：不破坏三个下游 App，按轻量档走；删除留到下游迁完以后。 |
 | 2026-11-28 | Accepted | 用户批准，开始实现。 |
 | 2026-11-28 | In Progress：第 1 步完成 | `ResultsView` 里 `#available(macOS 10.13, *)` 的 `else` 分支（唯一读 `rowHeight` 的地方）随 `rowHeight` 废弃一并删掉：本库最低 macOS 14，它从不执行。点击判断这一步先改读 `configuration`，第 2 步换成快照。 |
+| 2026-11-28 | 第 2 步完成 | 宽度测试改为断言窗口宽度（512 + 2 × 40），不再断言玻璃底板宽度，各系统通用。点击数测试用 `Bool` 参数而非 `RequiredClickCount`：后者不是 `Sendable`，作测试参数会报隔离警告，不为测试给公开类型加遵循。结果表没有 target，测试把单击 action 直接发给 `ResultsView`（窗口在测试进程里不会成为 key，nil target 走不到它）。两项变异检查：改读实时配置时点击数测试两个参数都失败。 |

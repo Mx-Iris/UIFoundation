@@ -12,8 +12,8 @@ struct QuickActionBarPresentationTests {
         guard NSScreen.main != nil else { return }
 
         _ = NSApplication.shared
-        let actionBar = QuickActionBar()
-        actionBar.present(width: 320, height: 240)
+        let actionBar = QuickActionBar(configuration: .init(width: 320, resultsHeight: 240))
+        actionBar.present()
 
         #expect(actionBar.isPresenting)
 

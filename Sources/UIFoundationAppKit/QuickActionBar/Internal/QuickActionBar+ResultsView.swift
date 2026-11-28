@@ -202,7 +202,7 @@ extension QuickActionBar.ResultsView: NSTableViewDelegate, NSTableViewDataSource
 
 extension QuickActionBar.ResultsView {
     @objc private func didClickRow() {
-        if quickActionBar.configuration.requiredClickCount == .single {
+        if quickActionBar.presentedConfiguration.requiredClickCount == .single {
             rowAction()
         }
     }
